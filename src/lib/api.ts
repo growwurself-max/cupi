@@ -1,5 +1,8 @@
-const API_BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '')
-  .replace(/\/+$/, '')
+const RAW_API_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
+// Strip trailing slashes and a trailing '/api' segment to avoid '/api/api'
+// duplication when callers append '/api/...' paths below.
+const API_BASE = RAW_API_URL.replace(/\/+$/, '').replace(/\/api$/, '')
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -22,11 +25,12 @@ export async function apiRequest<T>(path: string, options?: RequestOptions): Pro
   }
 
   if (!response.ok) {
+    const errorBody = data as { error?: unknown; message?: unknown } | null
     const message =
-      data && typeof data === 'object' && 'error' in data
-        ? String((data as { error: unknown }).error)
-        : `Request failed (${response.status})`
-    throw new Error(message)
+      errorBody && typeof errorBody === 'object'
+        ? String(errorBody.error ?? errorBody.message ?? '')
+        : ''
+    throw new Error(message || `Request failed (${response.status})`)
   }
 
   return data as T

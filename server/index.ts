@@ -30,15 +30,23 @@ import { sanitizeCustomization } from './sanitize.js'
 
 const app = express()
 
+// 1. CORS
 app.use(
   cors({
     origin:
       FRONTEND_ORIGINS.length > 0
         ? FRONTEND_ORIGINS
         : (origin, callback) => callback(null, origin ?? true),
+    credentials: true,
   }),
 )
+// 2. JSON body parser
 app.use(express.json({ limit: '256kb' }))
+// 3. Request logger (visibility in Render logs)
+app.use((req: Request, _res: Response, next) => {
+  console.log(`[HTTP] ${req.method} ${req.originalUrl}`)
+  next()
+})
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
@@ -56,81 +64,91 @@ function verifyRazorpaySignature(input: {
   return expected === input.razorpaySignature
 }
 
-app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', service: 'cupi-api' })
-})
+function handleHealth(_req: Request, res: Response): void {
+  res.status(200).json({ status: 'ok', service: 'cupi-api' })
+}
 
 /**
- * POST /api/orders/create
+ * POST /orders/create
  * Creates a Razorpay order and stores a PENDING order with the sanitized draft.
  */
-app.post(
-  '/api/orders/create',
-  async (req: Request, res: Response, next) => {
-    try {
-      const { templateId, customization } = (req.body ?? {}) as {
-        templateId?: unknown
-        customization?: unknown
-      }
-
-      if (!isNonEmptyString(templateId)) {
-        return res.status(400).json({ error: 'A valid template is required.' })
-      }
-      if (!ALLOWED_TEMPLATES.includes(templateId)) {
-        return res
-          .status(400)
-          .json({ error: 'This template is not available for purchase yet.' })
-      }
-
-      const sanitized = sanitizeCustomization(customization)
-      if (!sanitized) {
-        return res.status(400).json({ error: 'Invalid customization payload.' })
-      }
-
-      if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-        return res.status(503).json({
-          error: 'Razorpay is not configured on this server yet. Try again soon.',
-        })
-      }
-
-      const razorpay = new Razorpay({
-        key_id: RAZORPAY_KEY_ID,
-        key_secret: RAZORPAY_KEY_SECRET,
-      })
-
-      const razorpayOrder = await razorpay.orders.create({
-        amount: PRICE_PAISE,
-        currency: CURRENCY,
-        receipt: `rcpt_${randomUUID().slice(0, 8)}`,
-        notes: { templateId },
-      })
-
-      createOrder({
-        razorpayOrderId: razorpayOrder.id,
-        templateId,
-        amount: Number(razorpayOrder.amount),
-        currency: razorpayOrder.currency,
-        customizationPayload: sanitized,
-      })
-
-      res.status(201).json({
-        orderId: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        keyId: RAZORPAY_KEY_ID,
-      })
-    } catch (error) {
-      next(error)
+async function handleCreateOrder(
+  req: Request,
+  res: Response,
+  next: (error?: unknown) => void,
+): Promise<void> {
+  try {
+    const { templateId, customization } = (req.body ?? {}) as {
+      templateId?: unknown
+      customization?: unknown
     }
-  },
-)
+
+    if (!isNonEmptyString(templateId)) {
+      res.status(400).json({ error: 'A valid template is required.' })
+      return
+    }
+    if (!ALLOWED_TEMPLATES.includes(templateId)) {
+      res
+        .status(400)
+        .json({ error: 'This template is not available for purchase yet.' })
+      return
+    }
+
+    const sanitized = sanitizeCustomization(customization)
+    if (!sanitized) {
+      res.status(400).json({ error: 'Invalid customization payload.' })
+      return
+    }
+
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+      res.status(500).json({
+        message: 'Razorpay credentials not configured',
+        error: 'Razorpay credentials not configured',
+      })
+      return
+    }
+
+    const razorpay = new Razorpay({
+      key_id: RAZORPAY_KEY_ID,
+      key_secret: RAZORPAY_KEY_SECRET,
+    })
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: PRICE_PAISE,
+      currency: CURRENCY,
+      receipt: `rcpt_${randomUUID().slice(0, 8)}`,
+      notes: { templateId },
+    })
+
+    createOrder({
+      razorpayOrderId: razorpayOrder.id,
+      templateId,
+      amount: Number(razorpayOrder.amount),
+      currency: razorpayOrder.currency,
+      customizationPayload: sanitized,
+    })
+
+    res.status(201).json({
+      orderId: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+      keyId: RAZORPAY_KEY_ID,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
 
 /**
- * POST /api/orders/verify
+ * POST /orders/verify
  * Server-side HMAC-SHA256 signature verification. Idempotent: a replayed
  * signature returns the already-locked experience without creating a duplicate.
  */
-app.post('/api/orders/verify', (req: Request, res: Response) => {
+function handleVerifyOrder(
+  req: Request,
+  res: Response,
+  next: (error?: unknown) => void,
+): void {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     (req.body ?? {}) as {
       razorpay_order_id?: unknown
@@ -143,83 +161,107 @@ app.post('/api/orders/verify', (req: Request, res: Response) => {
     !isNonEmptyString(razorpay_payment_id) ||
     !isNonEmptyString(razorpay_signature)
   ) {
-    return res
-      .status(400)
-      .json({ error: 'Missing Razorpay payment details.' })
+    res.status(400).json({ error: 'Missing Razorpay payment details.' })
+    return
   }
 
   if (!RAZORPAY_KEY_SECRET) {
-    return res.status(503).json({
-      error: 'Razorpay is not configured on this server yet. Try again soon.',
+    res.status(500).json({
+      message: 'Razorpay credentials not configured',
+      error: 'Razorpay credentials not configured',
     })
+    return
   }
 
-  const isAuthentic = verifyRazorpaySignature({
+  if (!verifyRazorpaySignature({
     razorpayOrderId: razorpay_order_id,
     razorpayPaymentId: razorpay_payment_id,
     razorpaySignature: razorpay_signature,
-  })
-
-  if (!isAuthentic) {
-    return res.status(400).json({ error: 'Invalid Payment Signature' })
+  })) {
+    res.status(400).json({ error: 'Invalid Payment Signature' })
+    return
   }
 
-  const order = getOrderByRazorpayOrderId(razorpay_order_id)
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found.' })
-  }
-
-  if (order.status === 'PAID' && order.experienceId) {
-    const existing = getExperienceById(order.experienceId)
-    if (existing) {
-      return res.json({
-        success: true,
-        experienceId: existing.id,
-        shareUrl: `/x/${existing.id}`,
-      })
+  try {
+    const order = getOrderByRazorpayOrderId(razorpay_order_id)
+    if (!order) {
+      res.status(404).json({ error: 'Order not found.' })
+      return
     }
+
+    if (order.status === 'PAID' && order.experienceId) {
+      const existing = getExperienceById(order.experienceId)
+      if (existing) {
+        res.json({
+          success: true,
+          experienceId: existing.id,
+          shareUrl: `/x/${existing.id}`,
+        })
+        return
+      }
+    }
+
+    const experience = finalizeOrderForPayment({
+      orderId: order.id,
+      razorpayPaymentId: razorpay_payment_id,
+    })
+
+    res.status(201).json({
+      success: true,
+      experienceId: experience.id,
+      shareUrl: `/x/${experience.id}`,
+    })
+  } catch (error) {
+    next(error)
   }
-
-  const experience = finalizeOrderForPayment({
-    orderId: order.id,
-    razorpayPaymentId: razorpay_payment_id,
-  })
-
-  return res.status(201).json({
-    success: true,
-    experienceId: experience.id,
-    shareUrl: `/x/${experience.id}`,
-  })
-})
+}
 
 /**
- * GET /api/experiences/:id
+ * GET /experiences/:id
  * Public read of a locked experience (viewed/shared unlimited times).
  */
-app.get('/api/experiences/:id', (req: Request, res: Response) => {
+function handleGetExperience(req: Request, res: Response): void {
   const { id } = req.params as { id: string }
 
   if (!/^[A-Za-z0-9_-]{6,32}$/.test(id)) {
-    return res.status(404).json({ error: 'Surprise not found.' })
+    res.status(404).json({ error: 'Surprise not found.' })
+    return
   }
 
   const experience = getExperienceById(id)
   if (!experience) {
-    return res.status(404).json({ error: 'Surprise not found.' })
+    res.status(404).json({ error: 'Surprise not found.' })
+    return
   }
 
   incrementViewCount(experience.id)
 
-  return res.json({
+  res.json({
     id: experience.id,
     templateId: experience.templateId,
     config: experience.config,
     status: experience.status,
     createdAt: experience.createdAt,
   })
-})
+}
 
-// Serve the built storefront + SPA fallback for /x/:id in production.
+// 4. API routes — mounted both with and without the /api prefix so a client
+// base-URL mismatch can never fall through to a 404 / SPA catch-all.
+const orderRoutes = express.Router()
+
+orderRoutes.post('/create', handleCreateOrder)
+orderRoutes.post('/verify', handleVerifyOrder)
+
+app.use('/api/orders', orderRoutes)
+app.use('/orders', orderRoutes)
+
+app.get('/api/experiences/:id', handleGetExperience)
+app.get('/experiences/:id', handleGetExperience)
+
+app.get('/api/health', handleHealth)
+app.get('/health', handleHealth)
+
+// 5. Static frontend + SPA catch-all (never intercepts /api routes).
 const indexHtml = path.join(DIST_DIR, 'index.html')
 if (existsSync(indexHtml)) {
   app.use(express.static(DIST_DIR))
@@ -227,10 +269,12 @@ if (existsSync(indexHtml)) {
 
 app.use((req: Request, res: Response, next) => {
   if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Not found.' })
+    res.status(404).json({ error: 'Not found.' })
+    return
   }
   if (existsSync(indexHtml)) {
-    return res.sendFile(indexHtml)
+    res.sendFile(indexHtml)
+    return
   }
   next()
 })
