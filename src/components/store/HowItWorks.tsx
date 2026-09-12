@@ -7,18 +7,39 @@ const STEPS = [
     step: '01',
     title: 'Choose an Experience',
     body: 'Select from our crafted animated themes — each one a miniature story, ready to feel.',
+    tint: {
+      card: 'border-rose-100 bg-gradient-to-b from-white to-rose-50/70',
+      glow: 'bg-rose-200/40',
+      badge: 'from-rose-400 to-pink-500',
+      shadow: 'shadow-rose-200',
+      stepChip: 'from-rose-500 to-pink-400',
+    },
   },
   {
     icon: PenLine,
     step: '02',
     title: 'Personalize with Love',
     body: 'Add their name, your photos, a heartfelt note, and a song that says what words cannot.',
+    tint: {
+      card: 'border-orange-100 bg-gradient-to-b from-white to-orange-50/70',
+      glow: 'bg-orange-200/40',
+      badge: 'from-orange-300 to-rose-300',
+      shadow: 'shadow-orange-100',
+      stepChip: 'from-orange-400 to-rose-400',
+    },
   },
   {
     icon: Gift,
     step: '03',
     title: 'Send the Magic Link',
     body: 'One tap opens the surprise on any phone or browser. They open it whenever they are ready.',
+    tint: {
+      card: 'border-purple-100 bg-gradient-to-b from-white to-purple-50/70',
+      glow: 'bg-purple-200/40',
+      badge: 'from-purple-400 to-pink-400',
+      shadow: 'shadow-purple-100',
+      stepChip: 'from-purple-500 to-pink-400',
+    },
   },
 ]
 
@@ -41,12 +62,12 @@ export function HowItWorks() {
           transition={{ duration: 0.6, ease: 'easeOut' }}
           className="mb-14 text-center"
         >
-          <p className="mb-3 text-sm font-semibold tracking-[0.25em] text-rose-gold uppercase">
+          <p className="mb-3 text-sm font-semibold tracking-[0.25em] text-rose-500 uppercase">
             How Cupi works
           </p>
-          <h2 className="font-display text-4xl font-semibold text-white sm:text-5xl">
+          <h2 className="font-display text-4xl font-bold text-stone-900 sm:text-5xl">
             From heartfelt to{' '}
-            <span className="text-shimmer animate-shimmer">
+            <span className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 bg-clip-text text-transparent">
               jaw-dropping
             </span>{' '}
             in three steps.
@@ -56,29 +77,33 @@ export function HowItWorks() {
         <div className="relative grid gap-8 md:grid-cols-3">
           <div
             aria-hidden
-            className="absolute inset-x-16 top-14 hidden h-px bg-gradient-to-r from-transparent via-white/15 to-transparent md:block"
+            className="absolute inset-x-16 top-14 hidden h-px bg-gradient-to-r from-transparent via-stone-200 to-transparent md:block"
           />
-          {STEPS.map(({ icon: Icon, step, title, body }, i) => (
+          {STEPS.map(({ icon: Icon, step, title, body, tint }, i) => (
             <motion.div
               key={step}
               initial={{ opacity: 0, y: 34 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.6, delay: i * 0.14, ease: 'easeOut' }}
-              className="glass-panel group relative flex flex-col items-center gap-4 rounded-3xl p-8 text-center"
+              className={`group relative flex flex-col items-center gap-4 overflow-hidden rounded-3xl border p-8 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_35px_rgba(244,63,94,0.1)] ${tint.card}`}
             >
+              <div
+                aria-hidden
+                className={`pointer-events-none absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full blur-3xl ${tint.glow}`}
+              />
               <div className="relative">
-                <span className="glow-violet flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-gold/20 to-soft-violet/20 ring-1 ring-white/10 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105">
-                  <Icon className="h-7 w-7 text-rose-gold" strokeWidth={1.8} />
+                <span className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${tint.badge} shadow-lg ${tint.shadow} transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105`}>
+                  <Icon className="h-7 w-7 text-white" strokeWidth={1.8} />
                 </span>
-                <span className="absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-rose-gold to-soft-violet text-[11px] font-black text-obsidian-900 shadow-lg">
+                <span className={`absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br ${tint.stepChip} text-[11px] font-black text-white shadow-md`}>
                   {step}
                 </span>
               </div>
-              <h3 className="font-display text-lg font-semibold text-white">
+              <h3 className="font-display text-lg font-semibold text-stone-900">
                 {title}
               </h3>
-              <p className="text-sm leading-relaxed text-white/55">{body}</p>
+              <p className="text-sm leading-relaxed text-stone-500">{body}</p>
             </motion.div>
           ))}
         </div>

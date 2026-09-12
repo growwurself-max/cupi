@@ -50,10 +50,27 @@ export default function App() {
   const DemoExperience = activeRegistration?.component
 
   return (
-    <div className="surface-obsidian relative min-h-[100dvh] overflow-x-hidden">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FFFBF9] bg-gradient-to-b from-[#FFF9F6] via-[#FAF7F5] to-[#FDF2F4]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-40 left-1/2 h-[540px] w-[860px] -translate-x-1/2 rounded-full bg-rose-200/40 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[36%] -left-44 h-96 w-96 rounded-full bg-pink-100/60 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[68%] -right-44 h-96 w-96 rounded-full bg-purple-100/50 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-rose-100/50 blur-3xl"
+      />
+
       <Navbar onLaunchDemo={() => enterDemo('birthday-01')} />
 
-      <main>
+      <main className="relative z-[1]">
         <HeroSection onLaunchDemo={() => enterDemo('birthday-01')} />
         <ThemeGrid
           activeCategory={activeCategory}
@@ -83,7 +100,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="fixed inset-0 z-[100] bg-obsidian-900"
+            className="demo-scope fixed inset-0 z-[100] bg-obsidian-900"
             role="dialog"
             aria-label={`${activeRegistration?.metadata.name ?? 'Surprise'} live demo preview`}
           >

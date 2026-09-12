@@ -46,12 +46,12 @@ export function ThemeGrid({
           transition={{ duration: 0.6, ease: 'easeOut' }}
           className="mb-10 text-center"
         >
-          <p className="mb-3 text-sm font-semibold tracking-[0.25em] text-rose-gold uppercase">
+          <p className="mb-3 text-sm font-semibold tracking-[0.25em] text-rose-500 uppercase">
             Explore the collection
           </p>
-          <h2 className="font-display text-4xl font-semibold text-white sm:text-5xl">
+          <h2 className="font-display text-4xl font-bold text-stone-900 sm:text-5xl">
             Find the moment.{' '}
-            <span className="text-gradient-lux">
+            <span className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 bg-clip-text text-transparent">
               Leave it unforgettable.
             </span>
           </h2>
@@ -96,14 +96,14 @@ export function ThemeGrid({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ type: 'spring', duration: 0.5 }}
-            className="glass-panel fixed bottom-6 left-1/2 z-[60] flex w-[calc(100vw-2.5rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-2xl px-4 py-3.5 shadow-2xl"
+            className="fixed bottom-6 left-1/2 z-[60] flex w-[calc(100vw-2.5rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-2xl border border-rose-100 bg-white px-4 py-3.5 shadow-[0_18px_45px_rgba(244,63,94,0.16)]"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-soft-violet/15 text-soft-violet ring-1 ring-soft-violet/30">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-500 ring-1 ring-rose-100">
               <Check className="h-5 w-5" />
             </span>
-            <p className="text-sm font-medium text-white/90">
+            <p className="text-sm font-medium text-stone-700">
               You&apos;re on the list for{' '}
-              <span className="font-bold text-soft-violet">{notified}</span>.
+              <span className="font-bold text-rose-600">{notified}</span>.
               We&apos;ll let you know when it launches.
             </p>
           </motion.div>

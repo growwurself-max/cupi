@@ -22,11 +22,11 @@ export function ThemeCard({
   return (
     <article
       id={theme.id}
-      className="glass-panel group relative flex h-full scroll-mt-28 flex-col overflow-hidden rounded-3xl transition-transform duration-300 hover:-translate-y-1.5"
+      className="group relative flex h-full scroll-mt-28 flex-col overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_35px_rgba(244,63,94,0.12)]"
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+        className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-rose-200/60 to-transparent"
       />
 
       {/* Preview thumbnail */}
@@ -34,24 +34,24 @@ export function ThemeCard({
         className="relative flex h-44 items-center justify-center overflow-hidden"
         style={{ background: theme.gradient }}
       >
-        <div aria-hidden className="absolute inset-0 bg-obsidian-900/15" />
-        <span className="animate-float-slow relative text-6xl drop-shadow-2xl transition-transform duration-500 group-hover:scale-110">
+        <div aria-hidden className="absolute inset-0 bg-white/10" />
+        <span className="animate-float-slow relative text-6xl drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] transition-transform duration-500 group-hover:scale-110">
           {theme.emoji}
         </span>
 
         {category && (
-          <span className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-obsidian-900/60 px-3 py-1.5 text-[11px] font-bold text-white ring-1 ring-white/20 backdrop-blur-sm">
+          <span className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full border border-white/70 bg-white/85 px-3 py-1.5 text-[11px] font-bold text-stone-700 shadow-sm backdrop-blur-sm">
             <span aria-hidden>{category.emoji}</span>
             {category.name}
           </span>
         )}
 
         {available && theme.badge ? (
-          <span className="absolute top-3 right-3 rounded-full bg-obsidian-900/60 px-3 py-1.5 text-[11px] font-black text-soft-amber ring-1 ring-soft-amber/40 backdrop-blur-sm">
+          <span className="absolute top-3 right-3 rounded-full border border-rose-200/80 bg-white/90 px-3 py-1.5 text-[11px] font-black text-rose-600 shadow-sm backdrop-blur-sm">
             {theme.badge}
           </span>
         ) : (
-          <span className="absolute top-3 right-3 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/80 ring-1 ring-white/25 backdrop-blur-sm">
+          <span className="absolute top-3 right-3 rounded-full border border-white/70 bg-white/85 px-3 py-1.5 text-[11px] font-bold text-stone-500 shadow-sm backdrop-blur-sm">
             Coming Soon
           </span>
         )}
@@ -60,11 +60,11 @@ export function ThemeCard({
       {/* Body */}
       <div className="flex flex-1 flex-col gap-4 p-6 pt-5">
         <div>
-          <h3 className="text-xl font-bold text-white">{theme.name}</h3>
-          <p className="mt-1 text-sm font-medium text-rose-gold/80">
+          <h3 className="text-xl font-bold text-stone-900">{theme.name}</h3>
+          <p className="mt-1 text-sm font-medium text-rose-500">
             {theme.tagline}
           </p>
-          <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-white/55">
+          <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-stone-500">
             {theme.description}
           </p>
         </div>
@@ -73,7 +73,7 @@ export function ThemeCard({
           {theme.features.map((feature) => (
             <span
               key={feature.id}
-              className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-white/70"
+              className="rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700"
             >
               {feature.label}
             </span>
@@ -86,7 +86,7 @@ export function ThemeCard({
               <button
                 type="button"
                 onClick={onLaunchDemo}
-                className="glow-primary flex min-h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-gold to-soft-violet text-sm font-bold text-obsidian-900 transition-transform duration-200 hover:scale-[1.03] active:scale-95"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-[1.03] hover:shadow-xl hover:shadow-rose-200 active:scale-95"
               >
                 <Play className="h-4 w-4 fill-current" />
                 Watch Demo
@@ -94,22 +94,22 @@ export function ThemeCard({
               <button
                 type="button"
                 onClick={onCustomize}
-                className="glass-panel flex min-h-12 items-center justify-center gap-2 rounded-full text-sm font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:text-soft-amber active:scale-95"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-stone-100 text-sm font-bold text-stone-800 transition-all duration-200 hover:scale-[1.03] hover:bg-stone-200 active:scale-95"
               >
-                <WandSparkles className="h-4 w-4 text-soft-violet" />
+                <WandSparkles className="h-4 w-4 text-rose-400" />
                 Create Yours
               </button>
             </>
           ) : (
             <>
-              <span className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-dashed border-white/15 bg-white/[0.03] text-sm font-semibold text-white/40">
+              <span className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-dashed border-stone-200 bg-stone-50 text-sm font-semibold text-stone-400">
                 <Sparkles className="h-4 w-4" />
                 Coming Soon
               </span>
               <button
                 type="button"
                 onClick={onNotify}
-                className="glass-panel flex min-h-12 items-center justify-center gap-2 rounded-full text-sm font-bold text-white/80 transition-all duration-200 hover:scale-[1.03] hover:border-soft-violet/50 hover:text-soft-violet active:scale-95"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-stone-100 text-sm font-bold text-stone-700 transition-all duration-200 hover:scale-[1.03] hover:bg-rose-50 hover:text-rose-600 active:scale-95"
               >
                 <Bell className="h-4 w-4" />
                 Notify Me

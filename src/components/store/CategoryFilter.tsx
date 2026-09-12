@@ -51,14 +51,16 @@ export function CategoryFilter({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(option.id)}
-            className={`relative flex min-h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-semibold transition-colors duration-200 ${
-              isActive ? 'text-obsidian-900' : 'text-white/60 hover:text-white'
+            className={`relative flex min-h-12 shrink-0 items-center gap-2 rounded-full border bg-white px-5 text-sm font-semibold transition-all duration-200 ${
+              isActive
+                ? 'border-transparent text-white shadow-md shadow-rose-200'
+                : 'border-stone-200/80 text-stone-600 hover:border-rose-300 hover:text-rose-600'
             }`}
           >
             {isActive && (
               <motion.span
                 layoutId="category-pill"
-                className="absolute inset-0 rounded-full bg-gradient-to-r from-rose-gold to-soft-violet shadow-lg shadow-rose-gold/20"
+                className="absolute inset-0 rounded-full bg-gradient-to-r from-rose-500 to-pink-500"
                 transition={{ type: 'spring', stiffness: 400, damping: 32 }}
               />
             )}
@@ -69,7 +71,7 @@ export function CategoryFilter({
             <span
               aria-hidden
               className={`relative z-10 text-[10px] font-bold ${
-                isActive ? 'text-obsidian-900/60' : 'text-white/30'
+                isActive ? 'text-white/70' : 'text-stone-400'
               }`}
             >
               {option.count}
