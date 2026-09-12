@@ -68,7 +68,10 @@ export function useRazorpay() {
 
     return new Promise<CheckoutOutcome>((resolve) => {
       const razorpay = new RazorpayCtor({
-        key: order.keyId,
+        key:
+          order.keyId ||
+          (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined) ||
+          '',
         amount: order.amount,
         currency: order.currency,
         name: 'Cupi',

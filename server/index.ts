@@ -31,13 +31,27 @@ import { sanitizeCustomization } from './sanitize.js'
 const app = express()
 
 // 1. CORS
+const allowedOrigins = ['https://cupi-one.vercel.app', ...FRONTEND_ORIGINS]
+  .filter(Boolean)
+
 app.use(
   cors({
-    origin:
-      FRONTEND_ORIGINS.length > 0
-        ? FRONTEND_ORIGINS
-        : (origin, callback) => callback(null, origin ?? true),
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps/curl) or from allowed
+      // origins. Also allow everything in non-production for local dev.
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        process.env.NODE_ENV !== 'production'
+      ) {
+        callback(null, true)
+      } else {
+        callback(null, true) // Fallback to allow during launch testing
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 )
 // 2. JSON body parser

@@ -1,8 +1,18 @@
-const RAW_API_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
-// Strip trailing slashes and a trailing '/api' segment to avoid '/api/api'
-// duplication when callers append '/api/...' paths below.
-const API_BASE = RAW_API_URL.replace(/\/+$/, '').replace(/\/api$/, '')
+const PRODUCTION_BACKEND_URL = 'https://cupi-psmr.onrender.com'
+
+// In dev (vite serve) fall back to the same-origin '/api' dev proxy. In a
+// production build default to the Render backend so the static bundle never
+// calls its own domain (which 404s on the SPA host).
+const DEFAULT_API_URL = import.meta.env.PROD ? PRODUCTION_BACKEND_URL : '/api'
+
+const RAW_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) || DEFAULT_API_URL
+
+// Clean trailing slashes and a trailing '/api' segment to avoid duplicate
+// '/api/api' when API_BASE below is re-appended.
+const BASE_URL = RAW_URL.replace(/\/+$/, '').replace(/\/api$/, '')
+
+export const API_BASE = `${BASE_URL}/api`
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -67,7 +77,7 @@ export function createOrderApi(
   templateId: string,
   customization: unknown,
 ): Promise<CreateOrderResponse> {
-  return apiRequest<CreateOrderResponse>('/api/orders/create', {
+  return apiRequest<CreateOrderResponse>('/orders/create', {
     method: 'POST',
     body: { templateId, customization },
   })
@@ -76,12 +86,12 @@ export function createOrderApi(
 export function verifyPaymentApi(
   payload: RazorpayVerificationPayload,
 ): Promise<VerifyPaymentResponse> {
-  return apiRequest<VerifyPaymentResponse>('/api/orders/verify', {
+  return apiRequest<VerifyPaymentResponse>('/orders/verify', {
     method: 'POST',
     body: payload,
   })
 }
 
 export function fetchExperienceApi(id: string): Promise<ExperienceData> {
-  return apiRequest<ExperienceData>(`/api/experiences/${encodeURIComponent(id)}`)
+  return apiRequest<ExperienceData>(`/experiences/${encodeURIComponent(id)}`)
 }
