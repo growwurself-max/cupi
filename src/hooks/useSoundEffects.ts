@@ -4,11 +4,12 @@ import type { ExperienceAudio } from '../types/experience'
 function scheduleNotes(
   ctx: AudioContext,
   master: GainNode,
-  notes: number[],
+  notes: number[] | undefined,
   volume: number,
 ) {
+  const safeNotes = notes ?? [523.25, 659.25, 783.99, 1046.5]
   const now = ctx.currentTime
-  notes.forEach((freq, i) => {
+  safeNotes.forEach((freq, i) => {
     const start = now + i * 0.18
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
@@ -61,7 +62,8 @@ export function useSoundEffects({ audio, enabled }: UseSoundEffectsOptions) {
   const playRevealChime = useCallback(() => {
     const ctx = ensureContext()
     if (!ctx || !masterRef.current) return
-    scheduleNotes(ctx, masterRef.current, audio.revealChimeNotes, audio.volume)
+    const notes = audio.revealChimeNotes ?? [523.25, 659.25, 783.99, 1046.5]
+    scheduleNotes(ctx, masterRef.current, notes, audio.volume)
   }, [audio.revealChimeNotes, audio.volume, ensureContext])
 
   const playBlowSound = useCallback(() => {

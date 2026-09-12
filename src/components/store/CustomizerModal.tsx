@@ -39,7 +39,7 @@ const STEPS = [
   { id: 'memories', label: 'Memories', icon: ImagePlus },
 ]
 
-const PRICE_LABEL = '₹199'
+const PRICE_LABEL = '₹9'
 
 const INPUT_CLASS =
   'w-full rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 text-sm text-stone-800 placeholder-stone-300 outline-none transition-colors focus:border-rose-300 focus:bg-white'

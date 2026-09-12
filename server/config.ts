@@ -16,7 +16,7 @@ export const FRONTEND_ORIGINS = (
   .map((origin) => origin.trim())
   .filter(Boolean)
 
-export const PRICE_PAISE = 19900
+export const PRICE_PAISE = 900
 export const CURRENCY = 'INR'
 export const ALLOWED_TEMPLATES = ['birthday-01']
 
