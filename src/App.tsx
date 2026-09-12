@@ -1,18 +1,30 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useState } from 'react'
-import {
-  CustomizeModal,
-} from './components/store/CustomizeModal'
+import type { CategorySelection } from './components/store/CategoryFilter'
+import { CustomizerModal } from './components/store/CustomizerModal'
+import { ExperienceView } from './components/store/ExperienceView'
 import { Footer } from './components/store/Footer'
 import { HeroSection } from './components/store/HeroSection'
 import { HowItWorks } from './components/store/HowItWorks'
 import { Navbar } from './components/store/Navbar'
 import { ThemeGrid } from './components/store/ThemeGrid'
-import type { CategorySelection } from './components/store/CategoryFilter'
 import { themeRegistry } from './themes/registry'
 import type { ThemeMetadata } from './types/catalog'
 
 type View = 'store' | 'demo'
+
+interface Route {
+  view: View | 'share'
+  shareId: string | null
+}
+
+function parsePath(pathname: string): Route {
+  const match = pathname.match(/^\/x\/([A-Za-z0-9_-]{4,64})$/)
+  if (match) {
+    return { view: 'share', shareId: match[1] }
+  }
+  return { view: 'store', shareId: null }
+}
 
 export default function App() {
   const [view, setView] = useState<View>('store')
@@ -21,6 +33,22 @@ export default function App() {
     useState<CategorySelection>('all')
   const [customizeTheme, setCustomizeTheme] =
     useState<ThemeMetadata | null>(null)
+  const [route, setRoute] = useState<Route>(() =>
+    parsePath(typeof window !== 'undefined' ? window.location.pathname : '/'),
+  )
+
+  useEffect(() => {
+    const onPopState = () => setRoute(parsePath(window.location.pathname))
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  const navigate = useCallback((path: string) => {
+    window.history.pushState({}, '', path)
+    setRoute(parsePath(path))
+  }, [])
+
+  const goToStore = useCallback(() => navigate('/'), [navigate])
 
   const enterDemo = useCallback((themeId: string) => {
     setActiveThemeId(themeId)
@@ -46,8 +74,20 @@ export default function App() {
     document.getElementById('themes')?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
+  const handleOpenExperience = useCallback(
+    (path: string) => {
+      setCustomizeTheme(null)
+      navigate(path)
+    },
+    [navigate],
+  )
+
   const activeRegistration = themeRegistry[activeThemeId]
   const DemoExperience = activeRegistration?.component
+
+  if (route.view === 'share' && route.shareId) {
+    return <ExperienceView experienceId={route.shareId} onExit={goToStore} />
+  }
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FFFBF9] bg-gradient-to-b from-[#FFF9F6] via-[#FAF7F5] to-[#FDF2F4]">
@@ -83,13 +123,14 @@ export default function App() {
 
       <Footer onSelectCategory={handleSelectCategory} />
 
-      <CustomizeModal
+      <CustomizerModal
         theme={customizeTheme}
         onClose={() => setCustomizeTheme(null)}
-        onLaunchDemo={() => {
-          enterDemo(customizeTheme?.id ?? 'birthday-01')
+        onLaunchDemo={(themeId) => {
+          enterDemo(themeId)
           setCustomizeTheme(null)
         }}
+        onOpenExperience={handleOpenExperience}
       />
 
       <AnimatePresence>

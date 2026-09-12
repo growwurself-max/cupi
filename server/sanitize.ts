@@ -1,0 +1,192 @@
+const LIMITS = {
+  name: 40,
+  line: 500,
+  note: 160,
+  caption: 120,
+  heading: 120,
+  paragraph: 400,
+  url: 600,
+} as const
+
+function cleanString(value: unknown, max: number): string {
+  if (typeof value !== 'string') return ''
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max)
+}
+
+function cleanUrl(value: unknown): string {
+  const candidate = cleanString(value, LIMITS.url)
+  return /^https?:\/\/[^\s]+$/i.test(candidate) ? candidate : ''
+}
+
+function clampNumber(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+export interface SanitizedPhoto {
+  src: string
+  alt: string
+  caption: string
+  rotate: number
+}
+
+export interface SanitizedNote {
+  id: string
+  text: string
+  emoji?: string
+}
+
+export interface SanitizedCustomization {
+  recipient: { name: string }
+  sender: { name: string }
+  audio: { enabled: boolean; volume: number }
+  content: {
+    teaserHeading: string
+    teaserSubtext: string
+    suspenseHeading: string
+    suspenseSubtext: string
+    countdownTagline: string
+    revealHeading: string
+    revealSubtext: string
+    letterIntro: string
+    letterLines: string[]
+    letterSignoff: string
+    wishPrompt: string
+    finalMessage: string
+    finalCelebration: string
+    photos: SanitizedPhoto[]
+  }
+  branding: {
+    accentColor: string
+    accentSecondary: string
+    emojiPrimary: string
+    themeLabel: string
+  }
+  bouquet: {
+    title: string
+    subtitle: string
+    notes: SanitizedNote[]
+  }
+}
+
+interface RawPhoto {
+  src?: unknown
+  alt?: unknown
+  caption?: unknown
+  rotate?: unknown
+}
+
+interface RawNote {
+  id?: unknown
+  text?: unknown
+  emoji?: unknown
+}
+
+/**
+ * Validates + sanitizes an order's customization payload. Returns a clean,
+ * fully-shaped object or `null` when the payload is not a valid surprise.
+ */
+export function sanitizeCustomization(payload: unknown): SanitizedCustomization | null {
+  if (!payload || typeof payload !== 'object') return null
+
+  const source = payload as Record<string, unknown>
+  const recipient = source.recipient as Record<string, unknown> | undefined
+  const sender = source.sender as Record<string, unknown> | undefined
+  const content = source.content as Record<string, unknown> | undefined
+  const branding = source.branding as Record<string, unknown> | undefined
+  const bouquet = source.bouquet as Record<string, unknown> | undefined
+  const audio = source.audio as Record<string, unknown> | undefined
+
+  const recipientName = cleanString(recipient?.name, LIMITS.name)
+  const senderName = cleanString(sender?.name, LIMITS.name)
+  if (!recipientName || !senderName || !content) return null
+
+  const letterLines = Array.isArray(content.letterLines)
+    ? content.letterLines
+        .map((line) => cleanString(line, LIMITS.line))
+        .filter(Boolean)
+    : []
+
+  const photos = Array.isArray(content.photos)
+    ? (content.photos as RawPhoto[])
+        .slice(0, 3)
+        .map((photo, index) => {
+          const src = cleanUrl(photo.src)
+          if (!src) return null
+          const caption = cleanString(photo.caption, LIMITS.caption)
+          return {
+            src,
+            alt: caption || 'A little memory',
+            caption: caption || 'A little memory',
+            rotate: clampNumber(photo.rotate, index % 2 === 0 ? -4 : 4),
+          }
+        })
+        .filter((photo): photo is SanitizedPhoto => photo !== null)
+    : []
+
+  if (letterLines.length === 0 || photos.length === 0) return null
+
+  const notes = Array.isArray(bouquet?.notes)
+    ? (bouquet.notes as RawNote[])
+        .slice(0, 6)
+        .map((note, index): SanitizedNote | null => {
+          const text = cleanString(note.text, LIMITS.note)
+          if (!text) return null
+          const emoji = cleanString(note.emoji, 8)
+          return {
+            id: cleanString(note.id, 24) || `note-${index + 1}`,
+            text,
+            emoji: emoji || undefined,
+          }
+        })
+        .filter((note): note is SanitizedNote => note !== null)
+    : []
+
+  if (notes.length === 0) return null
+
+  return {
+    recipient: { name: recipientName },
+    sender: { name: senderName },
+    audio: {
+      enabled:
+        typeof audio?.enabled === 'boolean'
+          ? audio.enabled
+          : true,
+      volume: clampNumber(audio?.volume, 0.55),
+    },
+    content: {
+      teaserHeading:
+        cleanString(content.teaserHeading, LIMITS.heading) ||
+        `Hey ${recipientName}… someone has something special for you ✨`,
+      teaserSubtext: cleanString(content.teaserSubtext, LIMITS.paragraph),
+      suspenseHeading: cleanString(content.suspenseHeading, LIMITS.heading),
+      suspenseSubtext: cleanString(content.suspenseSubtext, LIMITS.paragraph),
+      countdownTagline: cleanString(content.countdownTagline, LIMITS.heading),
+      revealHeading: cleanString(content.revealHeading, LIMITS.heading) || 'Happy Birthday',
+      revealSubtext: cleanString(content.revealSubtext, LIMITS.paragraph),
+      letterIntro:
+        cleanString(content.letterIntro, LIMITS.heading) || 'So I wrote you something…',
+      letterLines,
+      letterSignoff:
+        cleanString(content.letterSignoff, LIMITS.heading) || 'Forever in your corner,',
+      wishPrompt: cleanString(content.wishPrompt, LIMITS.heading) || 'Make a Birthday Wish',
+      finalMessage: cleanString(content.finalMessage, LIMITS.heading),
+      finalCelebration: cleanString(content.finalCelebration, LIMITS.paragraph),
+      photos,
+    },
+    branding: {
+      accentColor: cleanString(branding?.accentColor, 32) || '#f6c6b6',
+      accentSecondary: cleanString(branding?.accentSecondary, 32) || '#c9b8ff',
+      emojiPrimary: cleanString(branding?.emojiPrimary, 16) || '🎂',
+      themeLabel: cleanString(branding?.themeLabel, 60) || 'Birthday · The Odyssey',
+    },
+    bouquet: {
+      title: cleanString(bouquet?.title, LIMITS.heading) || 'Your Birthday Bouquet 🌹',
+      subtitle: cleanString(bouquet?.subtitle, LIMITS.paragraph),
+      notes,
+    },
+  }
+}
