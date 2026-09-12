@@ -86,20 +86,27 @@ export function useRazorpay() {
             razorpay_signature: response.razorpay_signature,
           }
           try {
-            const result = await verifyPaymentApi(verification)
+            const verifyResult = await verifyPaymentApi(verification)
+            console.log('[VERIFY RESULT SUCCESS]', verifyResult)
+
+            const generatedId = verifyResult.experienceId || verifyResult.id
+            if (!generatedId) {
+              throw new Error('No experience ID returned from verification server')
+            }
+
             resolve({
               kind: 'verified',
-              experienceId: result.experienceId,
-              shareUrl: result.shareUrl,
+              experienceId: generatedId,
+              shareUrl: verifyResult.sharePath || `/x/${generatedId}`,
             })
           } catch (error) {
-            resolve({
-              kind: 'failed',
-              message:
-                error instanceof Error
-                  ? error.message
-                  : 'Payment verification failed. Please contact support.',
-            })
+            console.error('[VERIFICATION FAILED]', error)
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Payment verification failed. Please contact support.'
+            alert(`Payment completed, but link creation failed: ${message}`)
+            resolve({ kind: 'failed', message })
           }
         },
       })

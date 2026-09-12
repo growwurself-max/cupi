@@ -56,6 +56,8 @@ export interface CreateOrderResponse {
 export interface VerifyPaymentResponse {
   success: boolean
   experienceId: string
+  id?: string
+  sharePath: string
   shareUrl: string
 }
 

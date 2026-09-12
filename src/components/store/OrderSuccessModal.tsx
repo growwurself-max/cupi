@@ -5,21 +5,18 @@ import { fireGrandBurst, fireHeartRain } from '../../utils/confetti'
 
 interface OrderSuccessModalProps {
   experienceId: string
-  shareUrl: string
   onClose: () => void
   onOpen: () => void
 }
 
 export function OrderSuccessModal({
   experienceId,
-  shareUrl,
   onClose,
   onOpen,
 }: OrderSuccessModalProps) {
-  const absoluteUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}${shareUrl}`
-      : shareUrl
+  const absoluteUrl = `${
+    typeof window !== 'undefined' ? window.location.origin : ''
+  }/x/${experienceId}`
 
   const [copied, setCopied] = useState(false)
 

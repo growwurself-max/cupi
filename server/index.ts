@@ -66,18 +66,6 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function verifyRazorpaySignature(input: {
-  razorpayOrderId: string
-  razorpayPaymentId: string
-  razorpaySignature: string
-}): boolean {
-  const body = `${input.razorpayOrderId}|${input.razorpayPaymentId}`
-  const expected = createHmac('sha256', RAZORPAY_KEY_SECRET)
-    .update(body)
-    .digest('hex')
-  return expected === input.razorpaySignature
-}
-
 function handleHealth(_req: Request, res: Response): void {
   res.status(200).json({ status: 'ok', service: 'cupi-api' })
 }
@@ -175,6 +163,12 @@ function handleVerifyOrder(
     !isNonEmptyString(razorpay_payment_id) ||
     !isNonEmptyString(razorpay_signature)
   ) {
+    console.log('[VERIFY ATTEMPT]', {
+      order_id: razorpay_order_id,
+      payment_id: razorpay_payment_id,
+      hasSignature: Boolean(razorpay_signature),
+      hasSecret: Boolean(RAZORPAY_KEY_SECRET),
+    })
     res.status(400).json({ error: 'Missing Razorpay payment details.' })
     return
   }
@@ -187,12 +181,22 @@ function handleVerifyOrder(
     return
   }
 
-  if (!verifyRazorpaySignature({
-    razorpayOrderId: razorpay_order_id,
-    razorpayPaymentId: razorpay_payment_id,
-    razorpaySignature: razorpay_signature,
-  })) {
-    res.status(400).json({ error: 'Invalid Payment Signature' })
+  const signatureText = `${razorpay_order_id}|${razorpay_payment_id}`
+  const generatedSignature = createHmac('sha256', RAZORPAY_KEY_SECRET)
+    .update(signatureText)
+    .digest('hex')
+
+  const isValid = generatedSignature === razorpay_signature
+  console.log('[SIGNATURE CHECK]', {
+    isValid,
+    generatedSignature,
+    received: razorpay_signature,
+  })
+
+  if (!isValid) {
+    res
+      .status(400)
+      .json({ error: 'Invalid payment signature. Check RAZORPAY_KEY_SECRET.' })
     return
   }
 
@@ -206,10 +210,11 @@ function handleVerifyOrder(
     if (order.status === 'PAID' && order.experienceId) {
       const existing = getExperienceById(order.experienceId)
       if (existing) {
-        res.json({
+        res.status(200).json({
           success: true,
           experienceId: existing.id,
-          shareUrl: `/x/${existing.id}`,
+          sharePath: `/x/${existing.id}`,
+          shareUrl: `${process.env.FRONTEND_URL || 'https://cupi-one.vercel.app'}/x/${existing.id}`,
         })
         return
       }
@@ -220,10 +225,11 @@ function handleVerifyOrder(
       razorpayPaymentId: razorpay_payment_id,
     })
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       experienceId: experience.id,
-      shareUrl: `/x/${experience.id}`,
+      sharePath: `/x/${experience.id}`,
+      shareUrl: `${process.env.FRONTEND_URL || 'https://cupi-one.vercel.app'}/x/${experience.id}`,
     })
   } catch (error) {
     next(error)

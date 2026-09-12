@@ -605,7 +605,6 @@ return null
           <OrderSuccessModal
             key="success"
             experienceId={paymentResult.experienceId}
-            shareUrl={paymentResult.shareUrl}
             onClose={() => setPaymentResult(null)}
             onOpen={handleOpenExperience}
           />

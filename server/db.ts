@@ -11,6 +11,12 @@ import { DATA_DIR } from './config.js'
 
 const DB_FILE = path.join(DATA_DIR, 'db.json')
 
+// Render's filesystem is ephemeral and may start blank — make sure the data
+// directory always exists so saveDb() never crashes on a missing folder.
+if (!existsSync(DATA_DIR)) {
+  mkdirSync(DATA_DIR, { recursive: true })
+}
+
 export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED'
 
 export interface OrderRecord {
