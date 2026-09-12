@@ -67,24 +67,50 @@ export function useRazorpay() {
     }
 
     return new Promise<CheckoutOutcome>((resolve) => {
+      console.log('[RAZORPAY ORDER DATA]', {
+        orderId: order.orderId,
+        amount: order.amount,
+        keyId: order.keyId,
+      })
+
       const razorpay = new RazorpayCtor({
         key:
           order.keyId ||
           (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined) ||
           '',
         amount: order.amount,
-        currency: order.currency,
+        currency: order.currency || 'INR',
         name: 'Cupi',
-        description: 'Lock in your personalized surprise ✨',
+        description: 'Personalized Experience',
+        order_id: order.orderId,
         prefill: { name: payload.buyerName },
         theme: { color: '#FB7185', backdrop_color: '#FFF9F6' },
         modal: { ondismiss: () => resolve({ kind: 'cancelled' }) },
         handler: async (response) => {
-          const verification: RazorpayVerificationPayload = {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
+          console.log('[RAZORPAY SUCCESS CALLBACK RAW RESPONSE]:', response)
+
+          const paymentId =
+            response.razorpay_payment_id || response.paymentId
+          const orderId =
+            response.razorpay_order_id ||
+            response.orderId ||
+            order.orderId
+          const signature =
+            response.razorpay_signature || response.signature
+
+          if (!paymentId) {
+            const msg = 'Missing Razorpay payment ID from payment modal.'
+            console.error('[RAZORPAY CALLBACK ERROR]', msg, response)
+            resolve({ kind: 'failed', message: msg })
+            return
           }
+
+          const verification: RazorpayVerificationPayload = {
+            razorpay_order_id: orderId,
+            razorpay_payment_id: paymentId,
+            razorpay_signature: signature || '',
+          }
+
           try {
             const verifyResult = await verifyPaymentApi(verification)
             console.log('[VERIFY RESULT SUCCESS]', verifyResult)

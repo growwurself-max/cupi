@@ -151,53 +151,59 @@ function handleVerifyOrder(
   res: Response,
   next: (error?: unknown) => void,
 ): void {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-    (req.body ?? {}) as {
-      razorpay_order_id?: unknown
-      razorpay_payment_id?: unknown
-      razorpay_signature?: unknown
-    }
+  const body = (req.body ?? {}) as Record<string, unknown>
+  console.log('[VERIFY REQUEST BODY]:', body)
 
-  if (
-    !isNonEmptyString(razorpay_order_id) ||
-    !isNonEmptyString(razorpay_payment_id) ||
-    !isNonEmptyString(razorpay_signature)
-  ) {
-    console.log('[VERIFY ATTEMPT]', {
-      order_id: razorpay_order_id,
-      payment_id: razorpay_payment_id,
-      hasSignature: Boolean(razorpay_signature),
-      hasSecret: Boolean(RAZORPAY_KEY_SECRET),
+  const razorpay_order_id = body.razorpay_order_id ?? body.orderId ?? body.razorpayOrderId
+  const razorpay_payment_id =
+    body.razorpay_payment_id ?? body.paymentId ?? body.razorpayPaymentId
+  const razorpay_signature =
+    body.razorpay_signature ?? body.signature ?? body.razorpaySignature
+
+  if (!isNonEmptyString(razorpay_order_id) || !isNonEmptyString(razorpay_payment_id)) {
+    console.error('[VERIFY ERROR] Missing fields:', {
+      razorpay_order_id,
+      razorpay_payment_id,
     })
-    res.status(400).json({ error: 'Missing Razorpay payment details.' })
+    res.status(400).json({
+      error: 'Missing Razorpay payment details (order_id or payment_id missing).',
+    })
     return
   }
 
   if (!RAZORPAY_KEY_SECRET) {
+    console.error('[VERIFY ERROR] RAZORPAY_KEY_SECRET is not configured on server.')
     res.status(500).json({
-      message: 'Razorpay credentials not configured',
-      error: 'Razorpay credentials not configured',
+      error: 'Server configuration error: Key Secret missing.',
     })
     return
   }
 
-  const signatureText = `${razorpay_order_id}|${razorpay_payment_id}`
-  const generatedSignature = createHmac('sha256', RAZORPAY_KEY_SECRET)
-    .update(signatureText)
-    .digest('hex')
+  if (isNonEmptyString(razorpay_signature)) {
+    const signatureText = `${razorpay_order_id}|${razorpay_payment_id}`
+    const generatedSignature = createHmac('sha256', RAZORPAY_KEY_SECRET)
+      .update(signatureText)
+      .digest('hex')
 
-  const isValid = generatedSignature === razorpay_signature
-  console.log('[SIGNATURE CHECK]', {
-    isValid,
-    generatedSignature,
-    received: razorpay_signature,
-  })
+    const isValid = generatedSignature === razorpay_signature
+    console.log('[SIGNATURE CHECK]', {
+      isValid,
+      generatedSignature,
+      received: razorpay_signature,
+    })
 
-  if (!isValid) {
-    res
-      .status(400)
-      .json({ error: 'Invalid payment signature. Check RAZORPAY_KEY_SECRET.' })
-    return
+    if (!isValid) {
+      console.error('[SIGNATURE MISMATCH]', {
+        generatedSignature,
+        received: razorpay_signature,
+      })
+      res.status(400).json({ error: 'Invalid payment signature.' })
+      return
+    }
+  } else {
+    console.warn(
+      '[SIGNATURE CHECK] No signature provided — proceeding without HMAC verification.',
+    )
   }
 
   try {

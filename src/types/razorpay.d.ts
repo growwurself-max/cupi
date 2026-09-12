@@ -1,9 +1,12 @@
 export {}
 
 interface RazorpayPaymentResponse {
-  razorpay_order_id: string
-  razorpay_payment_id: string
-  razorpay_signature: string
+  razorpay_order_id?: string
+  razorpay_payment_id?: string
+  razorpay_signature?: string
+  orderId?: string
+  paymentId?: string
+  signature?: string
 }
 
 interface RazorpayCheckoutOptions {
@@ -12,6 +15,7 @@ interface RazorpayCheckoutOptions {
   currency: string
   name: string
   description?: string
+  order_id?: string
   image?: string
   notes?: Record<string, string>
   prefill?: { name?: string; email?: string; contact?: string }
