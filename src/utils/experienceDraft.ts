@@ -75,8 +75,8 @@ export function buildExperienceConfig(
   const notes = (draft.bouquetNotes ?? [])
     .map((note) => note.trim())
     .filter(Boolean)
-  if (notes.length > 0) {
-    config.bouquet!.notes = notes.slice(0, 6).map(
+  if (notes.length > 0 && config.bouquet) {
+    config.bouquet.notes = notes.slice(0, 6).map(
       (text, index) =>
         ({
           id: `note-${index + 1}`,
