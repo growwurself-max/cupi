@@ -4,11 +4,11 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultAnniversaryConfig } from './defaultData'
-import { TeaserScreen } from './screens/Screen1Teaser'
-import { UnlockScreen } from './screens/Screen2Unlock'
-import { TimelineScreen } from './screens/Screen3Timeline'
-import { MemoriesScreen } from './screens/Screen4Memories'
-import { CandleScreen } from './screens/Screen5Candle'
+import { ChapterScreen } from './screens/Screen1Chapter'
+import { TickerScreen } from './screens/Screen2Ticker'
+import { TicketsScreen } from './screens/Screen3Tickets'
+import { VaultScreen } from './screens/Screen4Vault'
+import { ToastScreen } from './screens/Screen5Toast'
 
 const TOTAL_STEPS = 5
 
@@ -47,19 +47,13 @@ export function AnniversaryTheme({ config, onExit }: AnniversaryThemeProps) {
   }, [onExit, sound])
 
   useEffect(() => {
-    if (step === 4) {
-      sound.playRevealChime()
-    }
-  }, [step, sound])
-
-  useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
   }, [step])
 
   return (
     <div
       ref={scrollRef}
-      className="surface-obsidian relative h-dvh overflow-x-hidden overflow-y-auto"
+      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFFDF7] via-[#FEF7E6] to-[#FFF9EE]"
     >
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
@@ -73,29 +67,24 @@ export function AnniversaryTheme({ config, onExit }: AnniversaryThemeProps) {
 
       <AnimatePresence mode="wait">
         {step === 1 && (
-          <TeaserScreen key="anni-teaser" config={resolvedConfig} onBegin={goNext} />
+          <ChapterScreen key="anni-chapter" config={resolvedConfig} onBegin={goNext} />
         )}
         {step === 2 && (
-          <UnlockScreen
-            key="anni-unlock"
-            config={resolvedConfig}
-            onTurnKey={sound.playRevealChime}
-            onContinue={goNext}
-          />
+          <TickerScreen key="anni-ticker" config={resolvedConfig} onContinue={goNext} />
         )}
         {step === 3 && (
-          <TimelineScreen key="anni-timeline" config={resolvedConfig} onContinue={goNext} />
+          <TicketsScreen key="anni-tickets" config={resolvedConfig} onContinue={goNext} />
         )}
         {step === 4 && (
-          <MemoriesScreen key="anni-memories" config={resolvedConfig} onContinue={goNext} />
+          <VaultScreen key="anni-vault" config={resolvedConfig} onContinue={goNext} />
         )}
         {step === 5 && (
-          <CandleScreen
-            key="anni-candle"
+          <ToastScreen
+            key="anni-toast"
             config={resolvedConfig}
             onReplay={replay}
             onExit={handleExit}
-            onBlow={sound.playBlowSound}
+            onClink={sound.playRevealChime}
           />
         )}
       </AnimatePresence>

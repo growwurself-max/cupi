@@ -47,7 +47,7 @@ export function ThemeCard({
         )}
 
         {available && theme.badge ? (
-          <span className="absolute top-3 right-3 rounded-full border border-rose-200/80 bg-white/90 px-3 py-1.5 text-[11px] font-black text-rose-600 shadow-sm backdrop-blur-sm">
+          <span className="absolute top-3 right-3 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-white uppercase shadow-sm">
             {theme.badge}
           </span>
         ) : (
@@ -55,14 +55,30 @@ export function ThemeCard({
             Coming Soon
           </span>
         )}
+
+        {available && (
+          <span className="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full border border-white/70 bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+            <span className="text-[10px] font-bold tracking-wide text-stone-500 uppercase">
+              Only
+            </span>
+            <span className="text-sm font-black text-rose-600">{theme.price}</span>
+          </span>
+        )}
       </div>
 
       {/* Body */}
       <div className="flex flex-1 flex-col gap-4 p-6 pt-5">
         <div>
-          <h3 className="text-xl font-bold text-stone-900">{theme.name}</h3>
-          <p className="mt-1 text-sm font-medium text-rose-500">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-xl font-bold text-stone-900">{theme.name}</h3>
+            <span className="relative top-0.5 shrink-0 rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-sm font-black text-rose-600">
+              {theme.price}
+            </span>
+          </div>
+          <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-rose-500">
+            <span className="text-rose-400">✦</span>
             {theme.tagline}
+            <span className="text-rose-400">✦</span>
           </p>
           <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-stone-500">
             {theme.description}

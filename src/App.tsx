@@ -126,10 +126,6 @@ export default function App() {
       <CustomizerModal
         theme={customizeTheme}
         onClose={() => setCustomizeTheme(null)}
-        onLaunchDemo={(themeId) => {
-          enterDemo(themeId)
-          setCustomizeTheme(null)
-        }}
         onOpenExperience={handleOpenExperience}
       />
 
@@ -141,7 +137,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="demo-scope fixed inset-0 z-[100] bg-obsidian-900"
+            className="demo-scope fixed inset-0 z-[100] bg-[#FFF9F6]"
             role="dialog"
             aria-label={`${activeRegistration?.metadata.name ?? 'Surprise'} live demo preview`}
           >

@@ -29,8 +29,11 @@ export interface ThemeMetadata {
   description: string
   emoji: string
   gradient: string
+  price: string
+  amountInPaise: number
   features: FeaturePill[]
   tags: string[]
   status: ThemeStatus
+  isAvailable: boolean
   badge?: string
 }

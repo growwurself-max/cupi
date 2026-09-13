@@ -10,12 +10,11 @@ import {
   Lock,
   MessagesSquare,
   PenLine,
-  Sparkles,
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRazorpay, type CheckoutOutcome } from '../../hooks/useRazorpay'
-import { BirthdayTheme } from '../../themes/birthday-01/BirthdayTheme'
+import { themeRegistry } from '../../themes/registry'
 import type { ThemeMetadata } from '../../types/catalog'
 import {
   buildBirthdayConfig,
@@ -28,7 +27,6 @@ import { OrderSuccessModal } from './OrderSuccessModal'
 interface CustomizerModalProps {
   theme: ThemeMetadata | null
   onClose: () => void
-  onLaunchDemo: (themeId: string) => void
   onOpenExperience: (path: string) => void
 }
 
@@ -39,8 +37,6 @@ const STEPS = [
   { id: 'memories', label: 'Memories', icon: ImagePlus },
 ]
 
-const PRICE_LABEL = '₹9'
-
 const INPUT_CLASS =
   'w-full rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 text-sm text-stone-800 placeholder-stone-300 outline-none transition-colors focus:border-rose-300 focus:bg-white'
 
@@ -49,12 +45,9 @@ type PaymentResult = Extract<CheckoutOutcome, { kind: 'verified' } | { kind: 'fa
 export function CustomizerModal({
   theme,
   onClose,
-  onLaunchDemo,
   onOpenExperience,
 }: CustomizerModalProps) {
   const checkout = useRazorpay()
-
-  const isBirthday = theme?.id === 'birthday-01'
 
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<CustomizerDraft>(emptyDraft)
@@ -79,6 +72,9 @@ export function CustomizerModal({
     () => (theme ? buildBirthdayConfig(draft) : null),
     [theme, draft],
   )
+
+  const PreviewComponent =
+    theme ? themeRegistry[theme.id]?.component ?? null : null
 
   const stepError = useMemo(() => {
     if (!draft.recipientName.trim() || !draft.senderName.trim()) {
@@ -183,7 +179,7 @@ return null
           className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-rose-200/80 to-transparent"
         />
 
-        {isBirthday && previewConfig ? (
+        {previewConfig && (
           <>
             {/* Header */}
             <div className="flex items-center justify-between gap-3">
@@ -316,7 +312,7 @@ return null
                     >
                       <textarea
                         className={`${INPUT_CLASS} min-h-44 resize-none leading-relaxed`}
-                        placeholder={`Happy birthday, ${draft.recipientName.trim() || 'Sophia'}. I keep trying to find the right words…\nYou are the kind of person who makes ordinary moments feel like small adventures.`}
+                        placeholder={`To ${draft.recipientName.trim() || 'my favourite person'} — I keep trying to find the right words…\nYou make ordinary moments feel like small adventures.`}
                         value={draft.letterLines.join('\n')}
                         onChange={(event) => setLetterText(event.target.value)}
                         maxLength={1500}
@@ -499,7 +495,7 @@ return null
                       ) : (
                         <>
                           <Lock className="h-4 w-4" />
-                          Lock In &amp; Pay {PRICE_LABEL}
+                          Lock In &amp; Pay {theme.price}
                         </>
                       )}
                     </button>
@@ -513,59 +509,12 @@ return null
               before you pay — this is a gift that cannot be edited later.
             </p>
           </>
-        ) : (
-          <>
-            {/* Coming-soon panel for non-purchasable themes */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-2xl ring-1 ring-rose-100">
-                  {theme.emoji}
-                </span>
-                <div>
-                  <p className="text-xs font-bold tracking-[0.2em] text-rose-500 uppercase">
-                    Create yours
-                  </p>
-                  <h2 className="font-display text-xl font-semibold text-stone-900">
-                    {theme.name}
-                  </h2>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close customize dialog"
-                className="flex h-10 w-10 min-w-10 items-center justify-center rounded-full bg-stone-50 text-stone-500 transition-all duration-200 hover:scale-105 hover:bg-rose-50 hover:text-rose-500 active:scale-95"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-rose-100 bg-rose-50/70 p-4">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
-              <p className="text-sm leading-relaxed text-stone-600">
-                Personalization &amp; instant link generation for this theme is coming
-                in the next update! For now, explore the full interactive demo.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onLaunchDemo(theme.id)}
-              className="mt-6 flex min-h-14 w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 text-base font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-rose-200 active:scale-95"
-            >
-              <Sparkles className="h-5 w-5" />
-              Explore the Live Demo
-            </button>
-            <p className="mt-3 text-center text-[11px] font-medium text-stone-400">
-              Free preview · no account, no sign-up, no catch.
-            </p>
-          </>
         )}
       </motion.div>
 
-      {/* Live preview overlay — renders the real Birthday experience untouched */}
+      {/* Live preview overlay — renders the real theme experience untouched */}
       <AnimatePresence>
-        {previewing && previewConfig && (
+        {previewing && previewConfig && PreviewComponent && (
           <motion.div
             key="preview"
             initial={{ opacity: 0 }}
@@ -576,7 +525,7 @@ return null
             role="dialog"
             aria-label="Preview of your surprise"
           >
-            <BirthdayTheme
+            <PreviewComponent
               config={previewConfig}
               onExit={() => setPreviewing(false)}
             />

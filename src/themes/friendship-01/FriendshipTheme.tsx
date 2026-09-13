@@ -4,11 +4,11 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultFriendshipConfig } from './defaultData'
-import { TeaserScreen } from './screens/Screen1Teaser'
-import { BurstScreen } from './screens/Screen2Burst'
-import { PhotoWall } from './screens/Screen3PhotoWall'
-import { JokesScreen } from './screens/Screen4Jokes'
-import { ForeverScreen } from './screens/Screen5Forever'
+import { BestieAlertScreen } from './screens/Screen1BestieAlert'
+import { QuizScreen } from './screens/Screen2Quiz'
+import { JokesScreen } from './screens/Screen3Jokes'
+import { ChaosReelScreen } from './screens/Screen4ChaosReel'
+import { HighFiveScreen } from './screens/Screen5HighFive'
 
 const TOTAL_STEPS = 5
 
@@ -47,19 +47,13 @@ export function FriendshipTheme({ config, onExit }: FriendshipThemeProps) {
   }, [onExit, sound])
 
   useEffect(() => {
-    if (step === 3 || step === 4) {
-      sound.playRevealChime()
-    }
-  }, [step, sound])
-
-  useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
   }, [step])
 
   return (
     <div
       ref={scrollRef}
-      className="surface-obsidian relative h-dvh overflow-x-hidden overflow-y-auto"
+      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFFBEB] via-[#FFF1F2] to-[#F5F3FF]"
     >
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
@@ -73,20 +67,21 @@ export function FriendshipTheme({ config, onExit }: FriendshipThemeProps) {
 
       <AnimatePresence mode="wait">
         {step === 1 && (
-          <TeaserScreen key="friend-teaser" config={resolvedConfig} onBegin={goNext} />
+          <BestieAlertScreen
+            key="friend-alert"
+            config={resolvedConfig}
+            onBegin={goNext}
+          />
         )}
         {step === 2 && (
-          <BurstScreen
-            key="friend-burst"
+          <QuizScreen
+            key="friend-quiz"
             config={resolvedConfig}
-            onBurst={sound.playRevealChime}
+            onPick={sound.playRevealChime}
             onContinue={goNext}
           />
         )}
         {step === 3 && (
-          <PhotoWall key="friend-photos" config={resolvedConfig} onContinue={goNext} />
-        )}
-        {step === 4 && (
           <JokesScreen
             key="friend-jokes"
             config={resolvedConfig}
@@ -94,12 +89,20 @@ export function FriendshipTheme({ config, onExit }: FriendshipThemeProps) {
             onContinue={goNext}
           />
         )}
+        {step === 4 && (
+          <ChaosReelScreen
+            key="friend-reel"
+            config={resolvedConfig}
+            onContinue={goNext}
+          />
+        )}
         {step === 5 && (
-          <ForeverScreen
-            key="friend-forever"
+          <HighFiveScreen
+            key="friend-five"
             config={resolvedConfig}
             onReplay={replay}
             onExit={handleExit}
+            onFive={sound.playRevealChime}
           />
         )}
       </AnimatePresence>

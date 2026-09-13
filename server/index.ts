@@ -15,7 +15,6 @@ import {
   FRONTEND_ORIGINS,
   HOST,
   PORT,
-  PRICE_PAISE,
   RAZORPAY_KEY_ID,
   RAZORPAY_KEY_SECRET,
 } from './config.js'
@@ -29,6 +28,15 @@ import {
 import { sanitizeCustomization } from './sanitize.js'
 
 const app = express()
+
+const THEME_PRICES: Record<string, number> = {
+  'birthday-01': 900, // ₹9
+  'love-01': 900, // ₹9
+  'anniversary-01': 900, // ₹9
+  'proposal-01': 900, // ₹9
+  'friendship-01': 900, // ₹9
+  'graduation-01': 900, // ₹9
+}
 
 // 1. CORS
 const allowedOrigins = ['https://cupi-one.vercel.app', ...FRONTEND_ORIGINS]
@@ -102,6 +110,8 @@ async function handleCreateOrder(
       return
     }
 
+    const amount = THEME_PRICES[templateId] ?? 900
+
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       res.status(500).json({
         message: 'Razorpay credentials not configured',
@@ -116,7 +126,7 @@ async function handleCreateOrder(
     })
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: PRICE_PAISE,
+      amount,
       currency: CURRENCY,
       receipt: `rcpt_${randomUUID().slice(0, 8)}`,
       notes: { templateId },

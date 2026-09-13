@@ -16,9 +16,15 @@ export const FRONTEND_ORIGINS = (
   .map((origin) => origin.trim())
   .filter(Boolean)
 
-export const PRICE_PAISE = 900
 export const CURRENCY = 'INR'
-export const ALLOWED_TEMPLATES = ['birthday-01']
+export const ALLOWED_TEMPLATES = [
+  'birthday-01',
+  'love-01',
+  'anniversary-01',
+  'proposal-01',
+  'friendship-01',
+  'graduation-01',
+]
 
 export const DATA_DIR = path.resolve(PROJECT_ROOT, 'server', 'data')
 export const DIST_DIR = path.resolve(PROJECT_ROOT, 'dist')

@@ -98,7 +98,7 @@ export function Countdown({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="relative z-10 mt-6 text-xs font-semibold tracking-wide text-white/40 uppercase"
+        className="relative z-10 mt-6 text-xs font-semibold tracking-wide text-stone-500 uppercase"
       >
         Feel the build-up…
       </motion.div>

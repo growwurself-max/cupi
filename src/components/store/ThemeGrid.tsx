@@ -78,7 +78,7 @@ export function ThemeGrid({
               >
                 <ThemeCard
                   theme={theme}
-                  available={isThemeAvailable(theme.id)}
+                  available={theme.isAvailable && isThemeAvailable(theme.id)}
                   onLaunchDemo={() => onLaunchDemo(theme)}
                   onCustomize={() => onCustomize(theme)}
                   onNotify={() => setNotified(theme.name)}

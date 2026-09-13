@@ -2,8 +2,8 @@ import { AnimatePresence } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSoundEffects } from '../../hooks/useSoundEffects'
 import type { ExperienceConfig } from '../../types/experience'
+import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultBirthdayConfig } from './defaultData'
-import { BirthdayToolbar } from './BirthdayToolbar'
 import { FloatingHearts } from './FloatingHearts'
 import { Screen1Teaser } from './screens/Screen1Teaser'
 import { Screen2Suspense } from './screens/Screen2Suspense'
@@ -78,7 +78,7 @@ export function BirthdayTheme({
       className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFE4E6] via-[#FFF1F2] to-[#FCE7F3]"
     >
       <FloatingHearts className="fixed inset-0 z-0 overflow-hidden" />
-      <BirthdayToolbar
+      <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}
         totalSteps={TOTAL_STEPS}

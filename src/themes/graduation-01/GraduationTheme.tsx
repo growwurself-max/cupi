@@ -2,13 +2,13 @@ import { AnimatePresence } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSoundEffects } from '../../hooks/useSoundEffects'
 import type { ExperienceConfig } from '../../types/experience'
-import { Countdown } from '../shared/Countdown'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultGraduationConfig } from './defaultData'
-import { TeaserScreen } from './screens/Screen1Teaser'
-import { ReelScreen } from './screens/Screen2Reel'
-import { CapTossScreen } from './screens/Screen4CapToss'
-import { DiplomaScreen } from './screens/Screen5Diploma'
+import { CapTossScreen } from './screens/Screen5CapToss'
+import { GloryScreen } from './screens/Screen3Glory'
+import { GrindMeterScreen } from './screens/Screen2GrindMeter'
+import { JourneyScreen } from './screens/Screen4Journey'
+import { MilestoneScreen } from './screens/Screen1Milestone'
 
 const TOTAL_STEPS = 5
 
@@ -47,19 +47,13 @@ export function GraduationTheme({ config, onExit }: GraduationThemeProps) {
   }, [onExit, sound])
 
   useEffect(() => {
-    if (step === 3 || step === 4) {
-      sound.playRevealChime()
-    }
-  }, [step, sound])
-
-  useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
   }, [step])
 
   return (
     <div
       ref={scrollRef}
-      className="surface-obsidian relative h-dvh overflow-x-hidden overflow-y-auto"
+      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#F8FAFC] via-[#EFF6FF] to-[#FEF9C3]"
     >
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
@@ -73,35 +67,24 @@ export function GraduationTheme({ config, onExit }: GraduationThemeProps) {
 
       <AnimatePresence mode="wait">
         {step === 1 && (
-          <TeaserScreen key="grad-teaser" config={resolvedConfig} onBegin={goNext} />
+          <MilestoneScreen key="grad-milestone" config={resolvedConfig} onBegin={goNext} />
         )}
         {step === 2 && (
-          <ReelScreen key="grad-reel" config={resolvedConfig} onContinue={goNext} />
+          <GrindMeterScreen key="grad-grind" config={resolvedConfig} onContinue={goNext} />
         )}
         {step === 3 && (
-          <Countdown
-            key="grad-countdown"
-            tagline={resolvedConfig.content.countdownTagline}
-            color={resolvedConfig.branding.accentColor}
-            colorSecondary={resolvedConfig.branding.accentSecondary}
-            onTick={sound.playRevealChime}
-            onComplete={goNext}
-          />
+          <GloryScreen key="grad-glory" config={resolvedConfig} onContinue={goNext} />
         )}
         {step === 4 && (
+          <JourneyScreen key="grad-journey" config={resolvedConfig} onContinue={goNext} />
+        )}
+        {step === 5 && (
           <CapTossScreen
             key="grad-captoss"
             config={resolvedConfig}
-            onToss={sound.playRevealChime}
-            onContinue={goNext}
-          />
-        )}
-        {step === 5 && (
-          <DiplomaScreen
-            key="grad-diploma"
-            config={resolvedConfig}
             onReplay={replay}
             onExit={handleExit}
+            onToss={sound.playRevealChime}
           />
         )}
       </AnimatePresence>

@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion'
-import { Heart, Home } from 'lucide-react'
+import { Home } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { fetchExperienceApi, type ExperienceData } from '../../lib/api'
-import { BirthdayTheme } from '../../themes/birthday-01/BirthdayTheme'
+import { themeRegistry } from '../../themes/registry'
 import type { ExperienceConfig } from '../../types/experience'
+import { Heart } from 'lucide-react'
 
 interface ExperienceViewProps {
   experienceId: string
@@ -40,9 +41,19 @@ export function ExperienceView({ experienceId, onExit }: ExperienceViewProps) {
   }, [onExit, state.phase])
 
   if (state.phase === 'found') {
-    return (
-      <BirthdayTheme config={state.data.config as ExperienceConfig} onExit={handleExit} />
-    )
+    const registration = themeRegistry[state.data.templateId]
+    const ThemeComponent =
+      registration?.component ??
+      themeRegistry['birthday-01']?.component ??
+      null
+    if (ThemeComponent) {
+      return (
+        <ThemeComponent
+          config={state.data.config as ExperienceConfig}
+          onExit={handleExit}
+        />
+      )
+    }
   }
 
   return (

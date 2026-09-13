@@ -2,16 +2,15 @@ import { AnimatePresence } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSoundEffects } from '../../hooks/useSoundEffects'
 import type { ExperienceConfig } from '../../types/experience'
-import { Countdown } from '../shared/Countdown'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultProposalConfig } from './defaultData'
-import { TeaserScreen } from './screens/Screen1Teaser'
-import { HeartbeatScreen } from './screens/Screen2Heartbeat'
-import { RingBoxScreen } from './screens/Screen4RingBox'
-import { QuestionScreen } from './screens/Screen5Question'
-import { YesScreen } from './screens/Screen6Yes'
+import { Screen1Mystery } from './screens/Screen1Mystery'
+import { Screen2Memories } from './screens/Screen2Memories'
+import { Screen3Hush } from './screens/Screen3Hush'
+import { Screen4Question } from './screens/Screen4Question'
+import { Screen5Yes } from './screens/Screen5Yes'
 
-const TOTAL_STEPS = 6
+const TOTAL_STEPS = 5
 
 interface ProposalThemeProps {
   config?: ExperienceConfig
@@ -44,17 +43,6 @@ export function ProposalTheme({ config, onExit }: ProposalThemeProps) {
     onExit()
   }, [onExit, sound])
 
-  const handleYes = useCallback(() => {
-    sound.playRevealChime()
-    goNext()
-  }, [goNext, sound])
-
-  useEffect(() => {
-    if (step === 4 || step === 5) {
-      sound.playRevealChime()
-    }
-  }, [step, sound])
-
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
   }, [step])
@@ -62,7 +50,7 @@ export function ProposalTheme({ config, onExit }: ProposalThemeProps) {
   return (
     <div
       ref={scrollRef}
-      className="surface-obsidian relative h-dvh overflow-x-hidden overflow-y-auto"
+      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FAF5FF] via-[#F3E8FF] to-[#FDF4FF]"
     >
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
@@ -76,39 +64,36 @@ export function ProposalTheme({ config, onExit }: ProposalThemeProps) {
 
       <AnimatePresence mode="wait">
         {step === 1 && (
-          <TeaserScreen key="prop-teaser" config={resolvedConfig} onBegin={goNext} />
+          <Screen1Mystery
+            key="prop-mystery"
+            config={resolvedConfig}
+            onBegin={goNext}
+          />
         )}
         {step === 2 && (
-          <HeartbeatScreen
-            key="prop-heartbeat"
+          <Screen2Memories
+            key="prop-memories"
             config={resolvedConfig}
-            onBeat={sound.playRevealChime}
             onContinue={goNext}
           />
         )}
         {step === 3 && (
-          <Countdown
-            key="prop-countdown"
-            tagline={resolvedConfig.content.countdownTagline}
-            color={resolvedConfig.branding.accentColor}
-            colorSecondary={resolvedConfig.branding.accentSecondary}
-            onTick={sound.playRevealChime}
-            onComplete={goNext}
-          />
-        )}
-        {step === 4 && (
-          <RingBoxScreen
-            key="prop-ring-box"
+          <Screen3Hush
+            key="prop-hush"
             config={resolvedConfig}
             onOpen={sound.playRevealChime}
             onContinue={goNext}
           />
         )}
-        {step === 5 && (
-          <QuestionScreen key="prop-question" config={resolvedConfig} onYes={handleYes} />
+        {step === 4 && (
+          <Screen4Question
+            key="prop-question"
+            config={resolvedConfig}
+            onContinue={goNext}
+          />
         )}
-        {step === 6 && (
-          <YesScreen
+        {step === 5 && (
+          <Screen5Yes
             key="prop-yes"
             config={resolvedConfig}
             onReplay={replay}
