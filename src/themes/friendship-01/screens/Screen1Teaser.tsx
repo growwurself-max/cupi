@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { PartyPopper } from 'lucide-react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 import { FloatingEmojis } from '../../shared/FloatingEmojis'
 
@@ -14,6 +15,10 @@ const AMBIENT = ['🫶', '✨', '🕶️', '🎈']
 export function TeaserScreen({ config, onBegin }: TeaserProps) {
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="emoji-stickers"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(255,138,92,0.16),transparent_55%)]"

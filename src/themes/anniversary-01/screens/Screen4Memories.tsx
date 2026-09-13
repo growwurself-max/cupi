@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 import { LetterCard } from '../../shared/LetterCard'
 
@@ -14,6 +15,10 @@ export function MemoriesScreen({ config, onContinue }: MemoriesScreenProps) {
 
   return (
     <ScreenShell className="justify-start pt-28">
+      <FloatingParticles
+        type="star-dust"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(245,184,97,0.12),transparent_45%),radial-gradient(circle_at_10%_75%,rgba(232,146,74,0.1),transparent_50%)]"

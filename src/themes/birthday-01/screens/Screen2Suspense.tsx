@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import { ArrowRight, Headphones } from 'lucide-react'
-import { useState } from 'react'
+import { Headphones } from 'lucide-react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { PlayfulQuestion } from '../../shared/PlayfulQuestion'
 import { ScreenShell } from '../../shared/ScreenShell'
 
 interface Screen2SuspenseProps {
@@ -15,8 +15,6 @@ export function Screen2Suspense({
   soundEnabled,
   onContinue,
 }: Screen2SuspenseProps) {
-  const [armed, setArmed] = useState(false)
-
   return (
     <ScreenShell>
       <div
@@ -50,31 +48,13 @@ export function Screen2Suspense({
           Sound is{' '}
           {soundEnabled ? 'on — hear that chime? 🔔' : 'unavailable in this browser'}
         </div>
-      </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
-        className="relative z-10 mt-10 flex flex-col items-center gap-3"
-      >
-        <button
-          type="button"
-          onClick={() => setArmed(true)}
-          className="glass-panel flex min-h-14 items-center rounded-full px-7 text-sm font-semibold text-white/75 transition-all duration-200 hover:scale-[1.03] hover:text-white active:scale-95"
-        >
-          {armed ? 'Locked in ✓' : 'Let’s do this'}
-        </button>
-
-        <button
-          type="button"
-          onClick={onContinue}
-          disabled={!armed}
-          className="glow-violet flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-soft-violet to-rose-gold px-8 text-base font-bold text-obsidian-900 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:saturate-0 hover:scale-[1.05] active:scale-95"
-        >
-          I’m Ready 💖
-          <ArrowRight className="h-5 w-5" />
-        </button>
+        <PlayfulQuestion
+          question="Are you ready for a little magic? ✨"
+          onYes={onContinue}
+          yesLabel="I'm Ready 💖"
+          noLabel="Not yet…"
+        />
       </motion.div>
     </ScreenShell>
   )

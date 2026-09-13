@@ -3,6 +3,7 @@ import { Cake, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { GlassCard } from '../../../components/ui/GlassCard'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 
 interface Screen5LetterMemoriesProps {
@@ -24,6 +25,10 @@ export function Screen5LetterMemories({
 
   return (
     <ScreenShell className="justify-start pt-28">
+      <FloatingParticles
+        type="heart-petals"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(252,217,166,0.12),transparent_45%),radial-gradient(circle_at_10%_75%,rgba(201,184,255,0.12),transparent_50%)]"

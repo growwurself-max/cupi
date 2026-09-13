@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AudioLines, Volume2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 
 const COUNTDOWN = [3, 2, 1]
@@ -40,6 +41,10 @@ export function Screen3Countdown({
 
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="heart-petals"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(246,198,182,0.14),transparent_55%)]"

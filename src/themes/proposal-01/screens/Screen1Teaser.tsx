@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 import { FloatingEmojis } from '../../shared/FloatingEmojis'
 
@@ -14,6 +15,10 @@ const STARS = Array.from({ length: 26 }, (_, i) => i)
 export function TeaserScreen({ config, onBegin }: TeaserProps) {
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="gold-sparkles"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(255,179,186,0.14),transparent_55%)]"

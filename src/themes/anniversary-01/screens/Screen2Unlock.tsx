@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 
 interface UnlockScreenProps {
@@ -25,6 +26,10 @@ export function UnlockScreen({
 
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="star-dust"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(232,146,74,0.16),transparent_55%)]"

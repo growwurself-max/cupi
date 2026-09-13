@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 
 interface Screen1TeaserProps {
@@ -11,6 +12,10 @@ interface Screen1TeaserProps {
 export function Screen1Teaser({ config, onBegin }: Screen1TeaserProps) {
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="heart-petals"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="animate-float-slow pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-35 blur-3xl"

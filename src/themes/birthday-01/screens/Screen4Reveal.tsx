@@ -3,6 +3,7 @@ import { Mail, PartyPopper, Star, Trophy } from 'lucide-react'
 import { useEffect } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { fireGrandBurst } from '../../../utils/confetti'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 
 const BADGES = [
@@ -23,6 +24,10 @@ export function Screen4Reveal({ config, onContinue }: Screen4RevealProps) {
 
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="heart-petals"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="animate-pulse-glow pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(246,198,182,0.2),rgba(224,179,242,0.12)_45%,transparent_70%)]"

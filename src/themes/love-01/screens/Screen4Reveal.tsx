@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { useEffect } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { fireGrandBurst } from '../../../utils/confetti'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 import { FloatingEmojis } from '../../shared/FloatingEmojis'
 
@@ -18,6 +19,10 @@ export function RevealScreen({ config, onContinue }: RevealScreenProps) {
 
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="lavender-mist"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,155,179,0.18),rgba(143,123,255,0.1)_45%,transparent_70%)]"

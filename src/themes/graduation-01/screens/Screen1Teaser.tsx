@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { GraduationCap } from 'lucide-react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 import { FloatingEmojis } from '../../shared/FloatingEmojis'
 
@@ -12,6 +13,10 @@ interface TeaserProps {
 export function TeaserScreen({ config, onBegin }: TeaserProps) {
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="gold-sparkles"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(245,194,102,0.15),transparent_55%)]"

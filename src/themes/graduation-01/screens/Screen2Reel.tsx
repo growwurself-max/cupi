@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 import { FloatingEmojis } from '../../shared/FloatingEmojis'
 
@@ -19,6 +20,10 @@ const MILESTONES = [
 export function ReelScreen({ config, onContinue }: ReelScreenProps) {
   return (
     <ScreenShell className="justify-start pt-28">
+      <FloatingParticles
+        type="gold-sparkles"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(97,224,197,0.12),transparent_45%),radial-gradient(circle_at_15%_80%,rgba(245,194,102,0.12),transparent_50%)]"

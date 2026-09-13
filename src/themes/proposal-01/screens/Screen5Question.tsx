@@ -3,6 +3,7 @@ import { Heart, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { fireContinuousSparkle, fireHeartRain } from '../../../utils/confetti'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 import { FloatingEmojis } from '../../shared/FloatingEmojis'
 
@@ -35,6 +36,10 @@ export function QuestionScreen({ config, onYes }: QuestionScreenProps) {
 
   return (
     <ScreenShell>
+      <FloatingParticles
+        type="gold-sparkles"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(224,179,242,0.15),transparent_55%)]"

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import type { ExperienceConfig } from '../../../types/experience'
+import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 import { FloatingEmojis } from '../../shared/FloatingEmojis'
 
@@ -19,6 +20,10 @@ const YEARS = [
 export function TimelineScreen({ config, onContinue }: TimelineScreenProps) {
   return (
     <ScreenShell className="justify-start pt-28">
+      <FloatingParticles
+        type="star-dust"
+        colors={[config.branding.accentColor, config.branding.accentSecondary]}
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(232,146,74,0.12),transparent_45%),radial-gradient(circle_at_15%_80%,rgba(245,184,97,0.12),transparent_50%)]"
