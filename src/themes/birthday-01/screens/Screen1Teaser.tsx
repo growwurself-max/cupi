@@ -18,9 +18,10 @@ export function Screen1Teaser({ config, onBegin }: Screen1TeaserProps) {
       />
       <div
         aria-hidden
-        className="animate-float-slow pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-35 blur-3xl"
+        className="animate-float-slow pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
         style={{
-          background: `radial-gradient(circle, ${config.branding.accentColor}55 0%, ${config.branding.accentSecondary}44 45%, transparent 70%)`,
+          background:
+            'radial-gradient(circle, rgba(251,113,133,0.28) 0%, rgba(244,114,182,0.22) 45%, transparent 70%)',
         }}
       />
 
@@ -35,16 +36,16 @@ export function Screen1Teaser({ config, onBegin }: Screen1TeaserProps) {
           aria-hidden
           animate={{ scale: [1, 1.25, 1], opacity: [0.5, 0.9, 0.5] }}
           transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute -inset-5 rounded-full bg-rose-gold/25 blur-2xl"
+          className="absolute -inset-5 rounded-full bg-pink-300/30 blur-2xl"
         />
-        <span className="glass-panel animate-pulse-glow relative flex h-32 w-32 items-center justify-center rounded-full text-6xl shadow-2xl">
+        <span className="animate-pulse-glow relative flex h-32 w-32 items-center justify-center rounded-full border-2 border-rose-200 bg-white/80 text-6xl shadow-xl shadow-rose-200/50">
           {config.branding.emojiPrimary}
         </span>
         <motion.div
           aria-hidden
           animate={{ rotate: 360 }}
           transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
-          className="absolute inset-0 rounded-full border border-dashed border-white/10"
+          className="absolute inset-0 rounded-full border border-dashed border-rose-300/60"
         />
       </motion.div>
 
@@ -54,13 +55,13 @@ export function Screen1Teaser({ config, onBegin }: Screen1TeaserProps) {
         transition={{ delay: 0.35, duration: 0.7, ease: 'easeOut' }}
         className="relative z-10 flex max-w-2xl flex-col items-center gap-6 text-center"
       >
-        <span className="glass-panel rounded-full px-4 py-1.5 text-xs font-bold tracking-[0.2em] text-rose-gold uppercase">
+        <span className="rounded-full border border-rose-200 bg-white/80 px-4 py-1.5 text-xs font-bold tracking-[0.2em] text-rose-800 uppercase shadow-sm">
           {config.branding.themeLabel}
         </span>
-        <h1 className="font-display text-balance text-4xl font-semibold text-white sm:text-5xl">
+        <h1 className="font-serif text-balance text-4xl font-bold italic text-[#881337] sm:text-5xl">
           {config.content.teaserHeading}
         </h1>
-        <p className="max-w-md text-pretty text-sm leading-relaxed text-white/60 sm:text-base">
+        <p className="max-w-md text-pretty text-sm leading-relaxed text-rose-950/70 sm:text-base">
           {config.content.teaserSubtext}
         </p>
       </motion.div>
@@ -74,7 +75,7 @@ export function Screen1Teaser({ config, onBegin }: Screen1TeaserProps) {
         <button
           type="button"
           onClick={onBegin}
-          className="glow-primary group flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-rose-gold to-soft-violet px-8 text-base font-bold text-obsidian-900 transition-transform duration-200 hover:scale-[1.05] active:scale-95"
+          className="group flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-8 text-base font-semibold text-white shadow-lg shadow-rose-300/50 transition-all duration-200 hover:brightness-105 hover:scale-[1.04] active:scale-95"
         >
           <Sparkles className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12" />
           Open My Surprise ✨

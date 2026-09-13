@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Cake, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
-import { GlassCard } from '../../../components/ui/GlassCard'
 import { FloatingParticles } from '../../shared/FloatingParticles'
 import { ScreenShell } from '../../shared/ScreenShell'
 
@@ -31,7 +30,7 @@ export function Screen5LetterMemories({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(252,217,166,0.12),transparent_45%),radial-gradient(circle_at_10%_75%,rgba(201,184,255,0.12),transparent_50%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(253,164,175,0.18),transparent_45%),radial-gradient(circle_at_10%_75%,rgba(244,114,182,0.16),transparent_50%)]"
       />
 
       <motion.div
@@ -40,10 +39,10 @@ export function Screen5LetterMemories({
         transition={{ duration: 0.6 }}
         className="relative z-10 mb-2 text-center"
       >
-        <p className="text-xs font-bold tracking-[0.3em] text-soft-amber uppercase">
+        <p className="rounded-full border border-rose-200 bg-white/80 px-4 py-1.5 text-xs font-bold tracking-[0.3em] text-rose-700 uppercase shadow-sm">
           Some memories
         </p>
-        <h2 className="font-display mt-2 text-3xl font-semibold text-white sm:text-4xl">
+        <h2 className="font-serif mt-2 text-3xl font-bold italic text-[#881337] sm:text-4xl">
           {config.content.letterIntro}
         </h2>
       </motion.div>
@@ -75,7 +74,7 @@ export function Screen5LetterMemories({
                   animate={{ opacity: 0, scale: 1.6 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.8 }}
-                  className="pointer-events-none absolute -inset-2 z-20 rounded-3xl bg-gradient-to-br from-rose-gold/40 to-soft-violet/40 blur-md"
+                  className="pointer-events-none absolute -inset-2 z-20 rounded-3xl bg-gradient-to-br from-rose-300/40 to-pink-300/40 blur-md"
                 />
               )}
             </AnimatePresence>
@@ -90,9 +89,9 @@ export function Screen5LetterMemories({
                 zIndex: tilted === i ? 20 : 1,
               }}
               transition={{ type: 'spring', stiffness: 160, damping: 15 }}
-              className="relative rounded-2xl bg-white p-3 pb-4 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)]"
+              className="relative rounded-2xl bg-white p-3 pb-4 shadow-[0_24px_60px_-20px_rgba(244,114,182,0.4)]"
             >
-              <div className="overflow-hidden rounded-xl bg-obsidian-800">
+              <div className="overflow-hidden rounded-xl bg-rose-100">
                 <img
                   src={photo.src}
                   alt={photo.alt}
@@ -100,10 +99,10 @@ export function Screen5LetterMemories({
                   className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               </div>
-              <p className="mt-3 text-center text-sm font-semibold text-obsidian-800">
+              <p className="mt-3 text-center text-sm font-semibold text-stone-700">
                 {photo.caption}
               </p>
-              <span className="mt-1 block text-center text-[11px] text-obsidian-800/50">
+              <span className="mt-1 block text-center text-[11px] text-rose-700/50">
                 {tilted === i ? 'nice angle, huh? ↺' : 'tap to tilt'}
               </span>
             </motion.div>
@@ -124,14 +123,14 @@ export function Screen5LetterMemories({
       >
         <div
           aria-hidden
-          className="absolute -inset-1 rounded-[2rem] bg-gradient-to-br from-rose-gold/30 via-transparent to-soft-violet/30 blur-lg"
+          className="absolute -inset-1 rounded-[2rem] bg-gradient-to-br from-rose-300/30 via-transparent to-pink-300/30 blur-lg"
         />
-        <GlassCard glow="primary" className="relative p-7 sm:p-9">
-          <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+        <div className="relative rounded-3xl border border-rose-200 bg-white/95 p-7 text-stone-800 shadow-xl shadow-rose-200/40 sm:p-9">
+          <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-rose-300/60 to-transparent" />
 
           <div className="mb-5 flex items-center gap-2">
             <span className="text-2xl">💌</span>
-            <p className="font-display text-xl italic text-white/90">
+            <p className="font-serif text-xl italic text-rose-900">
               Dear {config.recipient.name},
             </p>
           </div>
@@ -144,7 +143,7 @@ export function Screen5LetterMemories({
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.15 + i * 0.18, duration: 0.5 }}
-                className="text-[15px] leading-relaxed text-white/75"
+                className="text-[15px] leading-relaxed text-stone-800/90"
               >
                 {line}
               </motion.p>
@@ -152,14 +151,14 @@ export function Screen5LetterMemories({
           </div>
 
           <div className="mt-7 flex flex-col items-end">
-            <p className="text-[15px] text-white/60 italic">
+            <p className="text-[15px] text-stone-600 italic">
               {config.content.letterSignoff}
             </p>
-            <p className="text-gradient-lux font-display mt-1 text-2xl font-semibold">
+            <p className="font-serif mt-1 text-2xl font-bold italic text-[#881337]">
               {config.sender.name}
             </p>
           </div>
-        </GlassCard>
+        </div>
       </motion.div>
 
       <motion.div
@@ -174,12 +173,12 @@ export function Screen5LetterMemories({
           onClick={onContinue}
           animate={{ y: [0, -5, 0] }}
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          className="glow-violet flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-soft-violet to-rose-gold px-8 text-base font-bold text-obsidian-900 transition-transform duration-200 hover:scale-[1.05] active:scale-95"
+          className="flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-8 text-base font-semibold text-white shadow-lg shadow-rose-300/50 transition-all duration-200 hover:brightness-105 hover:scale-[1.04] active:scale-95"
         >
           <Cake className="h-5 w-5" />
           Make a Birthday Wish 🎂
         </motion.button>
-        <span className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-white/35 uppercase">
+        <span className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-rose-700/60 uppercase">
           almost there <ChevronDown className="h-3.5 w-3.5" />
         </span>
       </motion.div>

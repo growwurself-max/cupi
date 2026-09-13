@@ -33,7 +33,7 @@ export function PlayfulQuestion({
       transition={{ delay: 0.5, duration: 0.6, ease: 'easeOut' }}
       className="relative z-10 flex flex-col items-center gap-5 text-center"
     >
-      <p className="font-display text-balance text-2xl font-semibold text-white sm:text-3xl">
+      <p className="font-serif text-balance text-2xl font-bold italic text-[#881337] sm:text-3xl">
         {question}
       </p>
       <div className="flex items-center justify-center gap-4">
@@ -42,7 +42,7 @@ export function PlayfulQuestion({
           onClick={onYes}
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.94 }}
-          className="glow-primary flex min-h-14 items-center rounded-full bg-gradient-to-r from-rose-gold to-soft-violet px-10 text-base font-bold text-obsidian-900 transition-transform duration-200"
+          className="flex min-h-14 items-center rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-10 text-base font-semibold text-white shadow-lg shadow-rose-300/50 transition-all duration-200 hover:brightness-105"
         >
           {yesLabel}
         </motion.button>
@@ -55,9 +55,9 @@ export function PlayfulQuestion({
           }}
           animate={{ x: position.x, y: position.y }}
           transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-          className="flex min-h-14 items-center rounded-full border border-white/20 bg-white/[0.06] px-8 text-base font-semibold text-white/60 transition-colors hover:border-white/40 hover:text-white/80"
+          className="flex min-h-14 items-center rounded-full border border-rose-300 bg-white/90 px-8 text-base font-semibold text-rose-700 shadow-sm transition-colors hover:border-rose-400 hover:text-rose-900"
         >
-          {dodged ? 'Nope!' : noLabel}
+          {dodged ? 'Nope! 🏃‍♀️💨' : noLabel}
         </motion.button>
       </div>
     </motion.div>

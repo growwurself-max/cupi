@@ -94,14 +94,14 @@ export function Screen6WishFinale({
     <ScreenShell>
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_70%,rgba(255,217,138,0.13),transparent_55%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_70%,rgba(253,164,175,0.18),transparent_55%)]"
       />
 
       <motion.p
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="text-xs font-bold tracking-[0.3em] text-soft-amber uppercase"
+        className="rounded-full border border-rose-200 bg-white/80 px-4 py-1.5 text-xs font-bold tracking-[0.3em] text-rose-700 uppercase shadow-sm"
       >
         The grand finale
       </motion.p>
@@ -129,7 +129,7 @@ export function Screen6WishFinale({
                       key={i}
                       animate={{ x: [0, (i - 1) * 14], y: [0, -36] }}
                       transition={{ duration: 1.2, delay: i * 0.09 }}
-                      className="h-2.5 w-2.5 rounded-full bg-white/40 blur-[4px]"
+                      className="h-2.5 w-2.5 rounded-full bg-rose-200/90 blur-[4px]"
                     />
                   ))}
                 </div>
@@ -212,7 +212,7 @@ export function Screen6WishFinale({
         <motion.p
           animate={lit ? { opacity: [0.55, 1, 0.55] } : { opacity: 0.5 }}
           transition={lit ? { duration: 2.2, repeat: Infinity } : {}}
-          className="mt-7 max-w-sm text-center text-sm font-semibold text-white/70"
+          className="mt-7 max-w-sm text-center text-sm font-semibold text-rose-950/80"
         >
           {lit
             ? 'Go on… tap the candle to blow it out 👆'
@@ -233,34 +233,32 @@ export function Screen6WishFinale({
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3, type: 'spring', stiffness: 130 }}
-              className="font-display text-balance text-4xl font-bold sm:text-5xl md:text-6xl"
+              className="font-serif text-balance text-4xl font-bold italic text-[#881337] sm:text-5xl md:text-6xl"
             >
-              <span className="text-shimmer animate-shimmer">
-                {config.content.finalMessage}
-              </span>
+              {config.content.finalMessage} <span className="text-rose-500">❤️</span>
             </motion.h2>
-            <p className="max-w-md text-pretty text-white/65">
+            <p className="max-w-md text-pretty text-rose-950/75">
               {config.content.finalCelebration}
             </p>
-            <p className="text-lg text-white/45">
-              — {config.sender.name} <span className="text-rose-gold">♥</span>
+            <p className="text-lg text-rose-800/70">
+              — {config.sender.name} <span className="text-rose-500">♥</span>
             </p>
 
             <div className="mt-2 flex flex-col items-center gap-4 pb-2 sm:flex-row">
               <button
                 type="button"
                 onClick={onReplay}
-                className="glass-panel glow-primary flex min-h-14 items-center gap-2.5 rounded-full px-7 text-base font-bold text-white transition-transform duration-200 hover:scale-[1.04] active:scale-95"
+                className="flex min-h-14 items-center gap-2.5 rounded-full bg-rose-500 px-7 text-base font-semibold text-white shadow-lg shadow-rose-300/50 transition-all duration-200 hover:brightness-110 hover:scale-[1.04] active:scale-95"
               >
-                <RotateCcw className="h-5 w-5 text-rose-gold" />
+                <RotateCcw className="h-5 w-5" />
                 Replay Experience 🔁
               </button>
               <button
                 type="button"
                 onClick={onExit}
-                className="flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-rose-gold via-soft-amber to-soft-violet px-7 text-base font-bold text-obsidian-900 shadow-lg shadow-rose-gold/25 transition-transform duration-200 hover:scale-[1.04] active:scale-95"
+                className="flex min-h-14 items-center gap-2.5 rounded-full border border-rose-200 bg-white/80 px-7 text-base font-semibold text-rose-800 shadow-sm transition-all duration-200 hover:scale-[1.04] hover:text-rose-900 active:scale-95"
               >
-                <WandSparkles className="h-5 w-5" />
+                <WandSparkles className="h-5 w-5 text-rose-500" />
                 Create a Surprise for Someone Else
               </button>
             </div>
@@ -269,7 +267,7 @@ export function Screen6WishFinale({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.9 }}
-              className="mt-2 text-xs font-semibold tracking-[0.2em] text-white/35 uppercase"
+              className="mt-2 text-xs font-semibold tracking-[0.2em] text-rose-700/60 uppercase"
             >
               Crafted with ♥ by Cupi
             </motion.p>

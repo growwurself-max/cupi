@@ -47,47 +47,74 @@ export function Screen3Countdown({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(246,198,182,0.14),transparent_55%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(251,113,133,0.16),transparent_55%)]"
       />
 
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.6 }}
-        className="relative z-10 mb-8 text-sm font-semibold tracking-[0.25em] text-soft-amber uppercase"
+        className="relative z-10 mb-8 rounded-full border border-rose-200 bg-white/80 px-5 py-2 text-sm font-semibold tracking-[0.25em] text-rose-700 uppercase shadow-sm"
       >
         {config.content.countdownTagline}
-      </motion.p>
+      </motion.div>
 
       <div className="relative z-10 flex h-52 items-center justify-center sm:h-64">
-        <AnimatePresence mode="wait">
-          {current !== null && (
-            <motion.span
-              key={current}
-              initial={{ opacity: 0, scale: 1.8, y: 30, filter: 'blur(10px)' }}
-              animate={{
-                opacity: 1,
-                scale: [1.8, 0.9, 1],
-                y: 0,
-                filter: 'blur(0px)',
-              }}
-              exit={{
-                opacity: 0,
-                scale: 0.55,
-                y: -30,
-                filter: 'blur(8px)',
-              }}
-              transition={{
-                duration: 0.5,
-                times: [0, 0.5, 1],
-                ease: 'easeOut',
-              }}
-              className="text-gradient-lux font-display text-[7rem] leading-none font-black sm:text-[9rem]"
-            >
-              {current}
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <div className="relative flex h-52 items-center justify-center sm:h-64">
+          <AnimatePresence>
+            {current !== null && (
+              <motion.span
+                key={`ring-${current}`}
+                initial={{ scale: 0.5, opacity: 0.55 }}
+                animate={{ scale: 2, opacity: 0 }}
+                transition={{ duration: 0.95, ease: 'easeOut' }}
+                className="pointer-events-none absolute"
+                aria-hidden
+              >
+                <svg
+                  width="208"
+                  height="208"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  className="h-52 w-52 text-rose-300/80 sm:h-64 sm:w-64"
+                >
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+              </motion.span>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {current !== null && (
+              <motion.span
+                key={current}
+                initial={{ opacity: 0, scale: 1.8, y: 30, filter: 'blur(10px)' }}
+                animate={{
+                  opacity: 1,
+                  scale: [1.8, 0.9, 1],
+                  y: 0,
+                  filter: 'blur(0px)',
+                }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.55,
+                  y: -30,
+                  filter: 'blur(8px)',
+                }}
+                transition={{
+                  duration: 0.5,
+                  times: [0, 0.5, 1],
+                  ease: 'easeOut',
+                }}
+                className="font-serif text-[7rem] leading-none font-black text-rose-600 sm:text-[9rem]"
+              >
+                {current}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Soundwave pulses */}
@@ -106,7 +133,7 @@ export function Screen3Countdown({
               delay: i * 0.12,
               ease: 'easeInOut',
             }}
-            className="w-1.5 origin-bottom rounded-full bg-gradient-to-t from-rose-gold/70 to-soft-violet/70 sm:w-2"
+            className="w-1.5 origin-bottom rounded-full bg-gradient-to-t from-rose-400/70 to-pink-300/70 sm:w-2"
             style={{ height: 40 + (i % 3) * 16 }}
           />
         ))}
@@ -115,11 +142,11 @@ export function Screen3Countdown({
       <motion.div
         animate={{ opacity: [0.5, 1, 0.5] }}
         transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-        className="mt-8 flex items-center gap-2 text-xs font-semibold text-white/40 uppercase"
+        className="mt-8 flex items-center gap-2 text-xs font-semibold text-rose-700/70 uppercase"
       >
-        <Volume2 className="h-3.5 w-3.5 text-rose-gold" />
+        <Volume2 className="h-3.5 w-3.5 text-rose-500" />
         Can you feel the build-up?
-        <AudioLines className="h-3.5 w-3.5 text-soft-violet" />
+        <AudioLines className="h-3.5 w-3.5 text-pink-400" />
       </motion.div>
     </ScreenShell>
   )
