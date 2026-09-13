@@ -15,11 +15,13 @@ const TOTAL_STEPS = 5
 interface AnniversaryForeverThemeProps {
   config?: ExperienceConfig
   onExit: () => void
+  isSharedLink?: boolean
 }
 
 export function AnniversaryForeverTheme({
   config,
   onExit,
+  isSharedLink,
 }: AnniversaryForeverThemeProps) {
   const [step, setStep] = useState(1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -72,6 +74,7 @@ export function AnniversaryForeverTheme({
         soundEnabled={sound.isEnabled}
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
+        variant={isSharedLink ? 'shared' : 'demo'}
       />
 
       <AnimatePresence mode="wait">

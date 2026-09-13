@@ -204,7 +204,7 @@ export function ToastScreen({ config, onReplay, onExit, onClink }: ToastScreenPr
           className="flex min-h-14 items-center gap-2 rounded-full border-2 border-[#E7C98A] bg-[#FFF3D6] px-7 text-sm font-bold text-[#B45309] shadow-md shadow-amber-500/20 transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <RotateCcw className="h-5 w-5" />
-          Replay
+          Replay Surprise 🔁
         </button>
         <button
           type="button"
@@ -212,7 +212,7 @@ export function ToastScreen({ config, onReplay, onExit, onClink }: ToastScreenPr
           className="flex min-h-14 items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-400 px-7 text-sm font-bold text-white shadow-lg shadow-amber-500/30 transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <WandSparkles className="h-5 w-5" />
-          Exit
+          Create a Surprise Like This ✨
         </button>
       </div>
 

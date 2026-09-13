@@ -15,9 +15,10 @@ const TOTAL_STEPS = 5
 interface LoveEternalThemeProps {
   config?: ExperienceConfig
   onExit: () => void
+  isSharedLink?: boolean
 }
 
-export function LoveEternalTheme({ config, onExit }: LoveEternalThemeProps) {
+export function LoveEternalTheme({ config, onExit, isSharedLink }: LoveEternalThemeProps) {
   const [step, setStep] = useState(1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -66,6 +67,7 @@ export function LoveEternalTheme({ config, onExit }: LoveEternalThemeProps) {
         soundEnabled={sound.isEnabled}
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
+        variant={isSharedLink ? 'shared' : 'demo'}
       />
 
       <AnimatePresence mode="wait">

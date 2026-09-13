@@ -207,7 +207,7 @@ export function HighFiveScreen({ config, onReplay, onExit, onFive }: HighFiveScr
               className="flex min-h-14 items-center gap-2.5 rounded-full border border-orange-300/70 bg-white/85 px-7 py-3.5 text-sm font-bold text-[#9F1239] shadow-md shadow-orange-200/40 backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95"
             >
               <RotateCcw className="h-5 w-5 text-orange-400" />
-              Replay
+              Replay Surprise 🔁
             </button>
             <button
               type="button"
@@ -215,7 +215,7 @@ export function HighFiveScreen({ config, onReplay, onExit, onFive }: HighFiveScr
               className="flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-orange-400 to-rose-400 px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-400/30 transition-all duration-200 hover:scale-105 active:scale-95"
             >
               <WandSparkles className="h-5 w-5" />
-              Exit
+              Create a Surprise Like This ✨
             </button>
           </div>
 

@@ -86,6 +86,22 @@ export function ThemeCard({
             {theme.tagline}
             <span className="text-rose-400" aria-hidden>✦</span>
           </p>
+          <p className="mt-2 flex items-center gap-1.5">
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${
+                theme.tier === 'premium'
+                  ? 'bg-violet-100 text-violet-700'
+                  : 'bg-emerald-100 text-emerald-700'
+              }`}
+            >
+              {theme.tier === 'premium' ? 'Premium' : 'Basic'}
+            </span>
+            <span className="text-[11px] font-medium text-stone-400">
+              {theme.tier === 'premium'
+                ? 'Cinematic interactive experience'
+                : 'Quick & joyful animated surprise'}
+            </span>
+          </p>
           <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-stone-500">
             {theme.description}
           </p>

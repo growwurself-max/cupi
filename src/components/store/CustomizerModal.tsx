@@ -538,7 +538,7 @@ return null
                       ) : (
                         <>
                           <Lock className="h-4 w-4" />
-                          Lock In &amp; Pay {theme.price}
+                          Pay {theme.price}
                         </>
                       )}
                     </button>

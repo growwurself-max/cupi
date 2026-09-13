@@ -34,10 +34,12 @@ const app = express()
  * Convention: experience `-01` tiers cost ₹9 (900 paise) and `-02` tiers
  * cost ₹29 (2900 paise). Anything unexpected falls back to ₹9.
  */
-export function resolveExperiencePrice(templateId: string): number {
+export function getExperiencePriceInPaise(templateId: string): number {
   if (templateId.endsWith('-02')) return 2900 // ₹29
   return 900 // ₹9
 }
+
+export const resolveExperiencePrice = getExperiencePriceInPaise
 
 // 1. CORS
 const allowedOrigins = ['https://cupi-one.vercel.app', ...FRONTEND_ORIGINS]
@@ -113,7 +115,7 @@ async function handleCreateOrder(
       return
     }
 
-    const amount = resolveExperiencePrice(templateId)
+    const amount = getExperiencePriceInPaise(templateId)
 
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       res.status(500).json({

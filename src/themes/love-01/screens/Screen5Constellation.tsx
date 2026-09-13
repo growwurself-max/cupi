@@ -183,7 +183,7 @@ export function ConstellationScreen({
             className="flex min-h-14 items-center gap-2.5 rounded-full border border-[#F0A8BC] bg-white/80 px-7 text-sm font-bold text-[#B23A5F] backdrop-blur-md transition-all duration-200 hover:scale-105 hover:bg-rose-50 active:scale-95"
           >
             <RotateCcw className="h-5 w-5" />
-            Replay
+            Replay Surprise 🔁
           </button>
           <button
             type="button"
@@ -191,7 +191,7 @@ export function ConstellationScreen({
             className="flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-rose-400 to-pink-400 px-7 text-sm font-bold text-white shadow-lg shadow-rose-400/30 transition-all duration-200 hover:scale-105 active:scale-95"
           >
             <Sparkles className="h-5 w-5" />
-            Back to Cupi Store
+            Create a Surprise Like This ✨
           </button>
         </div>
 

@@ -46,6 +46,15 @@ function clampNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
+function cleanChimeNotes(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (note): note is number => typeof note === 'number' && Number.isFinite(note),
+    )
+    .slice(0, 8)
+}
+
 export interface SanitizedPhoto {
   src: string
   alt: string
@@ -59,10 +68,17 @@ export interface SanitizedNote {
   emoji?: string
 }
 
+export interface SanitizedAudio {
+  enabled: boolean
+  volume: number
+  revealChimeNotes: number[]
+  candleBlowPitch: number
+}
+
 export interface SanitizedCustomization {
   recipient: { name: string }
   sender: { name: string }
-  audio: { enabled: boolean; volume: number }
+  audio: SanitizedAudio
   content: {
     teaserHeading: string
     teaserSubtext: string
@@ -176,6 +192,12 @@ export function sanitizeCustomization(payload: unknown): SanitizedCustomization 
           ? audio.enabled
           : true,
       volume: clampNumber(audio?.volume, 0.55),
+      revealChimeNotes: cleanChimeNotes(audio?.revealChimeNotes),
+      candleBlowPitch:
+        typeof audio?.candleBlowPitch === 'number' &&
+        Number.isFinite(audio.candleBlowPitch)
+          ? audio.candleBlowPitch
+          : 140,
     },
     content: {
       teaserHeading:

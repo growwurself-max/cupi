@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion'
-import { Home } from 'lucide-react'
+import { Heart, Home } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { fetchExperienceApi, type ExperienceData } from '../../lib/api'
 import { themeRegistry } from '../../themes/registry'
 import type { ExperienceConfig } from '../../types/experience'
-import { Heart } from 'lucide-react'
+import { deepMergeExperienceConfig } from '../../utils/configMerge'
 
 interface ExperienceViewProps {
   experienceId: string
@@ -46,11 +46,22 @@ export function ExperienceView({ experienceId, onExit }: ExperienceViewProps) {
       registration?.component ??
       themeRegistry['birthday-01']?.component ??
       null
+    const defaultConfig =
+      registration?.defaultConfig ??
+      themeRegistry['birthday-01']?.defaultConfig ??
+      null
     if (ThemeComponent) {
+      const resolvedConfig = defaultConfig
+        ? deepMergeExperienceConfig(
+            defaultConfig,
+            state.data.config as Partial<ExperienceConfig> | null,
+          )
+        : (state.data.config as ExperienceConfig)
       return (
         <ThemeComponent
-          config={state.data.config as ExperienceConfig}
+          config={resolvedConfig}
           onExit={handleExit}
+          isSharedLink
         />
       )
     }

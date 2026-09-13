@@ -30,6 +30,8 @@ import { defaultProposalConfig } from './proposal-01/defaultData'
 export interface ThemeComponentProps {
   config?: ExperienceConfig
   onExit: () => void
+  /** True when rendered from a live shareable link (/x/:id). */
+  isSharedLink?: boolean
 }
 
 export interface ThemeRegistration {

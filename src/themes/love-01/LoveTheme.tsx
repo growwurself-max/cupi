@@ -15,9 +15,10 @@ const TOTAL_STEPS = 5
 interface LoveThemeProps {
   config?: ExperienceConfig
   onExit: () => void
+  isSharedLink?: boolean
 }
 
-export function LoveTheme({ config, onExit }: LoveThemeProps) {
+export function LoveTheme({ config, onExit, isSharedLink }: LoveThemeProps) {
   const [step, setStep] = useState(1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -60,6 +61,7 @@ export function LoveTheme({ config, onExit }: LoveThemeProps) {
         soundEnabled={sound.isEnabled}
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
+        variant={isSharedLink ? 'shared' : 'demo'}
       />
 
       <AnimatePresence mode="wait">

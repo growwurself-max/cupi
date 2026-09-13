@@ -14,11 +14,13 @@ const TOTAL_STEPS = 4
 interface ProposalGreatestThemeProps {
   config?: ExperienceConfig
   onExit: () => void
+  isSharedLink?: boolean
 }
 
 export function ProposalGreatestTheme({
   config,
   onExit,
+  isSharedLink,
 }: ProposalGreatestThemeProps) {
   const [step, setStep] = useState(1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -71,6 +73,7 @@ export function ProposalGreatestTheme({
         soundEnabled={sound.isEnabled}
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
+        variant={isSharedLink ? 'shared' : 'demo'}
       />
 
       <AnimatePresence mode="wait">

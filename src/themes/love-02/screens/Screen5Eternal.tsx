@@ -83,7 +83,7 @@ export function Screen5Eternal({
               className="flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-violet-500 via-purple-500 to-pink-500 px-7 text-base font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.04] active:scale-95"
             >
               <RotateCcw className="h-5 w-5" />
-              Replay Experience 🔁
+              Replay Surprise 🔁
             </button>
             <button
               type="button"
@@ -91,7 +91,7 @@ export function Screen5Eternal({
               className="flex min-h-14 items-center gap-2.5 rounded-full border border-violet-200/40 bg-white/5 px-7 text-base font-semibold text-violet-100 transition-all duration-200 hover:scale-[1.04] hover:bg-white/10 active:scale-95"
             >
               <WandSparkles className="h-5 w-5" />
-              Create a Surprise for Someone Else
+              Create a Surprise Like This ✨
             </button>
           </div>
 

@@ -9,6 +9,8 @@ interface ThemeToolbarProps {
   soundEnabled: boolean
   onToggleMute: () => void
   onExit: () => void
+  /** 'demo' = preview/demo render, 'shared' = live shareable link (/x/:id). */
+  variant?: 'demo' | 'shared'
 }
 
 export function ThemeToolbar({
@@ -19,8 +21,11 @@ export function ThemeToolbar({
   soundEnabled,
   onToggleMute,
   onExit,
+  variant = 'demo',
 }: ThemeToolbarProps) {
   const MuteIcon = isMuted ? VolumeX : Volume2
+  const badgeLabel =
+    variant === 'shared' ? 'A Special Surprise' : 'Demo Preview Mode'
 
   return (
     <motion.div
@@ -37,7 +42,7 @@ export function ThemeToolbar({
               <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
             </span>
             <span className="text-xs font-bold tracking-wide text-rose-900 uppercase">
-              Demo Preview Mode
+              {badgeLabel}
             </span>
           </span>
           <span className="hidden max-w-[40vw] truncate rounded-full border border-stone-200/70 bg-white/80 px-3 py-2 text-xs font-semibold text-stone-600 shadow-sm backdrop-blur-md lg:inline-block">

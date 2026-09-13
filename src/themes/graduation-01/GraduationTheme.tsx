@@ -15,9 +15,10 @@ const TOTAL_STEPS = 5
 interface GraduationThemeProps {
   config?: ExperienceConfig
   onExit: () => void
+  isSharedLink?: boolean
 }
 
-export function GraduationTheme({ config, onExit }: GraduationThemeProps) {
+export function GraduationTheme({ config, onExit, isSharedLink }: GraduationThemeProps) {
   const [step, setStep] = useState(1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -63,6 +64,7 @@ export function GraduationTheme({ config, onExit }: GraduationThemeProps) {
         soundEnabled={sound.isEnabled}
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
+        variant={isSharedLink ? 'shared' : 'demo'}
       />
 
       <AnimatePresence mode="wait">

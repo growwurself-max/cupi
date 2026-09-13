@@ -15,9 +15,10 @@ const TOTAL_STEPS = 5
 interface FriendshipThemeProps {
   config?: ExperienceConfig
   onExit: () => void
+  isSharedLink?: boolean
 }
 
-export function FriendshipTheme({ config, onExit }: FriendshipThemeProps) {
+export function FriendshipTheme({ config, onExit, isSharedLink }: FriendshipThemeProps) {
   const [step, setStep] = useState(1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -63,6 +64,7 @@ export function FriendshipTheme({ config, onExit }: FriendshipThemeProps) {
         soundEnabled={sound.isEnabled}
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
+        variant={isSharedLink ? 'shared' : 'demo'}
       />
 
       <AnimatePresence mode="wait">

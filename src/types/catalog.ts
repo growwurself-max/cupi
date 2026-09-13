@@ -12,6 +12,13 @@ export type ExperienceBadge =
   | 'TRENDING'
   | 'PREMIUM'
 
+/**
+ * Experience pricing tier. `basic` experiences (Experience #01) are the
+ * quick & joyful ₹9 animated surprises; `premium` experiences (Experience
+ * #02) are the cinematic, interactive ₹29 deluxe editions.
+ */
+export type ExperienceTier = 'basic' | 'premium'
+
 export interface Category {
   id: CategoryId
   name: string
@@ -34,6 +41,7 @@ export interface ExperienceMetadata {
   description: string
   price: string
   amountInPaise: number
+  tier: ExperienceTier
   badge?: ExperienceBadge
   isAvailable: boolean
   features: string[]

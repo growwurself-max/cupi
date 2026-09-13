@@ -18,11 +18,13 @@ const TOTAL_STEPS = 7
 interface BirthdayThemeProps {
   config?: ExperienceConfig
   onExit: () => void
+  isSharedLink?: boolean
 }
 
 export function BirthdayTheme({
   config,
   onExit,
+  isSharedLink,
 }: BirthdayThemeProps) {
   const [step, setStep] = useState(1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -86,6 +88,7 @@ export function BirthdayTheme({
         soundEnabled={sound.isEnabled}
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
+        variant={isSharedLink ? 'shared' : 'demo'}
       />
 
       <AnimatePresence mode="wait">

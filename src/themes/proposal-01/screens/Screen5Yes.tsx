@@ -97,7 +97,7 @@ export function Screen5Yes({ config, onReplay, onExit }: Screen5YesProps) {
                 className="flex min-h-14 items-center gap-2.5 rounded-full border border-violet-300 bg-white/70 px-7 text-sm font-bold text-[#581C87] shadow-lg shadow-violet-300/20 backdrop-blur transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 <RotateCcw className="h-5 w-5" />
-                Replay Experience
+                Replay Surprise 🔁
               </button>
               <button
                 type="button"
@@ -105,7 +105,7 @@ export function Screen5Yes({ config, onReplay, onExit }: Screen5YesProps) {
                 className="flex min-h-14 items-center gap-2.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 px-7 text-sm font-bold text-white shadow-lg shadow-violet-500/30 transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 <WandSparkles className="h-5 w-5" />
-                Exit
+                Create a Surprise Like This ✨
               </button>
             </div>
 
