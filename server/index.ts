@@ -29,13 +29,14 @@ import { sanitizeCustomization } from './sanitize.js'
 
 const app = express()
 
-const THEME_PRICES: Record<string, number> = {
-  'birthday-01': 900, // ₹9
-  'love-01': 900, // ₹9
-  'anniversary-01': 900, // ₹9
-  'proposal-01': 900, // ₹9
-  'friendship-01': 900, // ₹9
-  'graduation-01': 900, // ₹9
+/**
+ * Resolves the checkout amount (in paise) for an experience template.
+ * Convention: experience `-01` tiers cost ₹9 (900 paise) and `-02` tiers
+ * cost ₹29 (2900 paise). Anything unexpected falls back to ₹9.
+ */
+export function resolveExperiencePrice(templateId: string): number {
+  if (templateId.endsWith('-02')) return 2900 // ₹29
+  return 900 // ₹9
 }
 
 // 1. CORS
@@ -112,7 +113,7 @@ async function handleCreateOrder(
       return
     }
 
-    const amount = THEME_PRICES[templateId] ?? 900
+    const amount = resolveExperiencePrice(templateId)
 
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       res.status(500).json({

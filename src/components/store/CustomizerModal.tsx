@@ -17,9 +17,9 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRazorpay, type CheckoutOutcome } from '../../hooks/useRazorpay'
 import { themeRegistry } from '../../themes/registry'
-import type { ThemeMetadata } from '../../types/catalog'
+import type { ExperienceMetadata } from '../../types/catalog'
 import {
-  buildBirthdayConfig,
+  buildExperienceConfig,
   emptyDraft,
   type CustomizerDraft,
   type PhotoDraft,
@@ -28,15 +28,15 @@ import { resizeAndCompressImage } from '../../utils/imageResize'
 import { OrderSuccessModal } from './OrderSuccessModal'
 
 interface CustomizerModalProps {
-  theme: ThemeMetadata | null
+  theme: ExperienceMetadata | null
   onClose: () => void
   onOpenExperience: (path: string) => void
 }
 
-const STEPS = [
+const BASE_STEPS = [
   { id: 'basics', label: 'Basics', icon: Heart },
   { id: 'message', label: 'Message', icon: PenLine },
-  { id: 'bouquet', label: 'Bouquet', icon: MessagesSquare },
+  { id: 'bouquet', label: 'Notes', icon: MessagesSquare },
   { id: 'memories', label: 'Memories', icon: ImagePlus },
 ]
 
@@ -59,6 +59,19 @@ export function CustomizerModal({
   const [processingIndex, setProcessingIndex] = useState<number | null>(null)
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
 
+  const steps = useMemo(
+    () =>
+      theme?.supportsPhotos
+        ? BASE_STEPS
+        : BASE_STEPS.filter((stepDef) => stepDef.id !== 'memories'),
+    [theme],
+  )
+  const lastStepIndex = steps.length - 1
+
+  useEffect(() => {
+    setStep((prev) => Math.max(0, Math.min(prev, lastStepIndex)))
+  }, [lastStepIndex])
+
   useEffect(() => {
     if (!theme) return
     const onKey = (event: KeyboardEvent) => {
@@ -72,10 +85,12 @@ export function CustomizerModal({
     }
   }, [theme, onClose, previewing, paymentResult])
 
-  const previewConfig = useMemo(
-    () => (theme ? buildBirthdayConfig(draft) : null),
-    [theme, draft],
-  )
+  const previewConfig = useMemo(() => {
+    if (!theme) return null
+    const baseConfig = themeRegistry[theme.id]?.defaultConfig
+    if (!baseConfig) return null
+    return buildExperienceConfig(draft, baseConfig)
+  }, [theme, draft])
 
   const PreviewComponent =
     theme ? themeRegistry[theme.id]?.component ?? null : null
@@ -211,7 +226,7 @@ return null
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-2xl ring-1 ring-rose-100">
-                  {theme.emoji}
+                  {theme.previewVisual.emoji}
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-bold tracking-[0.2em] text-rose-500 uppercase">
@@ -233,8 +248,10 @@ return null
             </div>
 
             {/* Stepper */}
-            <div className="mt-6 grid grid-cols-4 gap-2">
-              {STEPS.map((stepDef, i) => {
+            <div
+              className={`mt-6 grid gap-2 ${steps.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}
+            >
+              {steps.map((stepDef, i) => {
                 const StepIcon = stepDef.icon
                 const isActive = i === step
                 const isPast = i < step
@@ -351,11 +368,12 @@ return null
                     <div className="space-y-3">
                       <div>
                         <p className="text-sm font-semibold text-stone-700">
-                          Rose bouquet notes 🌹
+                          Sticky notes 💐
                         </p>
                         <p className="mt-0.5 text-xs text-stone-400">
-                          Each note blooms into an interactive tag. Customize them —
-                          or keep the sweet suggestions.
+                          Each note becomes an interactive tag inside the
+                          experience. Customize them — or keep the sweet
+                          suggestions.
                         </p>
                       </div>
                       <div className="space-y-2.5">
@@ -407,13 +425,13 @@ return null
                           className="flex items-center gap-2 text-sm font-semibold text-rose-500 transition-colors hover:text-rose-600"
                         >
                           <ListPlus className="h-4 w-4" />
-                          Add another bloom
+                          Add another note
                         </button>
                       )}
                     </div>
                   )}
 
-                  {step === 3 && (
+{theme.supportsPhotos && step === 3 && (
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm font-semibold text-stone-700">
@@ -485,7 +503,7 @@ return null
                 )}
               </div>
               <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:justify-end">
-                {step < 3 && (
+                {step < lastStepIndex && (
                   <button
                     type="button"
                     disabled={Boolean(stepError)}
@@ -496,7 +514,7 @@ return null
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 )}
-                {step === 3 && (
+                {step === lastStepIndex && (
                   <>
                     <button
                       type="button"

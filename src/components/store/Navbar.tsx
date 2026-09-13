@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 const TAGLINE = 'Interactive Digital Surprises'
 
 const NAV_LINKS = [
-  { label: 'Explore', href: '#themes' },
+  { label: 'Explore', href: '#experiences' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Birthday Theme', href: '#birthday-01' },
+  { label: 'Birthday Experience', href: '#birthday-01' },
 ]
 
 interface NavbarProps {

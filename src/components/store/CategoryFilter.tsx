@@ -24,7 +24,7 @@ export function CategoryFilter({
   const options: FilterOption[] = [
     {
       id: 'all',
-      label: 'All themes',
+      label: 'All experiences',
       emoji: '✨',
       count: categories.reduce((sum, category) => sum + category.count, 0),
     },
@@ -39,7 +39,7 @@ export function CategoryFilter({
   return (
     <div
       role="tablist"
-      aria-label="Filter themes by category"
+      aria-label="Filter experiences by category"
       className="no-scrollbar -mx-5 flex w-full items-center gap-2 overflow-x-auto px-5 pb-1 sm:-mx-8 sm:px-8"
     >
       {options.map((option) => {

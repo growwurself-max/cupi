@@ -1,4 +1,4 @@
-import type { Category, ThemeMetadata } from '../types/catalog'
+import type { Category, ExperienceMetadata } from '../types/catalog'
 
 export const categories: Category[] = [
   {
@@ -6,161 +6,352 @@ export const categories: Category[] = [
     name: 'Birthday',
     emoji: '🎂',
     description: 'Candle-lit confetti and wishes come true.',
-    count: 1,
+    count: 2,
   },
   {
     id: 'love',
     name: 'Love',
     emoji: '❤️',
     description: 'Say it loud, straight from the heart.',
-    count: 1,
+    count: 2,
   },
   {
     id: 'anniversary',
     name: 'Anniversary',
     emoji: '💕',
     description: 'Another beautiful year, another story.',
-    count: 1,
+    count: 2,
   },
   {
     id: 'proposal',
     name: 'Proposal',
     emoji: '💍',
     description: 'The one question that changes everything.',
-    count: 1,
+    count: 2,
   },
   {
     id: 'friendship',
     name: 'Friendship',
     emoji: '👋',
     description: 'For the ones who feel like home.',
-    count: 1,
+    count: 2,
   },
   {
     id: 'graduation',
     name: 'Graduation',
     emoji: '🎓',
     description: 'Mark the climb, celebrate the milestone.',
-    count: 1,
+    count: 2,
   },
 ]
 
-const FEATURE_SOUND = { id: 'sound', label: '🎵 Sound Enabled' }
-const FEATURE_CONFETTI = { id: 'confetti', label: '✨ Confetti Reveal' }
-const FEATURE_PHOTOS = { id: 'photos', label: '📸 Photos & Letter' }
-const FEATURE_CANDLE = { id: 'candle', label: '🎂 Interactive Candle' }
-const FEATURE_UNLOCK = { id: 'unlock', label: '🗝️ Unlock Ritual' }
-const FEATURE_RINGBOX = { id: 'ringbox', label: '💍 Interactive Ring Box' }
-const FEATURE_SQUAD = { id: 'squad', label: '💥 Squad Micro-Interactions' }
-const FEATURE_RECORD =
-  { id: 'vhs', label: '📼 Highlight Reel & Cap Toss' }
-const FEATURE_LETTER = { id: 'letter', label: '💌 Digital Love Letter' }
-
-export const themes: ThemeMetadata[] = [
+export const experiences: ExperienceMetadata[] = [
   {
     id: 'birthday-01',
+    experienceNumber: 1,
     categoryId: 'birthday',
     name: 'Birthday Surprise #01',
     tagline: 'Confetti, candle, wish.',
     description:
       'A six-act cinematic surprise: a teaser, a little suspense, a countdown, a confetti reveal, memories in polaroids, and an interactive candle only you can blow out.',
-    emoji: '🎂',
-    gradient: 'linear-gradient(135deg, #f6c6b6 0%, #e0b3f2 45%, #c9b8ff 100%)',
     price: '₹9',
     amountInPaise: 900,
-    features: [FEATURE_SOUND, FEATURE_CONFETTI, FEATURE_PHOTOS, FEATURE_CANDLE],
-    tags: ['Cinematic', '6 Acts', 'Sendable Link'],
-    status: 'available',
-    isAvailable: true,
     badge: 'BESTSELLER',
+    isAvailable: true,
+    features: [
+      '🎵 Sound & Music',
+      '✨ Confetti Reveal',
+      '🌹 Rose Bouquet Notes',
+      '🎂 Interactive Candle',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '🎂',
+      gradient: 'linear-gradient(135deg, #f6c6b6 0%, #e0b3f2 45%, #c9b8ff 100%)',
+      accentColor: '#f6c6b6',
+    },
+  },
+  {
+    id: 'birthday-02',
+    experienceNumber: 2,
+    categoryId: 'birthday',
+    name: 'Grand Celebration #02',
+    tagline: 'A bigger night. A bigger glow.',
+    description:
+      'A premium extended birthday show — cinematic audio, a multi-stage reveal you light up yourself, an extended letter that keeps going, and a grand finale with fireworks.',
+    price: '₹29',
+    amountInPaise: 2900,
+    badge: 'PREMIUM',
+    isAvailable: true,
+    features: [
+      '🎵 Cinematic Audio',
+      '💫 Multi-Stage Reveal',
+      '💌 Extended Letter',
+      '🎆 Grand Finale',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '🎂',
+      gradient: 'linear-gradient(135deg, #1a1e2a 0%, #4a3f63 50%, #e8b4a0 100%)',
+      accentColor: '#f5b861',
+    },
   },
   {
     id: 'love-01',
+    experienceNumber: 1,
     categoryId: 'love',
-    name: 'Midnight Love Letter',
+    name: 'Midnight Love Letter #01',
     tagline: 'Say it loudly, softly.',
     description:
       'A six-act love letter sealed like a wax stamp — a glowing teaser, a wax seal to crack, a candlelit countdown, a confetti reveal, and a note written just for them.',
-    emoji: '💌',
-    gradient: 'linear-gradient(135deg, #e0b3f2 0%, #c9b8ff 50%, #8ea6ff 100%)',
     price: '₹9',
     amountInPaise: 900,
-    features: [FEATURE_SOUND, FEATURE_LETTER, FEATURE_CONFETTI],
-    tags: ['Romantic', 'Letter', 'Song'],
-    status: 'available',
-    isAvailable: true,
     badge: 'TRENDING',
+    isAvailable: true,
+    features: [
+      '🎵 Ambient Music',
+      '💓 Pulse Sensor',
+      '🌹 Petal Rain',
+      '💌 Love Letter',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '💌',
+      gradient: 'linear-gradient(135deg, #e0b3f2 0%, #c9b8ff 50%, #8ea6ff 100%)',
+      accentColor: '#c9b8ff',
+    },
+  },
+  {
+    id: 'love-02',
+    experienceNumber: 2,
+    categoryId: 'love',
+    name: 'Love Eternal #02',
+    tagline: 'A confession written in stars.',
+    description:
+      'A premium extended romance — a romantic score, a constellation you draw with your fingertips, a wax seal split open, and a deep confession that says the words you never could.',
+    price: '₹29',
+    amountInPaise: 2900,
+    badge: 'POPULAR',
+    isAvailable: true,
+    features: [
+      '🎵 Romantic Score',
+      '✨ Constellation Aura',
+      '💍 Wax Seal Reveal',
+      '💌 Deep Confession',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '❤️',
+      gradient: 'linear-gradient(135deg, #2b2140 0%, #4a3f63 45%, #8ea6ff 100%)',
+      accentColor: '#a78bfa',
+    },
   },
   {
     id: 'anniversary-01',
+    experienceNumber: 1,
     categoryId: 'anniversary',
-    name: 'Golden Anniversary Memory Box',
+    name: 'Golden Memory Box #01',
     tagline: 'A love letter through time.',
     description:
       'Turn a golden key, lift the lid of a keepsake box, walk your years together on a milestone timeline, and light a golden candle for every year you’ve made yours.',
-    emoji: '💞',
-    gradient: 'linear-gradient(135deg, #f7b267 0%, #fde8cf 50%, #f6c6b6 100%)',
     price: '₹9',
     amountInPaise: 900,
-    features: [FEATURE_UNLOCK, FEATURE_PHOTOS, FEATURE_CANDLE, FEATURE_SOUND],
-    tags: ['Keepsake', 'Polaroids', 'Milestones'],
-    status: 'available',
-    isAvailable: true,
     badge: 'POPULAR',
+    isAvailable: true,
+    features: [
+      '⏳ Time Counter',
+      '📖 Chapter Flip',
+      '🥂 Clinking Toast',
+      '💌 Milestone Note',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '💞',
+      gradient: 'linear-gradient(135deg, #f7b267 0%, #fde8cf 50%, #f6c6b6 100%)',
+      accentColor: '#f7b267',
+    },
+  },
+  {
+    id: 'anniversary-02',
+    experienceNumber: 2,
+    categoryId: 'anniversary',
+    name: 'Forever Story #02',
+    tagline: 'Spin the years. Feel them all.',
+    description:
+      'A premium extended anniversary — a spinning odometer that rolls your years, a nostalgia reel of moments, a champagne pop ritual, and a forever letter signed for the ages.',
+    price: '₹29',
+    amountInPaise: 2900,
+    badge: 'PREMIUM',
+    isAvailable: true,
+    features: [
+      '⏳ Dynamic Odometer',
+      '✨ Nostalgia Reel',
+      '🥂 Champagne Ritual',
+      '💌 Forever Letter',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '💕',
+      gradient: 'linear-gradient(135deg, #3a2417 0%, #8a5a4a 50%, #fcd9a6 100%)',
+      accentColor: '#fcd9a6',
+    },
   },
   {
     id: 'proposal-01',
+    experienceNumber: 1,
     categoryId: 'proposal',
-    name: 'The Big Question Proposal',
+    name: 'The Big Question #01',
     tagline: 'One question. One yes.',
     description:
       'Feel your heartbeat, ride a build-the-courage countdown, open a tiny ring box, and face the question — with a shower of hearts the second they say yes.',
-    emoji: '💍',
-    gradient: 'linear-gradient(135deg, #ffb5c2 0%, #f6c6b6 50%, #ffd98a 100%)',
     price: '₹9',
     amountInPaise: 900,
-    features: [FEATURE_RINGBOX, FEATURE_CONFETTI, FEATURE_SOUND, FEATURE_LETTER],
-    tags: ['Dramatic', 'Confetti', 'The Moment'],
-    status: 'available',
+    badge: 'POPULAR',
     isAvailable: true,
-    badge: 'NEW',
+    features: [
+      '✨ Suspense Chamber',
+      '💍 3D Ring Box',
+      '💖 Dual YES Ritual',
+      '🎆 Diamond Sparks',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '💍',
+      gradient: 'linear-gradient(135deg, #ffb5c2 0%, #f6c6b6 50%, #ffd98a 100%)',
+      accentColor: '#e8b4a0',
+    },
+  },
+  {
+    id: 'proposal-02',
+    experienceNumber: 2,
+    categoryId: 'proposal',
+    name: 'The Greatest Yes #02',
+    tagline: 'Every promise, one spotlight.',
+    description:
+      'A premium extended proposal — cinematic buildup, a spotlight reveal on the ring, three forever promises lit one by one, and golden fireworks the moment they say yes.',
+    price: '₹29',
+    amountInPaise: 2900,
+    badge: 'PREMIUM',
+    isAvailable: true,
+    features: [
+      '🎬 Cinematic Buildup',
+      '💍 Spotlight Reveal',
+      '💖 Forever Promise',
+      '🎆 Golden Fireworks',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '💍',
+      gradient: 'linear-gradient(135deg, #1a1522 0%, #4a2740 50%, #ffd98a 100%)',
+      accentColor: '#f5b861',
+    },
   },
   {
     id: 'friendship-01',
+    experienceNumber: 1,
     categoryId: 'friendship',
-    name: 'Squad Forever Card',
+    name: 'Squad Forever #01',
     tagline: 'For the ones who feel like home.',
     description:
       'Mash a squad emoji burst, flip inside-joke cards, scroll unposed polaroids, and sign the official squad pledge — proof of the greatest friendship ever.',
-    emoji: '🧡',
-    gradient: 'linear-gradient(135deg, #ffb56b 0%, #f6c6b6 45%, #e0b3f2 100%)',
     price: '₹9',
     amountInPaise: 900,
-    features: [FEATURE_SQUAD, FEATURE_PHOTOS, FEATURE_SOUND],
-    tags: ['Group', 'Inside Jokes', 'Photos'],
-    status: 'available',
+    badge: 'TRENDING',
     isAvailable: true,
-    badge: 'NEW',
+    features: [
+      '🤪 Bestie Quiz',
+      '🃏 Inside Joke Cards',
+      '✋ High-Five Counter',
+      '💌 Real Talk Note',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '🧡',
+      gradient: 'linear-gradient(135deg, #ffb56b 0%, #f6c6b6 45%, #e0b3f2 100%)',
+      accentColor: '#ffb56b',
+    },
+  },
+  {
+    id: 'friendship-02',
+    experienceNumber: 2,
+    categoryId: 'friendship',
+    name: 'Bestie Broadcast #02',
+    tagline: 'Incoming chaos. Max volume.',
+    description:
+      'A premium extended friendship drop — a loud broadcast intro, a sticker explosion on tap, a super high-five counter, and a bestie letter that speaks the realest truths.',
+    price: '₹29',
+    amountInPaise: 2900,
+    badge: 'POPULAR',
+    isAvailable: true,
+    features: [
+      '🚨 Chaos Broadcast',
+      '🍕 Sticker Explosion',
+      '✋ Super High-Five',
+      '💌 Bestie Letter',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '👋',
+      gradient: 'linear-gradient(135deg, #3f2d20 0%, #7a2e2e 50%, #ffb56b 100%)',
+      accentColor: '#ff8a5c',
+    },
   },
   {
     id: 'graduation-01',
+    experienceNumber: 1,
     categoryId: 'graduation',
-    name: 'Graduation Victory Reel',
+    name: 'Victory Reel #01',
     tagline: 'Celebrate the climb.',
     description:
       'A highlight reel from first day to graduation day — a filmstrip of milestones, a countdown, a cap toss, and an official diploma unroll from the proudest team.',
-    emoji: '🎓',
-    gradient: 'linear-gradient(135deg, #7fd8be 0%, #9ec5ff 50%, #c9b8ff 100%)',
     price: '₹9',
     amountInPaise: 900,
-    features: [FEATURE_RECORD, FEATURE_CONFETTI, FEATURE_PHOTOS, FEATURE_SOUND],
-    tags: ['Milestone', 'Highlight Reel', 'Confetti'],
-    status: 'available',
+    badge: 'POPULAR',
     isAvailable: true,
-    badge: 'NEW',
+    features: [
+      '📊 Grind Meter',
+      '🎓 Cap Toss Ritual',
+      '✨ Golden Laurels',
+      '💌 Pride Letter',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '🎓',
+      gradient: 'linear-gradient(135deg, #7fd8be 0%, #9ec5ff 50%, #c9b8ff 100%)',
+      accentColor: '#9ec5ff',
+    },
+  },
+  {
+    id: 'graduation-02',
+    experienceNumber: 2,
+    categoryId: 'graduation',
+    name: 'Chapter Complete #02',
+    tagline: 'Stats. Toss. Golden sky.',
+    description:
+      'A premium extended graduation — honor-roll stats that roll in one by one, a high-flying cap toss with a golden trail, a golden confetti rain, and a mentor/family note that hits home.',
+    price: '₹29',
+    amountInPaise: 2900,
+    badge: 'PREMIUM',
+    isAvailable: true,
+    features: [
+      '🏆 Honor Roll Stats',
+      '🎓 High-Fly Cap Toss',
+      '✨ Golden Confetti',
+      '💌 Mentor/Family Note',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '🎓',
+      gradient: 'linear-gradient(135deg, #172554 0%, #2b4a8f 45%, #fcd9a6 100%)',
+      accentColor: '#fcd9a6',
+    },
   },
 ]
 
 export function getCategoryById(id: string) {
   return categories.find((category) => category.id === id)
+}
+
+export function getExperienceById(id: string) {
+  return experiences.find((experience) => experience.id === id)
 }

@@ -110,10 +110,10 @@ export function HeroSection({
           Try Birthday Demo
         </button>
         <a
-          href="#themes"
+          href="#experiences"
           className="flex min-h-14 items-center gap-2 rounded-full border border-stone-200 bg-white px-7 text-base font-semibold text-stone-700 transition-all duration-200 hover:scale-[1.03] hover:border-rose-200 hover:bg-stone-50 active:scale-95"
         >
-          Explore Themes
+          Explore Experiences
           <ArrowDown className="h-5 w-5 text-rose-400" />
         </a>
       </motion.div>

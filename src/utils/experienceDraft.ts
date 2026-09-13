@@ -1,5 +1,4 @@
 import type { BouquetNote, ExperienceConfig, PhotoItem } from '../types/experience'
-import { defaultBirthdayConfig } from '../themes/birthday-01/defaultData'
 
 export interface PhotoDraft {
   src: string
@@ -46,20 +45,22 @@ const isImageSrc = (value: string): boolean => {
 
 /**
  * Builds a complete, safe ExperienceConfig from the user's draft by merging
- * every filled field onto the curated defaults. Used both for the live preview
- * and as the payload sent to the server before checkout.
+ * every filled field onto the selected experience's curated defaults. Used
+ * both for the live preview and as the payload sent to the server before
+ * checkout.
  */
-export function buildBirthdayConfig(draft: Partial<CustomizerDraft>): ExperienceConfig {
-  const config = structuredClone(defaultBirthdayConfig)
+export function buildExperienceConfig(
+  draft: Partial<CustomizerDraft>,
+  baseConfig: ExperienceConfig,
+): ExperienceConfig {
+  const config = structuredClone(baseConfig)
 
   const recipient = draft.recipientName?.trim() || config.recipient.name
-  const nickname = draft.nickname?.trim() || recipient
+  const nickname = draft.nickname?.trim()
   const sender = draft.senderName?.trim() || config.sender.name
 
-  config.recipient.name = recipient
+  config.recipient.name = nickname || recipient
   config.sender.name = sender
-  config.content.teaserHeading = `Hey ${nickname}… someone has something special for you ✨`
-  config.content.finalMessage = `Today is all about ${nickname}`
 
   const lines = (draft.letterLines ?? [])
     .map((line) => line.trim())

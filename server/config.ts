@@ -19,11 +19,17 @@ export const FRONTEND_ORIGINS = (
 export const CURRENCY = 'INR'
 export const ALLOWED_TEMPLATES = [
   'birthday-01',
+  'birthday-02',
   'love-01',
+  'love-02',
   'anniversary-01',
+  'anniversary-02',
   'proposal-01',
+  'proposal-02',
   'friendship-01',
+  'friendship-02',
   'graduation-01',
+  'graduation-02',
 ]
 
 export const DATA_DIR = path.resolve(PROJECT_ROOT, 'server', 'data')

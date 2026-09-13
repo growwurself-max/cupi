@@ -6,7 +6,7 @@ const STEPS = [
     icon: WandSparkles,
     step: '01',
     title: 'Choose an Experience',
-    body: 'Select from our crafted animated themes — each one a miniature story, ready to feel.',
+    body: 'Select from our crafted animated experiences — each one a miniature story, ready to feel.',
     tint: {
       card: 'border-rose-100 bg-gradient-to-b from-white to-rose-50/70',
       glow: 'bg-rose-200/40',
@@ -19,7 +19,7 @@ const STEPS = [
     icon: PenLine,
     step: '02',
     title: 'Personalize with Love',
-    body: 'Add their name, your photos, a heartfelt note, and a song that says what words cannot.',
+    body: 'Add their name, a heartfelt note, and the small details that make it unmistakably theirs.',
     tint: {
       card: 'border-orange-100 bg-gradient-to-b from-white to-orange-50/70',
       glow: 'bg-orange-200/40',

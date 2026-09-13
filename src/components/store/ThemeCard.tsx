@@ -1,21 +1,28 @@
-import { Bell, Play, Sparkles, WandSparkles } from 'lucide-react'
+import { Play, WandSparkles } from 'lucide-react'
 import { getCategoryById } from '../../data/catalog'
-import type { ThemeMetadata } from '../../types/catalog'
+import type { ExperienceBadge, ExperienceMetadata } from '../../types/catalog'
 
 interface ThemeCardProps {
-  theme: ThemeMetadata
-  available: boolean
+  theme: ExperienceMetadata
   onLaunchDemo: () => void
   onCustomize: () => void
-  onNotify: () => void
+}
+
+const BADGE_CLASSES: Record<ExperienceBadge, string> = {
+  BESTSELLER:
+    'bg-gradient-to-r from-amber-400 to-rose-500 text-white shadow-sm font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded-full',
+  PREMIUM:
+    'bg-violet-100 text-violet-700 font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded-full',
+  POPULAR:
+    'bg-pink-100 text-pink-700 font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded-full',
+  TRENDING:
+    'bg-purple-100 text-purple-700 font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded-full',
 }
 
 export function ThemeCard({
   theme,
-  available,
   onLaunchDemo,
   onCustomize,
-  onNotify,
 }: ThemeCardProps) {
   const category = getCategoryById(theme.categoryId)
 
@@ -32,11 +39,14 @@ export function ThemeCard({
       {/* Preview thumbnail */}
       <div
         className="relative flex h-44 items-center justify-center overflow-hidden"
-        style={{ background: theme.gradient }}
+        style={{ background: theme.previewVisual.gradient }}
       >
         <div aria-hidden className="absolute inset-0 bg-white/10" />
-        <span className="animate-float-slow relative text-6xl drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] transition-transform duration-500 group-hover:scale-110">
-          {theme.emoji}
+        <span
+          className="animate-float-slow relative text-6xl drop-shadow-[0_10px_20px_rgba(0,0,0,0.15)] transition-transform duration-500 group-hover:scale-110"
+          aria-hidden
+        >
+          {theme.previewVisual.emoji}
         </span>
 
         {category && (
@@ -46,24 +56,20 @@ export function ThemeCard({
           </span>
         )}
 
-        {available && theme.badge ? (
-          <span className="absolute top-3 right-3 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-white uppercase shadow-sm">
+        {theme.badge && (
+          <span className={`absolute top-3 right-3 ${BADGE_CLASSES[theme.badge]}`}>
             {theme.badge}
-          </span>
-        ) : (
-          <span className="absolute top-3 right-3 rounded-full border border-white/70 bg-white/85 px-3 py-1.5 text-[11px] font-bold text-stone-500 shadow-sm backdrop-blur-sm">
-            Coming Soon
           </span>
         )}
 
-        {available && (
-          <span className="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full border border-white/70 bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
-            <span className="text-[10px] font-bold tracking-wide text-stone-500 uppercase">
-              Only
-            </span>
-            <span className="text-sm font-black text-rose-600">{theme.price}</span>
+        <span className="absolute right-3 bottom-3 flex flex-col items-end rounded-2xl border border-white/70 bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+          <span className="text-lg leading-none font-black text-rose-600">
+            {theme.price}
           </span>
-        )}
+          <span className="mt-0.5 text-[10px] font-bold tracking-wide text-stone-500 uppercase">
+            Experience #{String(theme.experienceNumber).padStart(2, '0')}
+          </span>
+        </span>
       </div>
 
       {/* Body */}
@@ -76,9 +82,9 @@ export function ThemeCard({
             </span>
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-rose-500">
-            <span className="text-rose-400">✦</span>
+            <span className="text-rose-400" aria-hidden>✦</span>
             {theme.tagline}
-            <span className="text-rose-400">✦</span>
+            <span className="text-rose-400" aria-hidden>✦</span>
           </p>
           <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-stone-500">
             {theme.description}
@@ -88,50 +94,31 @@ export function ThemeCard({
         <div className="flex flex-wrap gap-1.5">
           {theme.features.map((feature) => (
             <span
-              key={feature.id}
+              key={feature}
               className="rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700"
             >
-              {feature.label}
+              {feature}
             </span>
           ))}
         </div>
 
         <div className="mt-auto flex flex-col gap-2.5 pt-1">
-          {available ? (
-            <>
-              <button
-                type="button"
-                onClick={onLaunchDemo}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-[1.03] hover:shadow-xl hover:shadow-rose-200 active:scale-95"
-              >
-                <Play className="h-4 w-4 fill-current" />
-                Watch Demo
-              </button>
-              <button
-                type="button"
-                onClick={onCustomize}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-stone-100 text-sm font-bold text-stone-800 transition-all duration-200 hover:scale-[1.03] hover:bg-stone-200 active:scale-95"
-              >
-                <WandSparkles className="h-4 w-4 text-rose-400" />
-                Create Yours
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-dashed border-stone-200 bg-stone-50 text-sm font-semibold text-stone-400">
-                <Sparkles className="h-4 w-4" />
-                Coming Soon
-              </span>
-              <button
-                type="button"
-                onClick={onNotify}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-stone-100 text-sm font-bold text-stone-700 transition-all duration-200 hover:scale-[1.03] hover:bg-rose-50 hover:text-rose-600 active:scale-95"
-              >
-                <Bell className="h-4 w-4" />
-                Notify Me
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={onLaunchDemo}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-[1.03] hover:shadow-xl hover:shadow-rose-200 active:scale-95"
+          >
+            <Play className="h-4 w-4 fill-current" />
+            Watch Demo
+          </button>
+          <button
+            type="button"
+            onClick={onCustomize}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-stone-100 text-sm font-bold text-stone-800 transition-all duration-200 hover:scale-[1.03] hover:bg-stone-200 active:scale-95"
+          >
+            <WandSparkles className="h-4 w-4 text-rose-400" />
+            Create Yours · {theme.price}
+          </button>
         </div>
       </div>
     </article>

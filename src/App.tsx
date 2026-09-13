@@ -9,7 +9,7 @@ import { HowItWorks } from './components/store/HowItWorks'
 import { Navbar } from './components/store/Navbar'
 import { ThemeGrid } from './components/store/ThemeGrid'
 import { themeRegistry } from './themes/registry'
-import type { ThemeMetadata } from './types/catalog'
+import type { ExperienceMetadata } from './types/catalog'
 
 type View = 'store' | 'demo'
 
@@ -32,7 +32,7 @@ export default function App() {
   const [activeCategory, setActiveCategory] =
     useState<CategorySelection>('all')
   const [customizeTheme, setCustomizeTheme] =
-    useState<ThemeMetadata | null>(null)
+    useState<ExperienceMetadata | null>(null)
   const [route, setRoute] = useState<Route>(() =>
     parsePath(typeof window !== 'undefined' ? window.location.pathname : '/'),
   )
@@ -65,13 +65,13 @@ export default function App() {
   }, [view])
 
   const handleCustomize = useCallback(
-    (theme: ThemeMetadata) => setCustomizeTheme(theme),
+    (theme: ExperienceMetadata) => setCustomizeTheme(theme),
     [],
   )
 
   const handleSelectCategory = useCallback((id: CategorySelection) => {
     setActiveCategory(id)
-    document.getElementById('themes')?.scrollIntoView({ behavior: 'smooth' })
+    document.getElementById('experiences')?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
   const handleOpenExperience = useCallback(

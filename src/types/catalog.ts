@@ -6,6 +6,12 @@ export type CategoryId =
   | 'friendship'
   | 'graduation'
 
+export type ExperienceBadge =
+  | 'BESTSELLER'
+  | 'POPULAR'
+  | 'TRENDING'
+  | 'PREMIUM'
+
 export interface Category {
   id: CategoryId
   name: string
@@ -14,26 +20,27 @@ export interface Category {
   count: number
 }
 
-export type ThemeStatus = 'available' | 'coming-soon'
-
-export interface FeaturePill {
+/**
+ * Data-driven catalog row for a single experience. The `id` follows the
+ * scalable convention `{category}-{NN}` (e.g. `birthday-01`, `birthday-02`,
+ * `birthday-03`…) so new tiers can be added without touching the storefront.
+ */
+export interface ExperienceMetadata {
   id: string
-  label: string
-}
-
-export interface ThemeMetadata {
-  id: string
-  categoryId: CategoryId
+  experienceNumber: number
   name: string
+  categoryId: CategoryId
   tagline: string
   description: string
-  emoji: string
-  gradient: string
   price: string
   amountInPaise: number
-  features: FeaturePill[]
-  tags: string[]
-  status: ThemeStatus
+  badge?: ExperienceBadge
   isAvailable: boolean
-  badge?: string
+  features: string[]
+  supportsPhotos: boolean
+  previewVisual: {
+    emoji: string
+    gradient: string
+    accentColor: string
+  }
 }
