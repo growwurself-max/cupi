@@ -8,6 +8,11 @@ const LIMITS = {
   url: 600,
 } as const
 
+// A compressed 800px upload is ~80–150KB binary → ~110–200KB base64. Allow
+// generous headroom (≈1.5MB base64 per photo) while keeping the whole payload
+// under the 10mb JSON limit.
+const MAX_BASE64_PHOTO_LENGTH = 1_500_000
+
 function cleanString(value: unknown, max: number): string {
   if (typeof value !== 'string') return ''
   return value
@@ -17,9 +22,24 @@ function cleanString(value: unknown, max: number): string {
     .slice(0, max)
 }
 
-function cleanUrl(value: unknown): string {
-  const candidate = cleanString(value, LIMITS.url)
-  return /^https?:\/\/[^\s]+$/i.test(candidate) ? candidate : ''
+/**
+ * Photo sources may be hosted images (https://) OR client-compressed base64
+ * data URLs from the upload picker. Data URLs are never truncated (a sliced
+ * base64 blob is corrupt) — they are validated whole and capped by length.
+ */
+function cleanPhotoSrc(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  const candidate = value.trim()
+  if (/^https?:\/\/[^\s]+$/i.test(candidate)) {
+    return candidate.slice(0, LIMITS.url)
+  }
+  if (
+    candidate.length <= MAX_BASE64_PHOTO_LENGTH &&
+    /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(candidate)
+  ) {
+    return candidate
+  }
+  return ''
 }
 
 function clampNumber(value: unknown, fallback = 0): number {
@@ -114,7 +134,7 @@ export function sanitizeCustomization(payload: unknown): SanitizedCustomization 
     ? (content.photos as RawPhoto[])
         .slice(0, 3)
         .map((photo, index) => {
-          const src = cleanUrl(photo.src)
+          const src = cleanPhotoSrc(photo.src)
           if (!src) return null
           const caption = cleanString(photo.caption, LIMITS.caption)
           return {

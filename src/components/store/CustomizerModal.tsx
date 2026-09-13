@@ -10,9 +10,11 @@ import {
   Lock,
   MessagesSquare,
   PenLine,
+  RefreshCw,
+  Trash2,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRazorpay, type CheckoutOutcome } from '../../hooks/useRazorpay'
 import { themeRegistry } from '../../themes/registry'
 import type { ThemeMetadata } from '../../types/catalog'
@@ -22,6 +24,7 @@ import {
   type CustomizerDraft,
   type PhotoDraft,
 } from '../../utils/experienceDraft'
+import { resizeAndCompressImage } from '../../utils/imageResize'
 import { OrderSuccessModal } from './OrderSuccessModal'
 
 interface CustomizerModalProps {
@@ -53,6 +56,7 @@ export function CustomizerModal({
   const [draft, setDraft] = useState<CustomizerDraft>(emptyDraft)
   const [previewing, setPreviewing] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [processingIndex, setProcessingIndex] = useState<number | null>(null)
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
 
   useEffect(() => {
@@ -122,6 +126,28 @@ return null
       }))
     },
     [],
+  )
+
+  const handleFileChange = useCallback(
+    async (index: number, file: File) => {
+      if (processingIndex !== null) return
+      setProcessingIndex(index)
+      try {
+        const resizedBase64 = await resizeAndCompressImage(file)
+        updatePhoto(index, { src: resizedBase64 })
+      } catch (error) {
+        console.error('Image processing failed:', error)
+        alert('Could not process image. Please try another photo.')
+      } finally {
+        setProcessingIndex(null)
+      }
+    },
+    [processingIndex, updatePhoto],
+  )
+
+  const removePhoto = useCallback(
+    (index: number) => updatePhoto(index, { src: '' }),
+    [updatePhoto],
   )
 
   const handleCheckout = useCallback(async () => {
@@ -394,25 +420,23 @@ return null
                           Memories 📸
                         </p>
                         <p className="mt-0.5 text-xs text-stone-400">
-                          Paste direct image URLs (https://…) and a tiny caption for
-                          each polaroid.
+                          Pick photos from your phone — they&apos;re compressed
+                          on-device in under a second and pop straight into a
+                          pretty polaroid frame.
                         </p>
                       </div>
                       {draft.photos.map((photo, i) => (
-                        <div key={i} className="space-y-2 rounded-2xl border border-stone-100 bg-stone-50/50 p-3">
-                          <div className="relative">
-                            <ImageIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-400" />
-                            <input
-                              className={`${INPUT_CLASS} pl-10`}
-                              placeholder="https://images.example.com/us.jpg"
-                              value={photo.src}
-                              onChange={(event) =>
-                                updatePhoto(i, { src: event.target.value })
-                              }
-                              maxLength={600}
-                              aria-label={`Photo ${i + 1} URL`}
-                            />
-                          </div>
+                        <div
+                          key={i}
+                          className="space-y-3 rounded-2xl border border-stone-100 bg-stone-50/50 p-3"
+                        >
+                          <MemoryUpload
+                            index={i}
+                            src={photo.src}
+                            processing={processingIndex === i}
+                            onUpload={handleFileChange}
+                            onRemove={removePhoto}
+                          />
                           <input
                             className={INPUT_CLASS}
                             placeholder="Caption (e.g. Us, being us.)"
@@ -428,8 +452,9 @@ return null
                       {draft.photos.length < 3 && (
                         <button
                           type="button"
+                          disabled={processingIndex !== null}
                           onClick={addPhoto}
-                          className="flex items-center gap-2 text-sm font-semibold text-rose-500 transition-colors hover:text-rose-600"
+                          className="flex items-center gap-2 text-sm font-semibold text-rose-500 transition-colors hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <ListPlus className="h-4 w-4" />
                           Add another memory
@@ -639,13 +664,101 @@ function HeartIcon({ className }: { className?: string }) {
   )
 }
 
-function ImageIcon({ className }: { className?: string }) {
+interface MemoryUploadProps {
+  index: number
+  src: string
+  processing: boolean
+  onUpload: (index: number, file: File) => void
+  onRemove: (index: number) => void
+}
+
+function MemoryUpload({
+  index,
+  src,
+  processing,
+  onUpload,
+  onRemove,
+}: MemoryUploadProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const hasImage = Boolean(src)
+
+  const openPicker = () => inputRef.current?.click()
+
+  const handleFile = (file: File | undefined | null) => {
+    if (file) onUpload(index, file)
+  }
+
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-      <circle cx="9" cy="9" r="2" />
-      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-    </svg>
+    <div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          handleFile(event.target.files?.[0])
+          event.target.value = ''
+        }}
+      />
+
+      <div
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault()
+          handleFile(event.dataTransfer.files?.[0])
+        }}
+      >
+        {processing ? (
+          <div className="flex min-h-36 flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-rose-200 bg-rose-50/50 p-4 text-center">
+            <LoaderCircle className="h-6 w-6 animate-spin text-rose-400" />
+            <p className="animate-pulse text-sm font-semibold text-rose-500">
+              Compressing photo…
+            </p>
+          </div>
+        ) : hasImage ? (
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-rose-100 bg-rose-50 shadow-inner">
+            <img
+              src={src}
+              alt="Uploaded memory preview"
+              className="h-full w-full object-cover object-center"
+            />
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/50 via-black/15 to-transparent p-2.5">
+              <button
+                type="button"
+                onClick={openPicker}
+                className="flex min-h-9 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-xs font-bold text-stone-700 transition-all duration-200 hover:scale-105 hover:bg-white active:scale-95"
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-rose-500" />
+                Change
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemove(index)}
+                className="flex min-h-9 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-xs font-bold text-rose-600 transition-all duration-200 hover:scale-105 hover:bg-white active:scale-95"
+                aria-label={`Remove photo ${index + 1}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={openPicker}
+            className="flex min-h-36 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-rose-200 bg-rose-50/50 p-4 text-center transition-all hover:bg-rose-50 active:scale-[0.99]"
+          >
+            <ImagePlus className="h-6 w-6 text-rose-400" />
+            <span className="text-sm font-semibold text-rose-500">
+              Tap to select photo
+            </span>
+            <span className="text-[11px] font-medium text-stone-400">
+              or drag &amp; drop — auto-compressed
+            </span>
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 

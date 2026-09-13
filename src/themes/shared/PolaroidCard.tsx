@@ -44,12 +44,12 @@ export function PolaroidCard({
         transition={{ type: 'spring', stiffness: 170, damping: 15 }}
         className={`rounded-2xl p-3 pb-4 shadow-[0_18px_45px_-18px_rgba(0,0,0,0.35)] ${frameClass}`}
       >
-        <div className="relative overflow-hidden rounded-xl">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-rose-100/70 shadow-inner sm:aspect-square">
           <img
             src={photo.src}
             alt={photo.alt}
             loading="lazy"
-            className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
           />
         </div>
         <p className={`mt-3 text-center text-sm font-semibold ${captionClass}`}>

@@ -62,8 +62,10 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 )
-// 2. JSON body parser
-app.use(express.json({ limit: '256kb' }))
+// 2. JSON body parser — 10mb so a full customization with compressed
+// (base64) photos always fits through.
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 // 3. Request logger (visibility in Render logs)
 app.use((req: Request, _res: Response, next) => {
   console.log(`[HTTP] ${req.method} ${req.originalUrl}`)

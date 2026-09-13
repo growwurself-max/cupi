@@ -36,8 +36,13 @@ export function emptyDraft(): CustomizerDraft {
   }
 }
 
-const isHttpUrl = (value: string): boolean =>
-  /^https?:\/\/\S+$/i.test(value.trim())
+const isImageSrc = (value: string): boolean => {
+  const candidate = value.trim()
+  return (
+    /^https?:\/\/\S+$/i.test(candidate) ||
+    /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(candidate)
+  )
+}
 
 /**
  * Builds a complete, safe ExperienceConfig from the user's draft by merging
@@ -78,7 +83,7 @@ export function buildBirthdayConfig(draft: Partial<CustomizerDraft>): Experience
   }
 
   const photos = (draft.photos ?? []).filter(
-    (photo) => photo.src && isHttpUrl(photo.src),
+    (photo) => photo.src && isImageSrc(photo.src),
   )
   if (photos.length > 0) {
     config.content.photos = photos.slice(0, 3).map((photo, index): PhotoItem => {

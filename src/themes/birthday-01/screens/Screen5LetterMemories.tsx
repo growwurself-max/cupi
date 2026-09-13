@@ -91,12 +91,12 @@ export function Screen5LetterMemories({
               transition={{ type: 'spring', stiffness: 160, damping: 15 }}
               className="relative rounded-2xl bg-white p-3 pb-4 shadow-[0_24px_60px_-20px_rgba(244,114,182,0.4)]"
             >
-              <div className="overflow-hidden rounded-xl bg-rose-100">
+              <div className="relative aspect-[4/3] w-full sm:aspect-square overflow-hidden rounded-xl bg-rose-100 shadow-inner">
                 <img
                   src={photo.src}
                   alt={photo.alt}
                   loading="lazy"
-                  className="h-44 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                 />
               </div>
               <p className="mt-3 text-center text-sm font-semibold text-stone-700">
