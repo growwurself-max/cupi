@@ -84,7 +84,7 @@ export function useRazorpay() {
         description: 'Personalized Experience',
         order_id: order.orderId,
         prefill: { name: payload.buyerName },
-        theme: { color: '#FB7185', backdrop_color: '#FFF9F6' },
+        theme: { color: '#FB7185', backdrop_color: '#FFFDFB' },
         modal: { ondismiss: () => resolve({ kind: 'cancelled' }) },
         handler: async (response) => {
           console.log('[RAZORPAY SUCCESS CALLBACK RAW RESPONSE]:', response)

@@ -16,6 +16,10 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRazorpay, type CheckoutOutcome } from '../../hooks/useRazorpay'
+import {
+  getCustomizerStepIds,
+  type CustomizerStepId,
+} from '../../config/customization'
 import { themeRegistry } from '../../themes/registry'
 import type { ExperienceMetadata } from '../../types/catalog'
 import {
@@ -33,15 +37,22 @@ interface CustomizerModalProps {
   onOpenExperience: (path: string) => void
 }
 
-const BASE_STEPS = [
-  { id: 'basics', label: 'Basics', icon: Heart },
-  { id: 'message', label: 'Message', icon: PenLine },
-  { id: 'bouquet', label: 'Notes', icon: MessagesSquare },
-  { id: 'memories', label: 'Memories', icon: ImagePlus },
-]
+const STEP_DEFS = {
+  basics: { label: 'Basics', icon: Heart },
+  question: { label: 'Question', icon: MessagesSquare },
+  message: { label: 'Message', icon: PenLine },
+  bouquet: { label: 'Notes', icon: MessagesSquare },
+  memories: { label: 'Memories', icon: ImagePlus },
+} as const satisfies Record<CustomizerStepId, { label: string; icon: typeof Heart }>
+
+const GRID_CLASS: Record<number, string> = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+}
 
 const INPUT_CLASS =
-  'w-full rounded-xl border border-stone-200 bg-stone-50/60 px-4 py-3 text-sm text-stone-800 placeholder-stone-300 outline-none transition-colors focus:border-rose-300 focus:bg-white'
+  'w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 placeholder-stone-400 shadow-sm outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
 
 type PaymentResult = Extract<CheckoutOutcome, { kind: 'verified' } | { kind: 'failed' }>
 
@@ -59,14 +70,15 @@ export function CustomizerModal({
   const [processingIndex, setProcessingIndex] = useState<number | null>(null)
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
 
-  const steps = useMemo(
-    () =>
-      theme?.supportsPhotos
-        ? BASE_STEPS
-        : BASE_STEPS.filter((stepDef) => stepDef.id !== 'memories'),
-    [theme],
-  )
+  const steps = useMemo(() => {
+    if (!theme) return []
+    return getCustomizerStepIds(theme).map((stepId) => ({
+      id: stepId,
+      ...STEP_DEFS[stepId],
+    }))
+  }, [theme])
   const lastStepIndex = steps.length - 1
+  const currentStepId: CustomizerStepId = steps[step]?.id ?? 'basics'
 
   useEffect(() => {
     setStep((prev) => Math.max(0, Math.min(prev, lastStepIndex)))
@@ -99,18 +111,23 @@ export function CustomizerModal({
     if (!draft.recipientName.trim() || !draft.senderName.trim()) {
       return 'Add who it’s for and who it’s from.'
     }
-    if (step === 1) {
+    if (currentStepId === 'message') {
       return draft.letterLines.some((line) => line.trim())
         ? null
         : 'Write at least one line of your letter.'
     }
-    if (step === 2) {
+    if (currentStepId === 'bouquet') {
       return draft.bouquetNotes.some((note) => note.trim())
         ? null
         : 'Add at least one bouquet note.'
     }
-return null
-  }, [step, draft])
+    if (currentStepId === 'question') {
+      return draft.finalMessage.trim()
+        ? null
+        : 'Write the question or headline for the big moment.'
+    }
+    return null
+  }, [currentStepId, draft])
 
   const update = useCallback(
     <K extends keyof CustomizerDraft>(key: K, value: CustomizerDraft[K]) => {
@@ -249,7 +266,7 @@ return null
 
             {/* Stepper */}
             <div
-              className={`mt-6 grid gap-2 ${steps.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}
+              className={`mt-6 grid gap-2 ${GRID_CLASS[steps.length] ?? 'grid-cols-3'}`}
             >
               {steps.map((stepDef, i) => {
                 const StepIcon = stepDef.icon
@@ -265,8 +282,8 @@ return null
                       isActive
                         ? 'border-rose-200 bg-rose-50 text-rose-600'
                         : isPast
-                          ? 'border-stone-100 bg-stone-50 text-stone-400'
-                          : 'border-transparent text-stone-400'
+                          ? 'border-stone-100 bg-stone-50 text-stone-600'
+                          : 'border-transparent text-stone-600'
                     }`}
                     aria-label={`Step ${i + 1}: ${stepDef.label}`}
                   >
@@ -275,8 +292,8 @@ return null
                         isActive
                           ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200'
                           : isPast
-                            ? 'bg-white text-stone-400'
-                            : 'bg-stone-100 text-stone-400'
+                            ? 'bg-white text-stone-500'
+                            : 'bg-stone-100 text-stone-500'
                       }`}
                     >
                       {isPast ? <CheckIcon /> : <StepIcon className="h-3.5 w-3.5" />}
@@ -299,14 +316,14 @@ return null
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.25, ease: 'easeOut' }}
                 >
-                  {step === 0 && (
+                  {currentStepId === 'basics' && (
                     <div className="space-y-4">
                       <Field
                         label="Who’s it for?"
                         hint="They’ll see this name throughout the experience."
                       >
                         <div className="relative">
-                          <UserIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                          <UserIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-500" />
                           <input
                             className={`${INPUT_CLASS} pl-10`}
                             placeholder="Sophia"
@@ -321,7 +338,7 @@ return null
                       </Field>
                       <Field label="Nickname" hint="Optional — used for a cute greeting.">
                         <div className="relative">
-                          <PenLineIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                          <PenLineIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-500" />
                           <input
                             className={`${INPUT_CLASS} pl-10`}
                             placeholder="Bubs"
@@ -334,7 +351,7 @@ return null
                       </Field>
                       <Field label="From (your name)" hint="Shown as the sender.">
                         <div className="relative">
-                          <HeartIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                          <HeartIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-500" />
                           <input
                             className={`${INPUT_CLASS} pl-10`}
                             placeholder="Alex"
@@ -348,7 +365,25 @@ return null
                     </div>
                   )}
 
-                  {step === 1 && (
+                  {currentStepId === 'question' && (
+                    <Field
+                      label="Your big moment"
+                      hint="Shown big at the instant they say YES."
+                    >
+                      <textarea
+                        className={`${INPUT_CLASS} min-h-28 resize-none leading-relaxed`}
+                        placeholder="Will you make me the happiest person alive? 💍"
+                        value={draft.finalMessage}
+                        onChange={(event) =>
+                          update('finalMessage', event.target.value)
+                        }
+                        maxLength={120}
+                        aria-label="Your question or headline"
+                      />
+                    </Field>
+                  )}
+
+                  {currentStepId === 'message' && (
                     <Field
                       label="Your heartfelt message"
                       hint="One line = one paragraph. Say what words cannot."
@@ -364,13 +399,13 @@ return null
                     </Field>
                   )}
 
-                  {step === 2 && (
+                  {currentStepId === 'bouquet' && (
                     <div className="space-y-3">
                       <div>
-                        <p className="text-sm font-semibold text-stone-700">
+                        <p className="text-sm font-bold text-stone-900">
                           Sticky notes 💐
                         </p>
-                        <p className="mt-0.5 text-xs text-stone-400">
+                        <p className="mt-0.5 text-xs text-stone-500">
                           Each note becomes an interactive tag inside the
                           experience. Customize them — or keep the sweet
                           suggestions.
@@ -431,13 +466,13 @@ return null
                     </div>
                   )}
 
-{theme.supportsPhotos && step === 3 && (
+{currentStepId === 'memories' && (
                     <div className="space-y-4">
                       <div>
-                        <p className="text-sm font-semibold text-stone-700">
+                        <p className="text-sm font-bold text-stone-900">
                           Memories 📸
                         </p>
-                        <p className="mt-0.5 text-xs text-stone-400">
+                        <p className="mt-0.5 text-xs text-stone-500">
                           Pick photos from your phone — they&apos;re compressed
                           on-device in under a second and pop straight into a
                           pretty polaroid frame.
@@ -791,9 +826,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-semibold text-stone-500">{label}</span>
+      <span className="mb-1.5 block text-[13px] font-bold text-stone-800">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-[11px] text-stone-400">{hint}</span>}
+      {hint && <span className="mt-1.5 block text-xs text-stone-500">{hint}</span>}
     </label>
   )
 }

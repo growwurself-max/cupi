@@ -68,14 +68,14 @@ export function ExperienceView({ experienceId, onExit }: ExperienceViewProps) {
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#FFFBF9] bg-gradient-to-b from-[#FFF9F6] via-[#FAF7F5] to-[#FDF2F4] px-5">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#FFFDFB] bg-gradient-to-b from-[#FFF7F3] via-[#FEFCFB] to-[#FBEDF0] px-5">
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-32 left-1/2 h-96 w-[520px] -translate-x-1/2 rounded-full bg-rose-200/40 blur-3xl"
+        className="pointer-events-none absolute -top-32 left-1/2 h-96 w-[520px] -translate-x-1/2 rounded-full bg-rose-100/35 blur-3xl"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute bottom-0 -right-24 h-80 w-80 rounded-full bg-purple-100/50 blur-3xl"
+        className="pointer-events-none absolute bottom-0 -right-24 h-80 w-80 rounded-full bg-violet-100/30 blur-3xl"
       />
 
       {state.phase === 'loading' ? (

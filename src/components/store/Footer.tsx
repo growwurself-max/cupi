@@ -8,7 +8,7 @@ interface FooterProps {
 
 export function Footer({ onSelectCategory }: FooterProps) {
   return (
-    <footer className="relative mt-10 border-t border-rose-100/70 bg-[#F7F2EE] px-5 py-14 sm:px-8">
+    <footer className="relative mt-10 border-t border-rose-100/70 bg-[#FAF4F1] px-5 py-14 sm:px-8">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-10 md:flex-row md:justify-between">
         <div className="flex flex-col items-center gap-3 text-center md:items-start md:text-left">
           <div className="flex items-center gap-2">

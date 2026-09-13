@@ -1,4 +1,4 @@
-import { Play, WandSparkles } from 'lucide-react'
+import { PenLine, Play, WandSparkles } from 'lucide-react'
 import { getCategoryById } from '../../data/catalog'
 import type { ExperienceBadge, ExperienceMetadata } from '../../types/catalog'
 
@@ -25,6 +25,7 @@ export function ThemeCard({
   onCustomize,
 }: ThemeCardProps) {
   const category = getCategoryById(theme.categoryId)
+  const isBirthday = theme.categoryId === 'birthday'
 
   return (
     <article
@@ -132,8 +133,12 @@ export function ThemeCard({
             onClick={onCustomize}
             className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-stone-100 text-sm font-bold text-stone-800 transition-all duration-200 hover:scale-[1.03] hover:bg-stone-200 active:scale-95"
           >
-            <WandSparkles className="h-4 w-4 text-rose-400" />
-            Create Yours · {theme.price}
+            {isBirthday ? (
+              <WandSparkles className="h-4 w-4 text-rose-400" />
+            ) : (
+              <PenLine className="h-4 w-4 text-rose-400" />
+            )}
+            {isBirthday ? `Create Yours · ${theme.price}` : 'Customize/Edit'}
           </button>
         </div>
       </div>

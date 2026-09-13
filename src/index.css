@@ -88,8 +88,8 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  background-color: #fff9f6;
-  color: #44403c;
+  background-color: #fffdfb;
+  color: #3f3a37;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -121,17 +121,17 @@ textarea {
 }
 
 ::-webkit-scrollbar-track {
-  background: #fdf2f4;
+  background: #fbf0f2;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #f9c4cf, #eda9ba);
+  background: linear-gradient(180deg, #f5cdd6, #eda9ba);
   border-radius: 999px;
-  border: 2px solid #fff9f6;
+  border: 2px solid #fffdfb;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #f3abb9, #e191a6);
+  background: linear-gradient(180deg, #f0b3c1, #e191a6);
 }
 
 /* Dark cinematic scope for the live demo overlay (birthday experience untouched). */

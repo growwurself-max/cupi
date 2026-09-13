@@ -118,7 +118,7 @@ export const experiences: ExperienceMetadata[] = [
       '🌹 Petal Rain',
       '💌 Love Letter',
     ],
-    supportsPhotos: false,
+    supportsPhotos: true,
     previewVisual: {
       emoji: '💌',
       gradient: 'linear-gradient(135deg, #e0b3f2 0%, #c9b8ff 50%, #8ea6ff 100%)',
@@ -170,7 +170,7 @@ export const experiences: ExperienceMetadata[] = [
       '🥂 Clinking Toast',
       '💌 Milestone Note',
     ],
-    supportsPhotos: false,
+    supportsPhotos: true,
     previewVisual: {
       emoji: '💞',
       gradient: 'linear-gradient(135deg, #f7b267 0%, #fde8cf 50%, #f6c6b6 100%)',
@@ -196,7 +196,7 @@ export const experiences: ExperienceMetadata[] = [
       '🥂 Champagne Ritual',
       '💌 Forever Letter',
     ],
-    supportsPhotos: false,
+    supportsPhotos: true,
     previewVisual: {
       emoji: '💕',
       gradient: 'linear-gradient(135deg, #3a2417 0%, #8a5a4a 50%, #fcd9a6 100%)',
@@ -274,7 +274,7 @@ export const experiences: ExperienceMetadata[] = [
       '✋ High-Five Counter',
       '💌 Real Talk Note',
     ],
-    supportsPhotos: false,
+    supportsPhotos: true,
     previewVisual: {
       emoji: '🧡',
       gradient: 'linear-gradient(135deg, #ffb56b 0%, #f6c6b6 45%, #e0b3f2 100%)',
@@ -326,7 +326,7 @@ export const experiences: ExperienceMetadata[] = [
       '✨ Golden Laurels',
       '💌 Pride Letter',
     ],
-    supportsPhotos: false,
+    supportsPhotos: true,
     previewVisual: {
       emoji: '🎓',
       gradient: 'linear-gradient(135deg, #7fd8be 0%, #9ec5ff 50%, #c9b8ff 100%)',

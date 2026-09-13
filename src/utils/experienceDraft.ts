@@ -12,6 +12,8 @@ export interface CustomizerDraft {
   letterLines: string[]
   bouquetNotes: string[]
   photos: PhotoDraft[]
+  /** Big headline / proposal question rendered by question-based themes. */
+  finalMessage: string
 }
 
 const NOTE_EMOJIS = ['🌹', '🌸', '🌷', '🍀', '🌺', '🏵️']
@@ -32,6 +34,7 @@ export function emptyDraft(): CustomizerDraft {
       { src: '', caption: '' },
       { src: '', caption: '' },
     ],
+    finalMessage: '',
   }
 }
 
@@ -81,6 +84,11 @@ export function buildExperienceConfig(
           emoji: NOTE_EMOJIS[index % NOTE_EMOJIS.length],
         }) as BouquetNote,
     )
+  }
+
+  const finalMessage = draft.finalMessage?.trim()
+  if (finalMessage) {
+    config.content.finalMessage = finalMessage
   }
 
   const photos = (draft.photos ?? []).filter(
