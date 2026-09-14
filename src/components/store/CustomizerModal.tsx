@@ -1,5 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -70,6 +72,9 @@ export function CustomizerModal({
   const [processingIndex, setProcessingIndex] = useState<number | null>(null)
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
 
+  const maxPhotos = theme?.maxPhotos ?? 3
+  const canReorderPhotos = maxPhotos > 3
+
   const steps = useMemo(() => {
     if (!theme) return []
     return getCustomizerStepIds(theme).map((stepId) => ({
@@ -101,7 +106,7 @@ export function CustomizerModal({
     if (!theme) return null
     const baseConfig = themeRegistry[theme.id]?.defaultConfig
     if (!baseConfig) return null
-    return buildExperienceConfig(draft, baseConfig)
+    return buildExperienceConfig(draft, baseConfig, theme.maxPhotos ?? 3)
   }, [theme, draft])
 
   const PreviewComponent =
@@ -144,9 +149,9 @@ export function CustomizerModal({
   const addPhoto = useCallback(() => {
     setDraft((prev) => ({
       ...prev,
-      photos: [...prev.photos, { src: '', caption: '' }].slice(0, 3),
+      photos: [...prev.photos, { src: '', caption: '' }].slice(0, maxPhotos),
     }))
-  }, [])
+  }, [maxPhotos])
 
   const updatePhoto = useCallback(
     (index: number, patch: Partial<PhotoDraft>) => {
@@ -468,15 +473,23 @@ export function CustomizerModal({
 
 {currentStepId === 'memories' && (
                     <div className="space-y-4">
-                      <div>
-                        <p className="text-sm font-bold text-stone-900">
-                          Memories 📸
-                        </p>
-                        <p className="mt-0.5 text-xs text-stone-500">
-                          Pick photos from your phone — they&apos;re compressed
-                          on-device in under a second and pop straight into a
-                          pretty polaroid frame.
-                        </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-stone-900">
+                            Memories 📸
+                          </p>
+                          <p className="mt-0.5 text-xs text-stone-500">
+                            Pick photos from your phone — they&apos;re compressed
+                            on-device in under a second and pop straight into a
+                            pretty polaroid frame.
+                          </p>
+                        </div>
+                        {canReorderPhotos && (
+                          <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-600">
+                            {draft.photos.filter((p) => p.src).length}/{maxPhotos}{' '}
+                            photos
+                          </span>
+                        )}
                       </div>
                       {draft.photos.map((photo, i) => (
                         <div
@@ -490,19 +503,61 @@ export function CustomizerModal({
                             onUpload={handleFileChange}
                             onRemove={removePhoto}
                           />
-                          <input
-                            className={INPUT_CLASS}
-                            placeholder="Caption (e.g. Us, being us.)"
-                            value={photo.caption}
-                            onChange={(event) =>
-                              updatePhoto(i, { caption: event.target.value })
-                            }
-                            maxLength={120}
-                            aria-label={`Photo ${i + 1} caption`}
-                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              className={`${INPUT_CLASS} min-w-0 flex-1`}
+                              placeholder="Caption (e.g. Us, being us.)"
+                              value={photo.caption}
+                              onChange={(event) =>
+                                updatePhoto(i, { caption: event.target.value })
+                              }
+                              maxLength={120}
+                              aria-label={`Photo ${i + 1} caption`}
+                            />
+                            {canReorderPhotos && (
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={i === 0}
+                                  onClick={() =>
+                                    setDraft((prev) => {
+                                      const photos = [...prev.photos]
+                                      ;[photos[i - 1], photos[i]] = [
+                                        photos[i],
+                                        photos[i - 1],
+                                      ]
+                                      return { ...prev, photos }
+                                    })
+                                  }
+                                  className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 transition-colors hover:border-rose-200 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
+                                  aria-label={`Move photo ${i + 1} up`}
+                                >
+                                  <ArrowUp className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={i === draft.photos.length - 1}
+                                  onClick={() =>
+                                    setDraft((prev) => {
+                                      const photos = [...prev.photos]
+                                      ;[photos[i], photos[i + 1]] = [
+                                        photos[i + 1],
+                                        photos[i],
+                                      ]
+                                      return { ...prev, photos }
+                                    })
+                                  }
+                                  className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 transition-colors hover:border-rose-200 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
+                                  aria-label={`Move photo ${i + 1} down`}
+                                >
+                                  <ArrowDown className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
-                      {draft.photos.length < 3 && (
+                      {draft.photos.length < maxPhotos && (
                         <button
                           type="button"
                           disabled={processingIndex !== null}
@@ -512,6 +567,12 @@ export function CustomizerModal({
                           <ListPlus className="h-4 w-4" />
                           Add another memory
                         </button>
+                      )}
+                      {canReorderPhotos && (
+                        <p className="text-[11px] font-medium text-stone-400">
+                          Drag-free ordering — use the arrows to set which memory
+                          leads the story reel.
+                        </p>
                       )}
                     </div>
                   )}

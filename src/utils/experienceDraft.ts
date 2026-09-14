@@ -55,6 +55,7 @@ const isImageSrc = (value: string): boolean => {
 export function buildExperienceConfig(
   draft: Partial<CustomizerDraft>,
   baseConfig: ExperienceConfig,
+  maxPhotos = 3,
 ): ExperienceConfig {
   const config = structuredClone(baseConfig)
 
@@ -95,7 +96,9 @@ export function buildExperienceConfig(
     (photo) => photo.src && isImageSrc(photo.src),
   )
   if (photos.length > 0) {
-    config.content.photos = photos.slice(0, 3).map((photo, index): PhotoItem => {
+    config.content.photos = photos
+      .slice(0, maxPhotos)
+      .map((photo, index): PhotoItem => {
       const caption = photo.caption.trim() || 'A little memory'
       return {
         src: photo.src.trim(),

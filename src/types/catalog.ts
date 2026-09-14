@@ -46,6 +46,13 @@ export interface ExperienceMetadata {
   isAvailable: boolean
   features: string[]
   supportsPhotos: boolean
+  /**
+   * Optional promotional mini-badge shown on the product card for flagship
+   * tiers (e.g. "PHOTOS + ADVANCED ANIMATION" on the ₹49 experience).
+   */
+  promoLabel?: string
+  /** Maximum number of user photos the experience accepts (default 3). */
+  maxPhotos?: number
   previewVisual: {
     emoji: string
     gradient: string

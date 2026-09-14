@@ -15,6 +15,7 @@ export type CustomizerStepId =
 const LETTER_THEMES = new Set([
   'birthday-01',
   'birthday-02',
+  'birthday-03',
   'love-01',
   'love-02',
   'anniversary-01',
@@ -29,7 +30,7 @@ const LETTER_THEMES = new Set([
  * Themes with an interactive bouquet/notes section. Only the birthday
  * experiences actually render this — preserved untouched for them.
  */
-const BOUQUET_THEMES = new Set(['birthday-01', 'birthday-02'])
+const BOUQUET_THEMES = new Set(['birthday-01', 'birthday-02', 'birthday-03'])
 
 /**
  * Themes that render content.finalMessage as their big headline / the

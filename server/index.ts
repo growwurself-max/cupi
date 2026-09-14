@@ -14,6 +14,7 @@ import {
   DIST_DIR,
   FRONTEND_ORIGINS,
   HOST,
+  PHOTO_LIMITS,
   PORT,
   RAZORPAY_KEY_ID,
   RAZORPAY_KEY_SECRET,
@@ -31,10 +32,11 @@ const app = express()
 
 /**
  * Resolves the checkout amount (in paise) for an experience template.
- * Convention: experience `-01` tiers cost ₹9 (900 paise) and `-02` tiers
- * cost ₹29 (2900 paise). Anything unexpected falls back to ₹9.
+ * Convention: flagship `-03` tiers cost ₹49 (4900 paise), `-02` tiers cost
+ * ₹29 (2900 paise), and `-01` tiers cost ₹9 (900 paise).
  */
 export function getExperiencePriceInPaise(templateId: string): number {
+  if (templateId.endsWith('-03')) return 4900 // ₹49
   if (templateId.endsWith('-02')) return 2900 // ₹29
   return 900 // ₹9
 }
@@ -109,7 +111,10 @@ async function handleCreateOrder(
       return
     }
 
-    const sanitized = sanitizeCustomization(customization)
+    const sanitized = sanitizeCustomization(
+      customization,
+      PHOTO_LIMITS[templateId] ?? 3,
+    )
     if (!sanitized) {
       res.status(400).json({ error: 'Invalid customization payload.' })
       return

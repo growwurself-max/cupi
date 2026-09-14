@@ -31,6 +31,7 @@ function pickBoolean(value: boolean | undefined, fallback: boolean): boolean {
 function mergeContent(
   base: ExperienceContent,
   fetched: Partial<ExperienceContent> | undefined,
+  maxPhotos: number,
 ): ExperienceContent {
   if (!fetched) return base
   return {
@@ -62,7 +63,7 @@ function mergeContent(
       fetched.finalCelebration,
       base.finalCelebration,
     ),
-    photos: pickArray<PhotoItem>(fetched.photos, base.photos).slice(0, 3),
+    photos: pickArray<PhotoItem>(fetched.photos, base.photos).slice(0, maxPhotos),
   }
 }
 
@@ -110,6 +111,7 @@ function mergeBouquet(
 export function deepMergeExperienceConfig(
   base: ExperienceConfig,
   fetched: Partial<ExperienceConfig> | null | undefined,
+  maxPhotos = 3,
 ): ExperienceConfig {
   if (!fetched) return base
   return {
@@ -131,7 +133,7 @@ export function deepMergeExperienceConfig(
         base.audio.candleBlowPitch,
       ),
     },
-    content: mergeContent(base.content, fetched.content),
+    content: mergeContent(base.content, fetched.content, maxPhotos),
     branding: mergeBranding(base.branding, fetched.branding),
     bouquet: fetched.bouquet
       ? mergeBouquet(base.bouquet ?? FALLBACK_BOUQUET, fetched.bouquet)

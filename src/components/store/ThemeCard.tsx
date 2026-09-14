@@ -19,6 +19,80 @@ const BADGE_CLASSES: Record<ExperienceBadge, string> = {
     'bg-purple-100 text-purple-700 font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded-full',
 }
 
+function TierCompareStrip({ currentPrice }: { currentPrice: string }) {
+  const tiers = [
+    {
+      price: '₹9',
+      label: 'Animated surprise',
+      note: 'simple & joyful',
+      feature: 'no photos',
+    },
+    {
+      price: '₹29',
+      label: 'Cinematic show',
+      note: 'effects & interaction',
+      feature: 'no photos',
+    },
+    {
+      price: '₹49',
+      label: 'Photos + motion',
+      note: 'advanced animation',
+      feature: 'your photos inside',
+    },
+  ]
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl border border-stone-100 bg-stone-50/70">
+      <p className="px-3 pt-2 pb-1 text-[10px] font-black tracking-[0.16em] text-stone-400 uppercase">
+        Compare
+      </p>
+      <ul className="divide-y divide-stone-100">
+        {tiers.map((tier) => {
+          const isCurrent = tier.price === currentPrice
+          return (
+            <li
+              key={tier.price}
+              className={`flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors ${
+                isCurrent ? 'bg-rose-50/80' : 'bg-transparent'
+              }`}
+            >
+              <span
+                className={`w-9 shrink-0 text-sm font-black ${
+                  isCurrent ? 'text-rose-600' : 'text-stone-400'
+                }`}
+              >
+                {tier.price}
+              </span>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span
+                  className={`block text-xs font-bold ${
+                    isCurrent ? 'text-stone-900' : 'text-stone-500'
+                  }`}
+                >
+                  {tier.label}
+                  <span className="font-medium text-stone-400">
+                    {' · '}
+                    {tier.note}
+                  </span>
+                </span>
+              </span>
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black tracking-wider uppercase ${
+                  isCurrent
+                    ? 'bg-rose-500 text-white'
+                    : 'bg-stone-200/70 text-stone-500'
+                }`}
+              >
+                {tier.feature}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
 export function ThemeCard({
   theme,
   onLaunchDemo,
@@ -63,6 +137,18 @@ export function ThemeCard({
           </span>
         )}
 
+        {theme.promoLabel && (
+          <span className="absolute top-10 right-3 max-w-[11rem] rounded-full bg-gradient-to-r from-amber-400 via-rose-400 to-pink-500 px-2.5 py-1 text-center text-[9px] leading-snug font-black tracking-wider text-white uppercase shadow-sm">
+            {theme.promoLabel}
+          </span>
+        )}
+
+        {theme.supportsPhotos && (
+          <span className="absolute top-[3.4rem] left-3 flex items-center gap-1 rounded-full border border-rose-200/80 bg-white/90 px-2.5 py-1 text-[10px] font-black tracking-wider text-rose-600 uppercase shadow-sm backdrop-blur-sm">
+            📸 Photos
+          </span>
+        )}
+
         <span className="absolute right-3 bottom-3 flex flex-col items-end rounded-2xl border border-white/70 bg-white/95 px-3 py-1.5 shadow-sm backdrop-blur-sm">
           <span className="text-lg leading-none font-black text-rose-600">
             {theme.price}
@@ -90,17 +176,25 @@ export function ThemeCard({
           <p className="mt-2 flex items-center gap-1.5">
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${
-                theme.tier === 'premium'
-                  ? 'bg-violet-100 text-violet-700'
-                  : 'bg-emerald-100 text-emerald-700'
+                theme.promoLabel
+                  ? 'bg-gradient-to-r from-amber-400 via-rose-400 to-pink-500 text-white'
+                  : theme.tier === 'premium'
+                    ? 'bg-violet-100 text-violet-700'
+                    : 'bg-emerald-100 text-emerald-700'
               }`}
             >
-              {theme.tier === 'premium' ? 'Premium' : 'Basic'}
+              {theme.promoLabel
+                ? 'Premium+'
+                : theme.tier === 'premium'
+                  ? 'Premium'
+                  : 'Basic'}
             </span>
             <span className="text-[11px] font-medium text-stone-400">
-              {theme.tier === 'premium'
-                ? 'Cinematic interactive experience'
-                : 'Quick & joyful animated surprise'}
+              {theme.promoLabel
+                ? 'Your photos + premium motion'
+                : theme.tier === 'premium'
+                  ? 'Cinematic interactive experience'
+                  : 'Quick & joyful animated surprise'}
             </span>
           </p>
           <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-stone-500">
@@ -118,6 +212,8 @@ export function ThemeCard({
             </span>
           ))}
         </div>
+
+        <TierCompareStrip currentPrice={theme.price} />
 
         <div className="mt-auto flex flex-col gap-2.5 pt-1">
           <button

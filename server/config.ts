@@ -20,6 +20,7 @@ export const CURRENCY = 'INR'
 export const ALLOWED_TEMPLATES = [
   'birthday-01',
   'birthday-02',
+  'birthday-03',
   'love-01',
   'love-02',
   'anniversary-01',
@@ -31,6 +32,15 @@ export const ALLOWED_TEMPLATES = [
   'graduation-01',
   'graduation-02',
 ]
+
+/**
+ * Flagship templates accept more user photos than the standard 3. The value
+ * replaces the client-side cap AND the server-side sanitize slice for that
+ * template, keeping the stored customization within the 10mb JSON limit.
+ */
+export const PHOTO_LIMITS: Record<string, number> = {
+  'birthday-03': 6,
+}
 
 export const DATA_DIR = path.resolve(PROJECT_ROOT, 'server', 'data')
 export const DIST_DIR = path.resolve(PROJECT_ROOT, 'dist')

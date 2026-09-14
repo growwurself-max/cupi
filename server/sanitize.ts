@@ -124,8 +124,12 @@ interface RawNote {
 /**
  * Validates + sanitizes an order's customization payload. Returns a clean,
  * fully-shaped object or `null` when the payload is not a valid surprise.
+ * `maxPhotos` mirrors the template's allowed photo count (see PHOTO_LIMITS).
  */
-export function sanitizeCustomization(payload: unknown): SanitizedCustomization | null {
+export function sanitizeCustomization(
+  payload: unknown,
+  maxPhotos = 3,
+): SanitizedCustomization | null {
   if (!payload || typeof payload !== 'object') return null
 
   const source = payload as Record<string, unknown>
@@ -148,7 +152,7 @@ export function sanitizeCustomization(payload: unknown): SanitizedCustomization 
 
   const photos = Array.isArray(content.photos)
     ? (content.photos as RawPhoto[])
-        .slice(0, 3)
+        .slice(0, maxPhotos)
         .map((photo, index) => {
           const src = cleanPhotoSrc(photo.src)
           if (!src) return null

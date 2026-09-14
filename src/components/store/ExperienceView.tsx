@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Heart, Home } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { getExperienceById } from '../../data/catalog'
 import { fetchExperienceApi, type ExperienceData } from '../../lib/api'
 import { themeRegistry } from '../../themes/registry'
 import type { ExperienceConfig } from '../../types/experience'
@@ -51,10 +52,12 @@ export function ExperienceView({ experienceId, onExit }: ExperienceViewProps) {
       themeRegistry['birthday-01']?.defaultConfig ??
       null
     if (ThemeComponent) {
+      const maxPhotos = getExperienceById(state.data.templateId)?.maxPhotos ?? 3
       const resolvedConfig = defaultConfig
         ? deepMergeExperienceConfig(
             defaultConfig,
             state.data.config as Partial<ExperienceConfig> | null,
+            maxPhotos,
           )
         : (state.data.config as ExperienceConfig)
       return (
