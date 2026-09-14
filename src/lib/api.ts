@@ -40,7 +40,12 @@ export async function apiRequest<T>(path: string, options?: RequestOptions): Pro
       errorBody && typeof errorBody === 'object'
         ? String(errorBody.error ?? errorBody.message ?? '')
         : ''
-    console.error('[API CALL FAILED 400/500]', { status: response.status, errorData: errorBody })
+    console.error('[API CALL FAILED 400/500]', { 
+      status: response.status, 
+      statusText: response.statusText,
+      errorData: errorBody,
+      fullError: JSON.stringify(errorBody, null, 2)
+    })
     throw new Error(message || `Request failed (${response.status})`)
   }
 

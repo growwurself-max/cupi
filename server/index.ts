@@ -145,7 +145,7 @@ async function handleCreateOrder(
 
     const sanitized = sanitizeCustomization(
       sanitizedCustomization,
-      PHOTO_LIMITS[templateId] ?? 3,
+      PHOTO_LIMITS[templateId] ?? 0,
     )
     if (!sanitized) {
       console.error('[VALIDATION FAILED] Invalid customization payload:', JSON.stringify(sanitizedCustomization, null, 2))

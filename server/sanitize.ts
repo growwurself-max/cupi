@@ -144,6 +144,9 @@ export function sanitizeCustomization(
   const senderName = cleanString(sender?.name, LIMITS.name) || 'A Friend'
   if (!content) return null
 
+  // Check if this template supports photos (based on maxPhotos value)
+  const supportsPhotos = maxPhotos > 0
+
   const letterLines = Array.isArray(content.letterLines)
     ? content.letterLines
         .map((line) => cleanString(line, LIMITS.line))
@@ -167,7 +170,8 @@ export function sanitizeCustomization(
         .filter((photo): photo is SanitizedPhoto => photo !== null)
     : []
 
-  if (photos.length === 0) return null
+  // Only require photos if the template supports them
+  if (supportsPhotos && photos.length === 0) return null
 
   const notes = Array.isArray(bouquet?.notes)
     ? (bouquet.notes as RawNote[])
