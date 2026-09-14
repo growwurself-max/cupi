@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { TeddyMascot } from '../components/TeddyMascot'
 import { TeddyDecor } from '../TeddyDecor'
 
 interface Screen3TeddyCountdownProps {
@@ -73,30 +74,8 @@ export function Screen3TeddyCountdown({
           }}
           className="relative flex flex-col items-center"
         >
-          {/* Teddy SVG */}
-          <svg width="100" height="110" viewBox="0 0 140 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="scale-75">
-            <circle cx="35" cy="30" r="22" fill="#D4A574" />
-            <circle cx="35" cy="30" r="14" fill="#F0C9A6" />
-            <circle cx="105" cy="30" r="22" fill="#D4A574" />
-            <circle cx="105" cy="30" r="14" fill="#F0C9A6" />
-            <circle cx="70" cy="62" r="42" fill="#D4A574" />
-            <circle cx="70" cy="66" r="30" fill="#F5E6D3" />
-            <circle cx="57" cy="58" r="4" fill="#3D2914" />
-            <circle cx="83" cy="58" r="4" fill="#3D2914" />
-            <circle cx="59" cy="56" r="1.5" fill="white" />
-            <circle cx="85" cy="56" r="1.5" fill="white" />
-            <ellipse cx="70" cy="68" rx="5" ry="3.5" fill="#C4956A" />
-            <path d="M64 74 Q70 78 76 74" stroke="#C4956A" strokeWidth="2" fill="none" strokeLinecap="round" />
-            <ellipse cx="48" cy="70" rx="8" ry="5" fill="#F4A0B0" opacity="0.6" />
-            <ellipse cx="92" cy="70" rx="8" ry="5" fill="#F4A0B0" opacity="0.6" />
-            {/* Strained eyes */}
-            {count === 1 && (
-              <>
-                <path d="M52 55 Q57 51 62 55" stroke="#3D2914" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                <path d="M78 55 Q83 51 88 55" stroke="#3D2914" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-              </>
-            )}
-          </svg>
+          {/* Teddy mascot */}
+          <TeddyMascot state="countdown" className="w-36 h-40 sm:w-44 sm:h-48" />
 
           {/* Gift box held above teddy's head */}
           <motion.div

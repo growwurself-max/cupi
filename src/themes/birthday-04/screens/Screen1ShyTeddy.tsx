@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import type { ExperienceConfig } from '../../../types/experience'
+import { TeddyMascot } from '../components/TeddyMascot'
 import { TeddyDecor } from '../TeddyDecor'
 
 interface Screen1ShyTeddyProps {
@@ -26,66 +27,13 @@ export function Screen1ShyTeddy({ config, onBegin }: Screen1ShyTeddyProps) {
           className="absolute -inset-10 rounded-full bg-[#FFD6E0]/50 blur-3xl"
         />
 
-        {/* Teddy SVG */}
+        {/* Teddy mascot */}
         <motion.div
           animate={{ rotate: [-3, 3, -3] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           className="relative"
         >
-          <svg width="140" height="160" viewBox="0 0 140 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Ears */}
-            <circle cx="35" cy="30" r="22" fill="#D4A574" />
-            <circle cx="35" cy="30" r="14" fill="#F0C9A6" />
-            <circle cx="105" cy="30" r="22" fill="#D4A574" />
-            <circle cx="105" cy="30" r="14" fill="#F0C9A6" />
-            {/* Head */}
-            <circle cx="70" cy="62" r="42" fill="#D4A574" />
-            {/* Face */}
-            <circle cx="70" cy="66" r="30" fill="#F5E6D3" />
-            {/* Eyes */}
-            <motion.g animate={{ scaleY: [1, 0.1, 1] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5 }}>
-              <circle cx="57" cy="58" r="4.5" fill="#3D2914" />
-              <circle cx="83" cy="58" r="4.5" fill="#3D2914" />
-            </motion.g>
-            {/* Eye shine */}
-            <circle cx="59" cy="56" r="1.5" fill="white" />
-            <circle cx="85" cy="56" r="1.5" fill="white" />
-            {/* Nose */}
-            <ellipse cx="70" cy="68" rx="5" ry="3.5" fill="#C4956A" />
-            {/* Mouth — shy smile */}
-            <path d="M63 74 Q70 80 77 74" stroke="#C4956A" strokeWidth="2" fill="none" strokeLinecap="round" />
-            {/* Blush cheeks */}
-            <motion.ellipse
-              animate={{ opacity: [0.5, 0.8, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              cx="48" cy="70" rx="8" ry="5" fill="#F4A0B0" opacity="0.6"
-            />
-            <motion.ellipse
-              animate={{ opacity: [0.5, 0.8, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
-              cx="92" cy="70" rx="8" ry="5" fill="#F4A0B0" opacity="0.6"
-            />
-            {/* Body */}
-            <ellipse cx="70" cy="125" rx="36" ry="34" fill="#D4A574" />
-            <ellipse cx="70" cy="128" rx="24" ry="22" fill="#F5E6D3" />
-            {/* Paws */}
-            <motion.g animate={{ rotate: [-8, 8, -8] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}>
-              <ellipse cx="40" cy="138" rx="14" ry="10" fill="#D4A574" />
-              <ellipse cx="40" cy="140" rx="8" ry="6" fill="#F0C9A6" />
-            </motion.g>
-            <motion.g animate={{ rotate: [8, -8, 8] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0.15 }}>
-              <ellipse cx="100" cy="138" rx="14" ry="10" fill="#D4A574" />
-              <ellipse cx="100" cy="140" rx="8" ry="6" fill="#F0C9A6" />
-            </motion.g>
-            {/* Little heart above head */}
-            <motion.text
-              animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4], scale: [0.9, 1.1, 0.9] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-              fontSize="18" x="70" y="14" textAnchor="middle"
-            >
-              💕
-            </motion.text>
-          </svg>
+          <TeddyMascot state="shy" className="w-40 h-44 sm:w-48 sm:h-52" />
         </motion.div>
 
         {/* Tapping feet indicator dots */}

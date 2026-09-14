@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { TeddyMascot } from '../components/TeddyMascot'
 import { TeddyDecor } from '../TeddyDecor'
 
 interface Screen5TeddyLetterProps {
@@ -40,28 +41,7 @@ export function Screen5TeddyLetter({
         transition={{ type: 'spring', stiffness: 100, damping: 14, delay: 0.1 }}
         className="relative z-10 mt-8 mb-6"
       >
-        <svg width="90" height="100" viewBox="0 0 140 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="scale-75">
-          <circle cx="35" cy="30" r="22" fill="#D4A574" />
-          <circle cx="35" cy="30" r="14" fill="#F0C9A6" />
-          <circle cx="105" cy="30" r="22" fill="#D4A574" />
-          <circle cx="105" cy="30" r="14" fill="#F0C9A6" />
-          <circle cx="70" cy="62" r="42" fill="#D4A574" />
-          <circle cx="70" cy="66" r="30" fill="#F5E6D3" />
-          <circle cx="57" cy="58" r="4" fill="#3D2914" />
-          <circle cx="83" cy="58" r="4" fill="#3D2914" />
-          <circle cx="59" cy="56" r="1.5" fill="white" />
-          <circle cx="85" cy="56" r="1.5" fill="white" />
-          <ellipse cx="70" cy="68" rx="5" ry="3.5" fill="#C4956A" />
-          <path d="M63 74 Q70 79 77 74" stroke="#C4956A" strokeWidth="2" fill="none" strokeLinecap="round" />
-          <ellipse cx="48" cy="70" rx="8" ry="5" fill="#F4A0B0" opacity="0.6" />
-          <ellipse cx="92" cy="70" rx="8" ry="5" fill="#F4A0B0" opacity="0.6" />
-          <ellipse cx="70" cy="125" rx="36" ry="34" fill="#D4A574" />
-          <ellipse cx="70" cy="128" rx="24" ry="22" fill="#F5E6D3" />
-          {/* Holding envelope */}
-          <rect x="42" y="105" width="56" height="36" rx="4" fill="#FFF8E7" stroke="#E8C47C" strokeWidth="1.5" />
-          <path d="M42 105 L70 125 L98 105" stroke="#E8C47C" strokeWidth="1.5" fill="none" />
-          <text x="70" y="100" textAnchor="middle" fontSize="12" fill="#F43F5E">💌</text>
-        </svg>
+        <TeddyMascot state="letter" className="w-36 h-40 sm:w-44 sm:h-48" />
       </motion.div>
 
       {/* Interactive micro-notes floating around */}

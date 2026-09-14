@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { fireGoldenSpark, fireHeartRain } from '../../../utils/confetti'
 import { InteractiveCandle } from '../../shared/InteractiveCandle'
+import { TeddyMascot } from '../components/TeddyMascot'
 import { TeddyDecor } from '../TeddyDecor'
 
 interface Screen6TeddyCakeProps {
@@ -43,37 +44,16 @@ export function Screen6TeddyCake({
         The Grand Finale 🎂
       </motion.span>
 
-      {/* Teddy holding cake */}
+      {/* Teddy mascot holding cake */}
       <motion.div
         animate={teddyJump ? { y: [0, -30, 0, -15, 0] } : {}}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="relative z-10 mt-10 mb-4"
+        className="relative z-10 mt-10 mb-10"
       >
-        <svg width="100" height="115" viewBox="0 0 140 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="scale-80">
-          <circle cx="35" cy="30" r="22" fill="#D4A574" />
-          <circle cx="35" cy="30" r="14" fill="#F0C9A6" />
-          <circle cx="105" cy="30" r="22" fill="#D4A574" />
-          <circle cx="105" cy="30" r="14" fill="#F0C9A6" />
-          <circle cx="70" cy="62" r="42" fill="#D4A574" />
-          <circle cx="70" cy="66" r="30" fill="#F5E6D3" />
-          <circle cx="57" cy="58" r="4" fill="#3D2914" />
-          <circle cx="83" cy="58" r="4" fill="#3D2914" />
-          <circle cx="59" cy="56" r="1.5" fill="white" />
-          <circle cx="85" cy="56" r="1.5" fill="white" />
-          <ellipse cx="70" cy="68" rx="5" ry="3.5" fill="#C4956A" />
-          {/* Big happy smile */}
-          <path d="M58 76 Q70 87 82 76" stroke="#C4956A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-          <ellipse cx="46" cy="70" rx="9" ry="5.5" fill="#F4A0B0" opacity="0.7" />
-          <ellipse cx="94" cy="70" rx="9" ry="5.5" fill="#F4A0B0" opacity="0.7" />
-          <ellipse cx="70" cy="125" rx="36" ry="34" fill="#D4A574" />
-          <ellipse cx="70" cy="128" rx="24" ry="22" fill="#F5E6D3" />
-          {/* Arms holding cake */}
-          <ellipse cx="38" cy="112" rx="12" ry="9" fill="#D4A574" transform="rotate(-30 38 112)" />
-          <ellipse cx="102" cy="112" rx="12" ry="9" fill="#D4A574" transform="rotate(30 102 112)" />
-        </svg>
+        <TeddyMascot state="cake" className="w-40 h-44 sm:w-48 sm:h-52" />
 
         {/* Birthday cake positioned below teddy */}
-        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
+        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
           {/* Cake layers */}
           <div className="relative">
             <div className="h-14 w-28 rounded-b-xl bg-gradient-to-b from-[#FFD6E0] to-[#FFB6C8] shadow-md" />

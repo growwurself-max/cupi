@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { TeddyMascot } from '../components/TeddyMascot'
 import { TeddyDecor } from '../TeddyDecor'
 
 interface Screen2TeddyExcitementProps {
@@ -48,53 +49,19 @@ export function Screen2TeddyExcitement({
         transition={{ type: 'spring', stiffness: 100, damping: 14, delay: 0.1 }}
         className="relative z-10 mb-10"
       >
-        <motion.div
-          animate={{ y: [0, -8, 0] }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <svg width="120" height="140" viewBox="0 0 140 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Ears */}
-            <circle cx="35" cy="30" r="22" fill="#D4A574" />
-            <circle cx="35" cy="30" r="14" fill="#F0C9A6" />
-            <circle cx="105" cy="30" r="22" fill="#D4A574" />
-            <circle cx="105" cy="30" r="14" fill="#F0C9A6" />
-            {/* Head */}
-            <circle cx="70" cy="62" r="42" fill="#D4A574" />
-            <circle cx="70" cy="66" r="30" fill="#F5E6D3" />
-            {/* Happy squinted eyes */}
-            <path d="M52 57 Q57 52 62 57" stroke="#3D2914" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <path d="M78 57 Q83 52 88 57" stroke="#3D2914" strokeWidth="3" fill="none" strokeLinecap="round" />
-            {/* Nose */}
-            <ellipse cx="70" cy="68" rx="5" ry="3.5" fill="#C4956A" />
-            {/* Open giggle mouth */}
-            <ellipse cx="70" cy="78" rx="8" ry="6" fill="#C4956A" />
-            <ellipse cx="70" cy="77" rx="6" ry="4" fill="#8B5E3C" />
-            {/* Blush */}
-            <ellipse cx="46" cy="70" rx="9" ry="5.5" fill="#F4A0B0" opacity="0.65" />
-            <ellipse cx="94" cy="70" rx="9" ry="5.5" fill="#F4A0B0" opacity="0.65" />
-            {/* Hands over mouth */}
-            <ellipse cx="52" cy="78" rx="10" ry="8" fill="#D4A574" transform="rotate(-15 52 78)" />
-            <ellipse cx="88" cy="78" rx="10" ry="8" fill="#D4A574" transform="rotate(15 88 78)" />
-            {/* Body */}
-            <ellipse cx="70" cy="125" rx="36" ry="34" fill="#D4A574" />
-            <ellipse cx="70" cy="128" rx="24" ry="22" fill="#F5E6D3" />
-            {/* Paws waving */}
-            <ellipse cx="36" cy="120" rx="14" ry="10" fill="#D4A574" transform="rotate(-20 36 120)" />
-            <ellipse cx="104" cy="120" rx="14" ry="10" fill="#D4A574" transform="rotate(20 104 120)" />
-          </svg>
-        </motion.div>
+        <TeddyMascot state="excited" className="w-44 h-48 sm:w-52 sm:h-56" />
 
         {/* Bouncing hearts around teddy */}
         {[
-          { x: -30, y: -20, delay: 0, size: 16 },
-          { x: 35, y: -15, delay: 0.4, size: 14 },
-          { x: -20, y: 10, delay: 0.8, size: 12 },
-          { x: 25, y: 5, delay: 1.2, size: 18 },
+          { x: -55, y: -10, delay: 0, size: 16 },
+          { x: 55, y: -5, delay: 0.4, size: 14 },
+          { x: -40, y: 30, delay: 0.8, size: 12 },
+          { x: 45, y: 25, delay: 1.2, size: 18 },
         ].map((heart, i) => (
           <motion.span
             key={i}
             animate={{
-              y: [heart.y, heart.y - 20, heart.y],
+              y: [heart.y, heart.y - 22, heart.y],
               scale: [0.8, 1.15, 0.8],
               opacity: [0.5, 1, 0.5],
             }}
@@ -107,7 +74,7 @@ export function Screen2TeddyExcitement({
             className="absolute"
             style={{
               left: `calc(50% + ${heart.x}px)`,
-              top: `calc(40% + ${heart.y}px)`,
+              top: `calc(42% + ${heart.y}px)`,
               fontSize: heart.size,
             }}
           >

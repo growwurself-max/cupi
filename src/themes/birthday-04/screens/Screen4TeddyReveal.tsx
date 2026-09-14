@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react'
 import { useCallback, useEffect } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { fireGrandBurst, fireContinuousSparkle, fireSideCannons } from '../../../utils/confetti'
+import { TeddyMascot } from '../components/TeddyMascot'
 import { TeddyDecor } from '../TeddyDecor'
 
 interface Screen4TeddyRevealProps {
@@ -28,7 +29,7 @@ export function Screen4TeddyReveal({
     <section className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-5 py-24 text-center sm:px-8">
       <TeddyDecor />
 
-      {/* Teddy pulling party poppers */}
+      {/* Teddy mascot pulling party poppers */}
       <motion.div
         initial={{ scale: 0, rotate: -15 }}
         animate={{ scale: 1, rotate: 0 }}
@@ -39,29 +40,7 @@ export function Screen4TeddyReveal({
           animate={{ y: [0, -10, 0] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <svg width="110" height="120" viewBox="0 0 140 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="scale-80">
-            <circle cx="35" cy="30" r="22" fill="#D4A574" />
-            <circle cx="35" cy="30" r="14" fill="#F0C9A6" />
-            <circle cx="105" cy="30" r="22" fill="#D4A574" />
-            <circle cx="105" cy="30" r="14" fill="#F0C9A6" />
-            <circle cx="70" cy="62" r="42" fill="#D4A574" />
-            <circle cx="70" cy="66" r="30" fill="#F5E6D3" />
-            {/* Celebrating eyes — wide open */}
-            <circle cx="57" cy="58" r="5" fill="#3D2914" />
-            <circle cx="83" cy="58" r="5" fill="#3D2914" />
-            <circle cx="59" cy="56" r="2" fill="white" />
-            <circle cx="85" cy="56" r="2" fill="white" />
-            <ellipse cx="70" cy="68" rx="5" ry="3.5" fill="#C4956A" />
-            {/* Big smile */}
-            <path d="M58 75 Q70 86 82 75" stroke="#C4956A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-            <ellipse cx="46" cy="70" rx="9" ry="5.5" fill="#F4A0B0" opacity="0.7" />
-            <ellipse cx="94" cy="70" rx="9" ry="5.5" fill="#F4A0B0" opacity="0.7" />
-            <ellipse cx="70" cy="125" rx="36" ry="34" fill="#D4A574" />
-            <ellipse cx="70" cy="128" rx="24" ry="22" fill="#F5E6D3" />
-            {/* Arms raised high */}
-            <ellipse cx="30" cy="100" rx="12" ry="9" fill="#D4A574" transform="rotate(-50 30 100)" />
-            <ellipse cx="110" cy="100" rx="12" ry="9" fill="#D4A574" transform="rotate(50 110 100)" />
-          </svg>
+          <TeddyMascot state="party" className="w-40 h-44 sm:w-48 sm:h-52" />
         </motion.div>
 
         {/* Party popper effects */}
@@ -71,13 +50,13 @@ export function Screen4TeddyReveal({
             initial={{ scale: 0, x: 0, y: 0 }}
             animate={{
               scale: [0, 1.2, 0.8],
-              x: (i % 2 === 0 ? 1 : -1) * (40 + i * 25),
-              y: -30 - i * 18,
+              x: (i % 2 === 0 ? 1 : -1) * (50 + i * 30),
+              y: -40 - i * 22,
               opacity: [0, 1, 0.7],
             }}
             transition={{ delay: 0.3 + i * 0.15, duration: 0.8, ease: 'easeOut' }}
             className="absolute"
-            style={{ left: '50%', top: '30%', fontSize: 20 + i * 2 }}
+            style={{ left: '50%', top: '35%', fontSize: 20 + i * 2 }}
           >
             {emoji}
           </motion.span>
