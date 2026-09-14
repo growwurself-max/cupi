@@ -40,6 +40,7 @@ export async function apiRequest<T>(path: string, options?: RequestOptions): Pro
       errorBody && typeof errorBody === 'object'
         ? String(errorBody.error ?? errorBody.message ?? '')
         : ''
+    console.error('[API CALL FAILED 400/500]', { status: response.status, errorData: errorBody })
     throw new Error(message || `Request failed (${response.status})`)
   }
 
@@ -79,9 +80,12 @@ export function createOrderApi(
   templateId: string,
   customization: unknown,
 ): Promise<CreateOrderResponse> {
+  const payload = { templateId, customization }
+  console.log('[API CALL] Sending createOrder payload:', payload)
+  
   return apiRequest<CreateOrderResponse>('/orders/create', {
     method: 'POST',
-    body: { templateId, customization },
+    body: payload,
   })
 }
 

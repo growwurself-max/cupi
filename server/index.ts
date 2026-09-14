@@ -33,13 +33,38 @@ const app = express()
 /**
  * Resolves the checkout amount (in paise) for an experience template.
  * Convention: flagship `-03` tiers cost ₹49 (4900 paise), `-02` tiers cost
- * ₹29 (2900 paise), and `-01` tiers cost ₹9 (900 paise).
+ * ₹29 (2900 paise), and `-01` tiers cost ₹9 (900 paise). Special case: birthday-04 costs ₹69 (6900 paise).
  */
+const THEME_PRICES: Record<string, number> = {
+  // Birthday Tiers
+  'birthday-01': 900,   // ₹9
+  'birthday-02': 2900,  // ₹29
+  'birthday-03': 4900,  // ₹49
+  'birthday-04': 6900,  // ₹69
+
+  // Other Categories
+  'love-01': 900,
+  'love-02': 2900,
+  'anniversary-01': 900,
+  'anniversary-02': 2900,
+  'proposal-01': 900,
+  'proposal-02': 2900,
+  'friendship-01': 900,
+  'friendship-02': 2900,
+  'graduation-01': 900,
+  'graduation-02': 2900,
+}
+
 export function getExperiencePriceInPaise(templateId: string): number {
-  if (templateId === 'birthday-04') return 6900 // ₹69
-  if (templateId.endsWith('-03')) return 4900 // ₹49
-  if (templateId.endsWith('-02')) return 2900 // ₹29
-  return 900 // ₹9
+  // Fallback logic
+  let amount = THEME_PRICES[templateId]
+  if (!amount) {
+    if (templateId === 'birthday-04') amount = 6900
+    else if (templateId === 'birthday-03') amount = 4900
+    else if (templateId.endsWith('-02')) amount = 2900
+    else amount = 900
+  }
+  return amount
 }
 
 export const resolveExperiencePrice = getExperiencePriceInPaise
@@ -96,33 +121,34 @@ async function handleCreateOrder(
   next: (error?: unknown) => void,
 ): Promise<void> {
   try {
-    console.log('[ORDER CREATE REQUEST]:', JSON.stringify(req.body, null, 2))
-    const { templateId, customization } = (req.body ?? {}) as {
-      templateId?: unknown
-      customization?: unknown
+    console.log('[ORDER CREATE INCOMING BODY]:', JSON.stringify(req.body, null, 2))
+    
+    const templateId = req.body.templateId || req.body.template_id || req.body.themeId
+
+    if (!templateId || typeof templateId !== 'string' || !/^[a-z]+-\d+$/.test(templateId)) {
+      console.error('[ORDER CREATE REJECTED] Invalid templateId format:', templateId)
+      res.status(400).json({
+        error: `Invalid template ID: "${templateId}". Expected format like "birthday-03" or "birthday-04".`
+      })
+      return
     }
 
-    if (!isNonEmptyString(templateId)) {
-      console.error('[VALIDATION FAILED] Unknown or missing templateId:', templateId)
-      res.status(400).json({ error: 'A valid template is required.' })
-      return
-    }
-    if (!ALLOWED_TEMPLATES.includes(templateId)) {
-      console.error('[VALIDATION FAILED] Unknown or missing templateId:', templateId)
-      res
-        .status(400)
-        .json({
-          error: `Invalid template ID '${templateId}'. Must be one of: ${ALLOWED_TEMPLATES.join(', ')}`
-        })
-      return
+    const rawData = req.body.customization || req.body.draftData || req.body.config || req.body
+
+    const sanitizedCustomization = {
+      recipientName: rawData.recipientName || rawData.recipient?.name || 'Someone Special',
+      senderName: rawData.senderName || rawData.sender?.name || 'A Friend',
+      message: rawData.message || rawData.content?.letterLines || '',
+      bouquetNotes: Array.isArray(rawData.bouquetNotes) ? rawData.bouquetNotes : [],
+      ...rawData
     }
 
     const sanitized = sanitizeCustomization(
-      customization,
+      sanitizedCustomization,
       PHOTO_LIMITS[templateId] ?? 3,
     )
     if (!sanitized) {
-      console.error('[VALIDATION FAILED] Invalid customization payload:', JSON.stringify(customization, null, 2))
+      console.error('[VALIDATION FAILED] Invalid customization payload:', JSON.stringify(sanitizedCustomization, null, 2))
       res.status(400).json({ error: 'Invalid customization payload.' })
       return
     }
