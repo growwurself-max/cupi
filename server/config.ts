@@ -31,6 +31,7 @@ export const ALLOWED_TEMPLATES = [
   'friendship-02',
   'graduation-01',
   'graduation-02',
+  'birthday-04',
 ]
 
 /**

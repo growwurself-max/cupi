@@ -17,6 +17,8 @@ const BADGE_CLASSES: Record<ExperienceBadge, string> = {
     'bg-pink-100 text-pink-700 font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded-full',
   TRENDING:
     'bg-purple-100 text-purple-700 font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded-full',
+  'MOST LOVED':
+    'bg-gradient-to-r from-rose-500 to-rose-400 text-white shadow-sm font-bold text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded-full',
 }
 
 function TierCompareStrip({ currentPrice }: { currentPrice: string }) {

@@ -12,6 +12,8 @@ import { BirthdayTheme } from './birthday-01/BirthdayTheme'
 import { defaultBirthdayConfig } from './birthday-01/defaultData'
 import { BirthdayMomentsTheme } from './birthday-03/BirthdayMomentsTheme'
 import { defaultBirthdayMomentsConfig } from './birthday-03/defaultData'
+import { Birthday04Experience } from './birthday-04/Birthday04Experience'
+import { defaultBirthdayTeddyConfig } from './birthday-04/defaultData'
 import { FriendshipBroadcastTheme } from './friendship-02/FriendshipBroadcastTheme'
 import { defaultFriendshipBroadcastConfig } from './friendship-02/defaultData'
 import { FriendshipTheme } from './friendship-01/FriendshipTheme'
@@ -50,6 +52,7 @@ const REGISTERED_THEMES: Array<{
   { id: 'birthday-01', component: BirthdayTheme, defaultConfig: defaultBirthdayConfig },
   { id: 'birthday-02', component: BirthdayGrandTheme, defaultConfig: defaultBirthdayGrandConfig },
   { id: 'birthday-03', component: BirthdayMomentsTheme, defaultConfig: defaultBirthdayMomentsConfig },
+  { id: 'birthday-04', component: Birthday04Experience, defaultConfig: defaultBirthdayTeddyConfig },
   { id: 'love-01', component: LoveTheme, defaultConfig: defaultLoveConfig },
   { id: 'love-02', component: LoveEternalTheme, defaultConfig: defaultLoveEternalConfig },
   { id: 'anniversary-01', component: AnniversaryTheme, defaultConfig: defaultAnniversaryConfig },

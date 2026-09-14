@@ -36,6 +36,7 @@ const app = express()
  * ₹29 (2900 paise), and `-01` tiers cost ₹9 (900 paise).
  */
 export function getExperiencePriceInPaise(templateId: string): number {
+  if (templateId === 'birthday-04') return 6900 // ₹69
   if (templateId.endsWith('-03')) return 4900 // ₹49
   if (templateId.endsWith('-02')) return 2900 // ₹29
   return 900 // ₹9

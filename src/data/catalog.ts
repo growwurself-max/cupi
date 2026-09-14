@@ -6,7 +6,7 @@ export const categories: Category[] = [
     name: 'Birthday',
     emoji: '🎂',
     description: 'Candle-lit confetti and wishes come true.',
-    count: 3,
+    count: 4,
   },
   {
     id: 'love',
@@ -127,6 +127,34 @@ export const experiences: ExperienceMetadata[] = [
       emoji: '🎈',
       gradient: 'linear-gradient(135deg, #fff0f3 0%, #fbd5e3 45%, #e3d9ff 100%)',
       accentColor: '#f9a8c9',
+    },
+  },
+  {
+    id: 'birthday-04',
+    experienceNumber: 4,
+    categoryId: 'birthday',
+    name: "Teddy's Magical Birthday Celebration",
+    tier: 'premium',
+    tagline: 'An animated 6-act journey with our cute blushing teddy.',
+    description:
+      'Our most delightful birthday surprise yet! Features an animated blushing teddy bear, custom soundscapes, interactive gift unboxing, and a blow-out candle celebration.',
+    price: '₹69',
+    amountInPaise: 6900,
+    badge: 'MOST LOVED',
+    isAvailable: true,
+    features: [
+      '🧸 Animated Teddy Mascot',
+      '🎵 Custom Melodic Audio',
+      '🎁 Interactive Gift Unbox',
+      '✨ Deluxe Confetti Cannons',
+      '🎂 Mic/Tap Candle Blowout',
+      '💌 Long-Form Letter',
+    ],
+    supportsPhotos: false,
+    previewVisual: {
+      emoji: '🧸',
+      gradient: 'from-pink-100 via-rose-100 to-amber-100',
+      accentColor: '#F43F5E',
     },
   },
   {
