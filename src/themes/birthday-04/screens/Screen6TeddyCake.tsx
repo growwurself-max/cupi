@@ -3,7 +3,6 @@ import { RotateCcw, WandSparkles } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { fireGoldenSpark, fireHeartRain } from '../../../utils/confetti'
-import { InteractiveCandle } from '../../shared/InteractiveCandle'
 import { TeddyMascot } from '../components/TeddyMascot'
 import { TeddyDecor } from '../TeddyDecor'
 
@@ -22,14 +21,17 @@ export function Screen6TeddyCake({
 }: Screen6TeddyCakeProps) {
   const [showWish, setShowWish] = useState(false)
   const [teddyJump, setTeddyJump] = useState(false)
+  const [isExtinguished, setIsExtinguished] = useState(false)
 
-  const blowOut = useCallback(() => {
+  const extinguishCandle = useCallback(() => {
+    if (isExtinguished) return
+    setIsExtinguished(true)
     onBlow()
     setTeddyJump(true)
     fireHeartRain(1800)
     setTimeout(() => fireGoldenSpark(), 200)
     setTimeout(() => setShowWish(true), 700)
-  }, [onBlow])
+  }, [isExtinguished, onBlow])
 
   return (
     <section className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-5 py-24 text-center sm:px-8">
@@ -44,37 +46,51 @@ export function Screen6TeddyCake({
         The Grand Finale 🎂
       </motion.span>
 
-      {/* Teddy mascot holding cake */}
-      <motion.div
-        animate={teddyJump ? { y: [0, -30, 0, -15, 0] } : {}}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="relative z-10 mt-10 mb-10"
-      >
-        <TeddyMascot state="cake" className="w-40 h-44 sm:w-48 sm:h-52" />
+      {/* Teddy mascot with integrated cake & candle */}
+      <div className="relative flex flex-col items-center justify-center my-auto">
+        {/* Teddy Mascot */}
+        <motion.div
+          animate={teddyJump ? { y: [0, -30, 0, -15, 0] } : {}}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          className="relative z-10"
+        >
+          <TeddyMascot state="cake" className="w-44 h-44 sm:w-52 sm:h-52" />
+        </motion.div>
 
-        {/* Birthday cake positioned below teddy */}
-        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
-          {/* Cake layers */}
-          <div className="relative">
-            <div className="h-14 w-28 rounded-b-xl bg-gradient-to-b from-[#FFD6E0] to-[#FFB6C8] shadow-md" />
-            <div className="absolute top-0 left-0 h-full w-full rounded-b-xl bg-gradient-to-b from-[#FFF0F3] to-transparent" />
+        {/* Integrated Cake & Candle Container */}
+        <div className="relative -mt-10 z-20 flex flex-col items-center">
+          {/* 1. Animated Candle Flame & Wick (Seated directly on top of candle) */}
+          {!isExtinguished ? (
+            <motion.div
+              animate={{ scale: [1, 1.15, 0.95, 1], y: [0, -2, 1, 0] }}
+              transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+              onClick={extinguishCandle}
+              className="cursor-pointer flex flex-col items-center -mb-1"
+            >
+              {/* Glowing Flame Drop */}
+              <div className="w-5 h-7 bg-gradient-to-t from-amber-500 via-yellow-400 to-yellow-100 rounded-full blur-[1px] shadow-[0_0_15px_rgba(251,191,36,0.8)]" />
+              {/* Candle Wick */}
+              <div className="w-0.5 h-2 bg-stone-700 -mt-1" />
+            </motion.div>
+          ) : (
+            /* Smoke plume after blow out */
+            <motion.div initial={{ opacity: 1, y: 0 }} animate={{ opacity: 0, y: -20 }} className="text-stone-400 text-xs mb-1">
+              💨 ✨
+            </motion.div>
+          )}
+
+          {/* 2. Candle Stick Body */}
+          <div className="w-3 h-8 bg-gradient-to-r from-pink-400 via-rose-300 to-pink-400 rounded-t-sm shadow-sm" />
+
+          {/* 3. Birthday Cake Body */}
+          <div className="w-44 sm:w-52 h-20 bg-gradient-to-b from-rose-100 to-pink-200 border-2 border-rose-300 rounded-2xl shadow-xl flex items-center justify-around px-4 relative overflow-hidden">
             {/* Frosting drips */}
-            <div className="absolute -top-1.5 left-2 h-4 w-3 rounded-b-full bg-[#FFF0F3]" />
-            <div className="absolute -top-2 left-8 h-5 w-3.5 rounded-b-full bg-[#FFF0F3]" />
-            <div className="absolute -top-1.5 left-14 h-4 w-3 rounded-b-full bg-[#FFF0F3]" />
-            <div className="absolute -top-2 right-6 h-5 w-3.5 rounded-b-full bg-[#FFF0F3]" />
-            <div className="absolute -top-1.5 right-1 h-4 w-3 rounded-b-full bg-[#FFF0F3]" />
-            {/* Decorations */}
-            <div className="absolute top-4 left-3 text-xs">🍓</div>
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 text-xs">🫐</div>
-            <div className="absolute top-4 right-3 text-xs">🍓</div>
+            <div className="absolute top-0 inset-x-0 h-4 bg-white rounded-b-xl opacity-90" />
+            <span className="text-base z-10">🍓</span>
+            <span className="text-base z-10 font-bold text-rose-800 text-xs uppercase tracking-wider">Happy Birthday</span>
+            <span className="text-base z-10">🍓</span>
           </div>
         </div>
-      </motion.div>
-
-      {/* Candle */}
-      <div className="relative z-10 mt-6 flex flex-col items-center">
-        <InteractiveCandle onBlow={blowOut} tone="blush" />
       </div>
 
       {/* Final reveal */}

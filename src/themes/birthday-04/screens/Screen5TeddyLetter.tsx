@@ -52,13 +52,13 @@ export function Screen5TeddyLetter({
         className="relative z-10 mb-8 h-0"
       >
         {notes.map((note, i) => {
-          const positions = [
-            { left: '8%', top: '-100px' },
-            { left: '72%', top: '-95px' },
-            { left: '5%', top: '-40px' },
-            { left: '75%', top: '-35px' },
+          const capsulePositions = [
+            "top-2 -left-2 sm:top-4 sm:-left-6",     // Top-Left
+            "top-2 -right-2 sm:top-4 sm:-right-6",   // Top-Right
+            "bottom-4 -left-2 sm:bottom-6 sm:-left-6", // Bottom-Left
+            "bottom-4 -right-2 sm:bottom-6 sm:-right-6" // Bottom-Right
           ]
-          const pos = positions[i] ?? positions[0]
+          const pos = capsulePositions[i % capsulePositions.length]
           const isTapped = tappedNotes.has(note.id)
 
           return (
@@ -77,12 +77,10 @@ export function Screen5TeddyLetter({
                 y: { duration: 2.5, repeat: Infinity, delay: i * 0.4, ease: 'easeInOut' },
               }}
               whileTap={{ scale: 0.92 }}
-              className="absolute flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-sm backdrop-blur-md transition-colors"
+              className={`absolute ${pos} z-20 bg-white/95 border border-rose-200 text-rose-900 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-medium shadow-md shadow-rose-200/50 flex items-center gap-1.5 pointer-events-auto select-none whitespace-nowrap transition-colors`}
               style={{
-                left: pos.left,
-                top: pos.top,
                 borderColor: isTapped ? '#F43F5E' : '#FFB6C8',
-                background: isTapped ? 'rgba(244,63,94,0.12)' : 'rgba(255,255,255,0.85)',
+                background: isTapped ? 'rgba(244,63,94,0.12)' : 'rgba(255,255,255,0.95)',
                 color: isTapped ? '#E11D48' : '#881337',
               }}
             >

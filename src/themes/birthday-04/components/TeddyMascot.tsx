@@ -63,7 +63,7 @@ const earWiggle: { animate: { rotate: number[] }; transition: Transition } = {
 }
 
 export function TeddyMascot({ state = 'excited', className = 'w-48 h-48 sm:w-56 sm:h-56' }: TeddyMascotProps) {
-  const isGiggling = state === 'shy' || state === 'excited'
+  const isGiggling = state === 'shy'
   const hasHat = state === 'party' || state === 'cake'
   const showEnvelope = state === 'letter'
   const showArmsUp = state === 'party'
@@ -241,7 +241,7 @@ export function TeddyMascot({ state = 'excited', className = 'w-48 h-48 sm:w-56 
 
         {/* === MOUTH === */}
         {isGiggling ? (
-          /* Hands covering giggling mouth */
+          /* Hands covering giggling mouth (shy state only) */
           <>
             <motion.ellipse
               cx="85" cy="110" rx="14" ry="11"
@@ -260,11 +260,11 @@ export function TeddyMascot({ state = 'excited', className = 'w-48 h-48 sm:w-56 
             <ellipse cx="115" cy="112" rx="6" ry="4.5" fill="#FECDD3" opacity="0.5" />
           </>
         ) : (
-          /* Open happy smile */
+          /* Open happy smile (excited, countdown, party, letter, cake states) */
           <path
-            d="M 86 108 Q 100 122 114 108"
+            d="M 92 102 Q 100 112 108 102"
             stroke="#372528"
-            strokeWidth="3.5"
+            strokeWidth="4"
             strokeLinecap="round"
             fill="none"
           />
