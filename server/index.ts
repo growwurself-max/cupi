@@ -96,19 +96,24 @@ async function handleCreateOrder(
   next: (error?: unknown) => void,
 ): Promise<void> {
   try {
+    console.log('[ORDER CREATE REQUEST]:', JSON.stringify(req.body, null, 2))
     const { templateId, customization } = (req.body ?? {}) as {
       templateId?: unknown
       customization?: unknown
     }
 
     if (!isNonEmptyString(templateId)) {
+      console.error('[VALIDATION FAILED] Unknown or missing templateId:', templateId)
       res.status(400).json({ error: 'A valid template is required.' })
       return
     }
     if (!ALLOWED_TEMPLATES.includes(templateId)) {
+      console.error('[VALIDATION FAILED] Unknown or missing templateId:', templateId)
       res
         .status(400)
-        .json({ error: 'This template is not available for purchase yet.' })
+        .json({
+          error: `Invalid template ID '${templateId}'. Must be one of: ${ALLOWED_TEMPLATES.join(', ')}`
+        })
       return
     }
 
@@ -117,6 +122,7 @@ async function handleCreateOrder(
       PHOTO_LIMITS[templateId] ?? 3,
     )
     if (!sanitized) {
+      console.error('[VALIDATION FAILED] Invalid customization payload:', JSON.stringify(customization, null, 2))
       res.status(400).json({ error: 'Invalid customization payload.' })
       return
     }

@@ -140,9 +140,9 @@ export function sanitizeCustomization(
   const bouquet = source.bouquet as Record<string, unknown> | undefined
   const audio = source.audio as Record<string, unknown> | undefined
 
-  const recipientName = cleanString(recipient?.name, LIMITS.name)
-  const senderName = cleanString(sender?.name, LIMITS.name)
-  if (!recipientName || !senderName || !content) return null
+  const recipientName = cleanString(recipient?.name, LIMITS.name) || 'Someone Special'
+  const senderName = cleanString(sender?.name, LIMITS.name) || 'A Friend'
+  if (!content) return null
 
   const letterLines = Array.isArray(content.letterLines)
     ? content.letterLines
@@ -167,7 +167,7 @@ export function sanitizeCustomization(
         .filter((photo): photo is SanitizedPhoto => photo !== null)
     : []
 
-  if (letterLines.length === 0 || photos.length === 0) return null
+  if (photos.length === 0) return null
 
   const notes = Array.isArray(bouquet?.notes)
     ? (bouquet.notes as RawNote[])
@@ -185,7 +185,7 @@ export function sanitizeCustomization(
         .filter((note): note is SanitizedNote => note !== null)
     : []
 
-  if (notes.length === 0) return null
+  // Notes are optional - don't fail if they're missing
 
   return {
     recipient: { name: recipientName },
