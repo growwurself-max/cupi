@@ -40,11 +40,11 @@ export async function apiRequest<T>(path: string, options?: RequestOptions): Pro
       errorBody && typeof errorBody === 'object'
         ? String(errorBody.error ?? errorBody.message ?? '')
         : ''
-    console.error('[API CALL FAILED 400/500]', { 
-      status: response.status, 
+    console.error('[API CALL FAILED 400/500]', {
+      status: response.status,
       statusText: response.statusText,
       errorData: errorBody,
-      fullError: JSON.stringify(errorBody, null, 2)
+      fullError: JSON.stringify(errorBody, null, 2),
     })
     throw new Error(message || `Request failed (${response.status})`)
   }
@@ -53,13 +53,14 @@ export async function apiRequest<T>(path: string, options?: RequestOptions): Pro
 }
 
 export interface CreateOrderResponse {
+  success: boolean
   orderId: string
+  paymentSessionId: string
   amount: number
   currency: string
-  keyId: string
 }
 
-export interface VerifyPaymentResponse {
+export interface VerifyOrderResponse {
   success: boolean
   experienceId: string
   id?: string
@@ -67,10 +68,8 @@ export interface VerifyPaymentResponse {
   shareUrl: string
 }
 
-export interface RazorpayVerificationPayload {
-  razorpay_order_id: string
-  razorpay_payment_id: string
-  razorpay_signature: string
+export interface VerifyOrderPayload {
+  orderId: string
 }
 
 export interface ExperienceData {
@@ -81,23 +80,23 @@ export interface ExperienceData {
   createdAt: string
 }
 
-export function createOrderApi(
+export function createOrder(
   templateId: string,
   customization: unknown,
 ): Promise<CreateOrderResponse> {
   const payload = { templateId, customization }
   console.log('[API CALL] Sending createOrder payload:', payload)
-  
+
   return apiRequest<CreateOrderResponse>('/orders/create', {
     method: 'POST',
     body: payload,
   })
 }
 
-export function verifyPaymentApi(
-  payload: RazorpayVerificationPayload,
-): Promise<VerifyPaymentResponse> {
-  return apiRequest<VerifyPaymentResponse>('/orders/verify', {
+export function verifyOrder(
+  payload: VerifyOrderPayload,
+): Promise<VerifyOrderResponse> {
+  return apiRequest<VerifyOrderResponse>('/orders/verify', {
     method: 'POST',
     body: payload,
   })

@@ -6,9 +6,6 @@ const PROJECT_ROOT = process.cwd()
 export const PORT = Number(process.env.PORT ?? 5000)
 export const HOST = process.env.HOST || '0.0.0.0'
 
-export const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID ?? ''
-export const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ?? ''
-
 export const FRONTEND_ORIGINS = (
   process.env.FRONTEND_URL ?? 'http://localhost:5173'
 )

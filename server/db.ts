@@ -21,8 +21,8 @@ export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED'
 
 export interface OrderRecord {
   id: string
-  razorpayOrderId: string
-  razorpayPaymentId: string | null
+  gatewayOrderId: string
+  gatewayPaymentId: string | null
   templateId: string
   amount: number
   currency: string
@@ -92,7 +92,7 @@ export function systemId(): string {
 }
 
 export function createOrder(input: {
-  razorpayOrderId: string
+  gatewayOrderId: string
   templateId: string
   amount: number
   currency: string
@@ -102,8 +102,8 @@ export function createOrder(input: {
   const now = new Date().toISOString()
   const record: OrderRecord = {
     id: systemId(),
-    razorpayOrderId: input.razorpayOrderId,
-    razorpayPaymentId: null,
+    gatewayOrderId: input.gatewayOrderId,
+    gatewayPaymentId: null,
     templateId: input.templateId,
     amount: input.amount,
     currency: input.currency,
@@ -118,12 +118,12 @@ export function createOrder(input: {
   return record
 }
 
-export function getOrderByRazorpayOrderId(
-  razorpayOrderId: string,
+export function getOrderByGatewayOrderId(
+  gatewayOrderId: string,
 ): OrderRecord | null {
   const db = loadDb()
   return (
-    db.orders.find((order) => order.razorpayOrderId === razorpayOrderId) ?? null
+    db.orders.find((order) => order.gatewayOrderId === gatewayOrderId) ?? null
   )
 }
 
@@ -140,10 +140,12 @@ export function getOrderById(id: string): OrderRecord | null {
  */
 export function finalizeOrderForPayment(input: {
   orderId: string
-  razorpayPaymentId: string
+  gatewayPaymentId?: string | null
 }): ExperienceRecord {
   const db = loadDb()
-  const order = db.orders.find((record) => record.id === input.orderId)
+  const order = db.orders.find(
+    (record) => record.id === input.orderId || record.gatewayOrderId === input.orderId,
+  )
 
   if (!order) {
     throw new Error('Order not found.')
@@ -158,7 +160,7 @@ export function finalizeOrderForPayment(input: {
 
   const now = new Date().toISOString()
   const experience: ExperienceRecord = {
-    id: shortId(8),
+    id: order.gatewayOrderId,
     orderId: order.id,
     templateId: order.templateId,
     config: order.customizationPayload,
@@ -168,7 +170,7 @@ export function finalizeOrderForPayment(input: {
   }
 
   order.status = 'PAID'
-  order.razorpayPaymentId = input.razorpayPaymentId
+  order.gatewayPaymentId = input.gatewayPaymentId ?? null
   order.experienceId = experience.id
   order.updatedAt = now
 

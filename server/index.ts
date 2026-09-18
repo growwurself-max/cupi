@@ -1,4 +1,3 @@
-import { createHmac, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import cors from 'cors'
@@ -7,67 +6,41 @@ import express, {
   type Request,
   type Response,
 } from 'express'
-import Razorpay from 'razorpay'
 import {
-  ALLOWED_TEMPLATES,
-  CURRENCY,
+  createCashfreeOrder,
+  getCashfreeOrderStatus,
+} from './cashfree.js'
+import {
   DIST_DIR,
   FRONTEND_ORIGINS,
   HOST,
   PHOTO_LIMITS,
   PORT,
-  RAZORPAY_KEY_ID,
-  RAZORPAY_KEY_SECRET,
 } from './config.js'
 import {
   createOrder,
   finalizeOrderForPayment,
   getExperienceById,
-  getOrderByRazorpayOrderId,
+  getOrderByGatewayOrderId,
+  getOrderById,
   incrementViewCount,
+  shortId,
 } from './db.js'
 import { sanitizeCustomization } from './sanitize.js'
 
 const app = express()
 
 /**
- * Resolves the checkout amount (in paise) for an experience template.
- * Convention: flagship `-03` tiers cost ₹49 (4900 paise), `-02` tiers cost
- * ₹29 (2900 paise), and `-01` tiers cost ₹9 (900 paise). Special case: birthday-04 costs ₹69 (6900 paise).
+ * Resolves the checkout amount in rupees (INR) for an experience template.
+ * Convention: `-03` tiers cost ₹49, `-04` cost ₹69, `-02` tiers cost ₹29,
+ * and `-01` tiers cost ₹9.
  */
-const THEME_PRICES: Record<string, number> = {
-  // Birthday Tiers
-  'birthday-01': 900,   // ₹9
-  'birthday-02': 2900,  // ₹29
-  'birthday-03': 4900,  // ₹49
-  'birthday-04': 6900,  // ₹69
-
-  // Other Categories
-  'love-01': 900,
-  'love-02': 2900,
-  'anniversary-01': 900,
-  'anniversary-02': 2900,
-  'proposal-01': 900,
-  'proposal-02': 2900,
-  'friendship-01': 900,
-  'friendship-02': 2900,
-  'graduation-01': 900,
-  'graduation-02': 2900,
+export function resolvePriceInRupees(templateId: string): number {
+  if (templateId === 'birthday-04') return 69.0
+  if (templateId === 'birthday-03') return 49.0
+  if (templateId.endsWith('-02') || templateId === 'birthday-02') return 29.0
+  return 9.0 // All -01 themes
 }
-
-export function getExperiencePriceInPaise(templateId: string): number {
-  // Fallback logic
-  let amount = THEME_PRICES[templateId]
-  if (!amount) {
-    if (templateId === 'birthday-04') amount = 6900
-    else if (templateId === 'birthday-03') amount = 4900
-    else if (templateId.endsWith('-02')) amount = 2900
-    else amount = 900
-  }
-  return amount
-}
-
-export const resolveExperiencePrice = getExperiencePriceInPaise
 
 // 1. CORS
 const allowedOrigins = ['https://cupi-one.vercel.app', ...FRONTEND_ORIGINS]
@@ -113,7 +86,7 @@ function handleHealth(_req: Request, res: Response): void {
 
 /**
  * POST /orders/create
- * Creates a Razorpay order and stores a PENDING order with the sanitized draft.
+ * Creates a Cashfree PG order and stores a PENDING order with the sanitized draft.
  */
 async function handleCreateOrder(
   req: Request,
@@ -122,7 +95,7 @@ async function handleCreateOrder(
 ): Promise<void> {
   try {
     console.log('[ORDER CREATE INCOMING BODY]:', JSON.stringify(req.body, null, 2))
-    
+
     const templateId = req.body.templateId || req.body.template_id || req.body.themeId
 
     if (!templateId || typeof templateId !== 'string' || !/^[a-z]+-\d+$/.test(templateId)) {
@@ -153,41 +126,45 @@ async function handleCreateOrder(
       return
     }
 
-    const amount = getExperiencePriceInPaise(templateId)
+    const amount = resolvePriceInRupees(templateId)
+    const orderId = shortId(8)
 
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    if (!process.env.CASHFREE_SECRET_KEY) {
       res.status(500).json({
-        message: 'Razorpay credentials not configured',
-        error: 'Razorpay credentials not configured',
+        message: 'Cashfree credentials not configured',
+        error: 'Cashfree credentials not configured',
       })
       return
     }
 
-    const razorpay = new Razorpay({
-      key_id: RAZORPAY_KEY_ID,
-      key_secret: RAZORPAY_KEY_SECRET,
+    const cashfreeData = await createCashfreeOrder({
+      orderId,
+      amount,
+      customerName: sanitizedCustomization.senderName,
     })
 
-    const razorpayOrder = await razorpay.orders.create({
-      amount,
-      currency: CURRENCY,
-      receipt: `rcpt_${randomUUID().slice(0, 8)}`,
-      notes: { templateId },
-    })
+    if (!cashfreeData.payment_session_id) {
+      console.error('[CASHFREE CREATE] No payment_session_id returned:', cashfreeData)
+      res.status(502).json({
+        error: 'Payment gateway did not return a payment session.',
+      })
+      return
+    }
 
     createOrder({
-      razorpayOrderId: razorpayOrder.id,
+      gatewayOrderId: orderId,
       templateId,
-      amount: Number(razorpayOrder.amount),
-      currency: razorpayOrder.currency,
+      amount,
+      currency: 'INR',
       customizationPayload: sanitized,
     })
 
     res.status(201).json({
-      orderId: razorpayOrder.id,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
-      keyId: RAZORPAY_KEY_ID,
+      success: true,
+      orderId,
+      paymentSessionId: cashfreeData.payment_session_id,
+      amount,
+      currency: 'INR',
     })
   } catch (error) {
     next(error)
@@ -196,97 +173,51 @@ async function handleCreateOrder(
 
 /**
  * POST /orders/verify
- * Server-side HMAC-SHA256 signature verification. Idempotent: a replayed
- * signature returns the already-locked experience without creating a duplicate.
+ * Confirms the payment status with Cashfree PG, then locks the experience.
+ * Idempotent: a replayed payment returns the already-locked experience.
  */
-function handleVerifyOrder(
+async function handleVerifyOrder(
   req: Request,
   res: Response,
   next: (error?: unknown) => void,
-): void {
-  const body = (req.body ?? {}) as Record<string, unknown>
-  console.log('[VERIFY REQUEST BODY]:', body)
+): Promise<void> {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>
+    console.log('[VERIFY REQUEST BODY]:', body)
 
-  const razorpay_order_id = body.razorpay_order_id ?? body.orderId ?? body.razorpayOrderId
-  const razorpay_payment_id =
-    body.razorpay_payment_id ?? body.paymentId ?? body.razorpayPaymentId
-  const razorpay_signature =
-    body.razorpay_signature ?? body.signature ?? body.razorpaySignature
+    const orderId = body.orderId ?? body.order_id
 
-  if (!isNonEmptyString(razorpay_order_id) || !isNonEmptyString(razorpay_payment_id)) {
-    console.error('[VERIFY ERROR] Missing fields:', {
-      razorpay_order_id,
-      razorpay_payment_id,
-    })
-    res.status(400).json({
-      error: 'Missing Razorpay payment details (order_id or payment_id missing).',
-    })
-    return
-  }
-
-  if (!RAZORPAY_KEY_SECRET) {
-    console.error('[VERIFY ERROR] RAZORPAY_KEY_SECRET is not configured on server.')
-    res.status(500).json({
-      error: 'Server configuration error: Key Secret missing.',
-    })
-    return
-  }
-
-  if (isNonEmptyString(razorpay_signature)) {
-    const signatureText = `${razorpay_order_id}|${razorpay_payment_id}`
-    const generatedSignature = createHmac('sha256', RAZORPAY_KEY_SECRET)
-      .update(signatureText)
-      .digest('hex')
-
-    const isValid = generatedSignature === razorpay_signature
-    console.log('[SIGNATURE CHECK]', {
-      isValid,
-      generatedSignature,
-      received: razorpay_signature,
-    })
-
-    if (!isValid) {
-      console.error('[SIGNATURE MISMATCH]', {
-        generatedSignature,
-        received: razorpay_signature,
-      })
-      res.status(400).json({ error: 'Invalid payment signature.' })
+    if (!isNonEmptyString(orderId)) {
+      res.status(400).json({ error: 'Missing orderId.' })
       return
     }
-  } else {
-    console.warn(
-      '[SIGNATURE CHECK] No signature provided — proceeding without HMAC verification.',
-    )
-  }
 
-  try {
-    const order = getOrderByRazorpayOrderId(razorpay_order_id)
+    const orderData = await getCashfreeOrderStatus(orderId)
+
+    if (orderData.order_status !== 'PAID') {
+      console.error('[VERIFY ERROR] Payment not completed:', {
+        orderId,
+        order_status: orderData.order_status,
+      })
+      res.status(400).json({ error: 'Payment not completed.' })
+      return
+    }
+
+    const order = getOrderByGatewayOrderId(orderId) ?? getOrderById(orderId)
     if (!order) {
       res.status(404).json({ error: 'Order not found.' })
       return
     }
 
-    if (order.status === 'PAID' && order.experienceId) {
-      const existing = getExperienceById(order.experienceId)
-      if (existing) {
-        res.status(200).json({
-          success: true,
-          experienceId: existing.id,
-          sharePath: `/x/${existing.id}`,
-          shareUrl: `${process.env.FRONTEND_URL || 'https://cupi-one.vercel.app'}/x/${existing.id}`,
-        })
-        return
-      }
-    }
-
     const experience = finalizeOrderForPayment({
       orderId: order.id,
-      razorpayPaymentId: razorpay_payment_id,
+      gatewayPaymentId: orderData.cf_order_id ?? null,
     })
 
     res.status(200).json({
       success: true,
       experienceId: experience.id,
+      id: experience.id,
       sharePath: `/x/${experience.id}`,
       shareUrl: `${process.env.FRONTEND_URL || 'https://cupi-one.vercel.app'}/x/${experience.id}`,
     })
@@ -366,9 +297,9 @@ app.use(errorHandler)
 
 app.listen(PORT, HOST, () => {
   console.log(`[cupi-api] listening on http://${HOST}:${PORT}`)
-  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+  if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
     console.warn(
-      '[cupi-api] RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET not set — checkout will be unavailable until configured in .env',
+      '[cupi-api] CASHFREE_APP_ID / CASHFREE_SECRET_KEY not set — checkout will be unavailable until configured in .env',
     )
   }
 })

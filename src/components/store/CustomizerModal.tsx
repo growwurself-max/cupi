@@ -17,7 +17,8 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useRazorpay, type CheckoutOutcome } from '../../hooks/useRazorpay'
+import { useCashfree } from '../../hooks/useCashfree'
+import { createOrder, verifyOrder } from '../../lib/api'
 import {
   getCustomizerStepIds,
   type CustomizerStepId,
@@ -56,14 +57,16 @@ const GRID_CLASS: Record<number, string> = {
 const INPUT_CLASS =
   'w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 placeholder-stone-400 shadow-sm outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
 
-type PaymentResult = Extract<CheckoutOutcome, { kind: 'verified' } | { kind: 'failed' }>
+type PaymentResult =
+  | { kind: 'verified'; experienceId: string; shareUrl: string }
+  | { kind: 'failed'; message: string }
 
 export function CustomizerModal({
   theme,
   onClose,
   onOpenExperience,
 }: CustomizerModalProps) {
-  const checkout = useRazorpay()
+  const { openCheckout } = useCashfree()
 
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<CustomizerDraft>(emptyDraft)
@@ -190,16 +193,44 @@ export function CustomizerModal({
   const handleCheckout = useCallback(async () => {
     if (!theme || !previewConfig || checking) return
     setChecking(true)
-    const outcome = await checkout({
-      templateId: theme.id,
-      customization: previewConfig,
-      buyerName: draft.senderName.trim() || 'Cupi Creator',
-    })
-    setChecking(false)
-    if (outcome.kind === 'verified' || outcome.kind === 'failed') {
-      setPaymentResult(outcome)
+    try {
+      const orderRes = await createOrder(theme.id, previewConfig)
+
+      if (!orderRes.paymentSessionId) {
+        throw new Error('Failed to create payment session with Cashfree.')
+      }
+
+      // Open native Cashfree popup (UPI, Cards, Netbanking)
+      await openCheckout(orderRes.paymentSessionId)
+
+      // Verify on backend
+      const verifyRes = await verifyOrder({ orderId: orderRes.orderId })
+
+      if (!verifyRes.success) {
+        throw new Error('Payment verification failed.')
+      }
+
+      const generatedId = verifyRes.experienceId || verifyRes.id
+      if (!generatedId) {
+        throw new Error('No experience ID returned from verification server.')
+      }
+
+      setPaymentResult({
+        kind: 'verified',
+        experienceId: generatedId,
+        shareUrl: verifyRes.sharePath || `/x/${generatedId}`,
+      })
+    } catch (err) {
+      console.error('Checkout error:', err)
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Payment was not completed.'
+      setPaymentResult({ kind: 'failed', message })
+    } finally {
+      setChecking(false)
     }
-  }, [theme, previewConfig, checking, checkout, draft.senderName])
+  }, [theme, previewConfig, checking, openCheckout])
 
   const handleOpenExperience = useCallback(() => {
     if (!paymentResult || paymentResult.kind !== 'verified') return
@@ -629,7 +660,7 @@ export function CustomizerModal({
                       {checking ? (
                         <>
                           <LoaderCircle className="h-4 w-4 animate-spin" />
-                          Contacting Razorpay…
+                          Contacting Cashfree…
                         </>
                       ) : (
                         <>
