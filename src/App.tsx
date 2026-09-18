@@ -1,5 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useState } from 'react'
+import { ContactUs } from './pages/legal/ContactUs'
+import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
+import { RefundPolicy } from './pages/legal/RefundPolicy'
+import { TermsConditions } from './pages/legal/TermsConditions'
 import type { CategorySelection } from './components/store/CategoryFilter'
 import { CustomizerModal } from './components/store/CustomizerModal'
 import { ExperienceView } from './components/store/ExperienceView'
@@ -13,17 +17,35 @@ import type { ExperienceMetadata } from './types/catalog'
 
 type View = 'store' | 'demo'
 
+type LegalPage = 'privacy' | 'terms' | 'refund' | 'contact'
+
 interface Route {
-  view: View | 'share'
+  view: View | 'share' | 'legal'
   shareId: string | null
+  legalPage: LegalPage | null
+}
+
+const LEGAL_ROUTES: Record<string, LegalPage> = {
+  '/privacy': 'privacy',
+  '/privacy-policy': 'privacy',
+  '/terms': 'terms',
+  '/terms-and-conditions': 'terms',
+  '/refund': 'refund',
+  '/cancellation-and-refund': 'refund',
+  '/contact': 'contact',
+  '/contact-us': 'contact',
 }
 
 function parsePath(pathname: string): Route {
   const match = pathname.match(/^\/x\/([A-Za-z0-9_-]{4,64})$/)
   if (match) {
-    return { view: 'share', shareId: match[1] }
+    return { view: 'share', shareId: match[1], legalPage: null }
   }
-  return { view: 'store', shareId: null }
+  const legalPage = LEGAL_ROUTES[pathname]
+  if (legalPage) {
+    return { view: 'legal', shareId: null, legalPage }
+  }
+  return { view: 'store', shareId: null, legalPage: null }
 }
 
 export default function App() {
@@ -42,6 +64,10 @@ export default function App() {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [route])
 
   const navigate = useCallback((path: string) => {
     window.history.pushState({}, '', path)
@@ -89,6 +115,19 @@ export default function App() {
     return <ExperienceView experienceId={route.shareId} onExit={goToStore} />
   }
 
+  if (route.view === 'legal') {
+    const legalPage = route.legalPage ?? 'privacy'
+    const LegalPage =
+      legalPage === 'privacy'
+        ? PrivacyPolicy
+        : legalPage === 'terms'
+          ? TermsConditions
+          : legalPage === 'refund'
+            ? RefundPolicy
+            : ContactUs
+    return <LegalPage onExit={goToStore} />
+  }
+
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FFFDFB] bg-gradient-to-b from-[#FFF7F3] via-[#FEFCFB] to-[#FBEDF0]">
       <div
@@ -121,7 +160,7 @@ export default function App() {
         <HowItWorks />
       </main>
 
-      <Footer onSelectCategory={handleSelectCategory} />
+      <Footer onSelectCategory={handleSelectCategory} onNavigate={navigate} />
 
       <CustomizerModal
         theme={customizeTheme}
