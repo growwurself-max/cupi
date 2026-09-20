@@ -131,6 +131,47 @@ export function useSoundEffects({ audio, enabled }: UseSoundEffectsOptions) {
     })
   }, [audio.volume, ensureContext])
 
+  const playBowTwang = useCallback(() => {
+    const ctx = ensureContext()
+    const master = masterRef.current
+    if (!ctx || !master) return
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(540, now)
+    osc.frequency.exponentialRampToValueAtTime(150, now + 0.14)
+
+    const shimmer = ctx.createOscillator()
+    shimmer.type = 'sine'
+    shimmer.frequency.setValueAtTime(1080, now)
+    shimmer.frequency.exponentialRampToValueAtTime(320, now + 0.2)
+
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(audio.volume * 0.5, now + 0.012)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5)
+
+    const shimmerGain = ctx.createGain()
+    shimmerGain.gain.setValueAtTime(0.0001, now)
+    shimmerGain.gain.exponentialRampToValueAtTime(audio.volume * 0.14, now + 0.02)
+    shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42)
+
+    osc.connect(gain).connect(master)
+    shimmer.connect(shimmerGain).connect(master)
+    osc.start(now)
+    shimmer.start(now)
+    osc.stop(now + 0.55)
+    shimmer.stop(now + 0.45)
+  }, [audio.volume, ensureContext])
+
+  const playBurstShimmer = useCallback(() => {
+    const ctx = ensureContext()
+    const master = masterRef.current
+    if (!ctx || !master) return
+    const notes = [987.77, 1318.51, 1567.98, 2093.0]
+    scheduleNotes(ctx, master, notes, audio.volume * 0.75)
+  }, [audio.volume, ensureContext])
+
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const next = !prev
@@ -173,6 +214,8 @@ export function useSoundEffects({ audio, enabled }: UseSoundEffectsOptions) {
     playRevealChime,
     playBlowSound,
     playAmbientPad,
+    playBowTwang,
+    playBurstShimmer,
     resume: ensureContext,
   }
 }

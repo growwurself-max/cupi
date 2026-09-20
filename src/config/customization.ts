@@ -41,7 +41,7 @@ const BOUQUET_THEMES = new Set(['birthday-01', 'birthday-02', 'birthday-03'])
  * Themes that render content.finalMessage as their big headline / the
  * proposal question itself (they do NOT render a letter).
  */
-const QUESTION_THEMES = new Set(['proposal-01', 'proposal-02'])
+const QUESTION_THEMES = new Set(['proposal-01', 'proposal-02', 'special-01'])
 
 /**
  * Returns the customizer steps that match what a given experience actually
