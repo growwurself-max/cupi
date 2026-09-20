@@ -187,16 +187,16 @@ export function ThemeCard({
             >
               {theme.promoLabel
                 ? 'Premium+'
-                : theme.tier === 'premium'
-                  ? 'Premium'
-                  : 'Basic'}
+                : theme.tierLabel ??
+                  (theme.tier === 'premium' ? 'Premium' : 'Basic')}
             </span>
             <span className="text-[11px] font-medium text-stone-400">
               {theme.promoLabel
                 ? 'Your photos + premium motion'
-                : theme.tier === 'premium'
-                  ? 'Cinematic interactive experience'
-                  : 'Quick & joyful animated surprise'}
+                : theme.tierNote ??
+                  (theme.tier === 'premium'
+                    ? 'Cinematic interactive experience'
+                    : 'Quick & joyful animated surprise')}
             </span>
           </p>
           <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-stone-500">
@@ -214,6 +214,19 @@ export function ThemeCard({
             </span>
           ))}
         </div>
+
+        {theme.tags && theme.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {theme.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] font-semibold text-stone-500"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
 
         <TierCompareStrip currentPrice={theme.price} />
 

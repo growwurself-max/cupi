@@ -20,10 +20,15 @@ const LETTER_THEMES = new Set([
   'love-02',
   'anniversary-01',
   'anniversary-02',
+  'proposal-01',
+  'proposal-02',
   'friendship-01',
   'friendship-02',
   'graduation-01',
   'graduation-02',
+  'special-01',
+  'special-02',
+  'special-03',
 ])
 
 /**

@@ -22,6 +22,12 @@ import { GraduationChapterTheme } from './graduation-02/GraduationChapterTheme'
 import { defaultGraduationChapterConfig } from './graduation-02/defaultData'
 import { GraduationTheme } from './graduation-01/GraduationTheme'
 import { defaultGraduationConfig } from './graduation-01/defaultData'
+import { SpecialHeartBloomTheme } from './special-01/SpecialHeartBloomTheme'
+import { defaultSpecialHeartBloomConfig } from './special-01/defaultData'
+import { SpecialBunnyTheme } from './special-02/SpecialBunnyTheme'
+import { defaultSpecialBunnyConfig } from './special-02/defaultData'
+import { SpecialStorybookTheme } from './special-03/SpecialStorybookTheme'
+import { defaultSpecialStorybookConfig } from './special-03/defaultData'
 import { LoveEternalTheme } from './love-02/LoveEternalTheme'
 import { defaultLoveEternalConfig } from './love-02/defaultData'
 import { LoveTheme } from './love-01/LoveTheme'
@@ -63,6 +69,9 @@ const REGISTERED_THEMES: Array<{
   { id: 'friendship-02', component: FriendshipBroadcastTheme, defaultConfig: defaultFriendshipBroadcastConfig },
   { id: 'graduation-01', component: GraduationTheme, defaultConfig: defaultGraduationConfig },
   { id: 'graduation-02', component: GraduationChapterTheme, defaultConfig: defaultGraduationChapterConfig },
+  { id: 'special-01', component: SpecialHeartBloomTheme, defaultConfig: defaultSpecialHeartBloomConfig },
+  { id: 'special-02', component: SpecialBunnyTheme, defaultConfig: defaultSpecialBunnyConfig },
+  { id: 'special-03', component: SpecialStorybookTheme, defaultConfig: defaultSpecialStorybookConfig },
 ]
 
 const registrations: ThemeRegistration[] = REGISTERED_THEMES.flatMap(

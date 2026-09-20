@@ -6,7 +6,7 @@ const TAGLINE = 'Interactive Digital Surprises'
 const NAV_LINKS = [
   { label: 'Explore', href: '#experiences' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Birthday Experience', href: '#birthday-01' },
+  { label: 'Special', href: '#special-01' },
 ]
 
 interface NavbarProps {

@@ -29,6 +29,9 @@ export const ALLOWED_TEMPLATES = [
   'graduation-01',
   'graduation-02',
   'birthday-04',
+  'special-01',
+  'special-02',
+  'special-03',
 ]
 
 /**
@@ -52,6 +55,9 @@ export const PHOTO_LIMITS: Record<string, number> = {
   'friendship-02': 0,
   'graduation-01': 3,
   'graduation-02': 0,
+  'special-01': 0,
+  'special-02': 3,
+  'special-03': 3,
 }
 
 export const DATA_DIR = path.resolve(PROJECT_ROOT, 'server', 'data')

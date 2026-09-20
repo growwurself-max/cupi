@@ -21,13 +21,16 @@ export function ThemeGrid({
 }: ThemeGridProps) {
   const visibleExperiences = useMemo(
     () =>
-      experiences.filter(
-        (experience) =>
-          experience.isAvailable &&
-          isThemeAvailable(experience.id) &&
-          (activeCategory === 'all' ||
-            experience.categoryId === activeCategory),
-      ),
+      experiences
+        .filter(
+          (experience) =>
+            experience.isAvailable &&
+            isThemeAvailable(experience.id) &&
+            (activeCategory === 'all' ||
+              experience.categoryId === activeCategory),
+        )
+        .slice()
+        .sort((a, b) => a.amountInPaise - b.amountInPaise),
     [activeCategory],
   )
 

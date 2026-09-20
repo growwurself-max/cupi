@@ -53,6 +53,19 @@ export interface ExperienceMetadata {
    * tiers (e.g. "PHOTOS + ADVANCED ANIMATION" on the ₹49 experience).
    */
   promoLabel?: string
+  /**
+   * Optional short marketing pills shown on the product card (e.g.
+   * "Secret Passcode", "Balloon Pop"). Distinct from `features`, which carry
+   * the richer experience description.
+   */
+  tags?: string[]
+  /**
+   * Optional custom tier chip label + supporting note shown on the product
+   * card (e.g. label "INTERACTIVE", note "Gamified Celebration"). Falls back
+   * to the generic Basic/Premium labels when absent.
+   */
+  tierLabel?: string
+  tierNote?: string
   /** Maximum number of user photos the experience accepts (default 3). */
   maxPhotos?: number
   previewVisual: {
