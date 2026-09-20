@@ -55,7 +55,7 @@ export function ThemeGrid({
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-pretty text-sm leading-relaxed text-stone-500 sm:text-base">
             {experiences.filter((e) => e.isAvailable && isThemeAvailable(e.id)).length}{' '}
-            experiences across six moments. Each one a live, animated
+            experiences across seven moments. Each one a live, animated
             surprise you can demo before you create yours.
           </p>
         </motion.div>

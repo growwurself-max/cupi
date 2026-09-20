@@ -24,13 +24,13 @@ const BADGE_CLASSES: Record<ExperienceBadge, string> = {
 function TierCompareStrip({ currentPrice }: { currentPrice: string }) {
   const tiers = [
     {
-      price: '₹9',
+      price: '₹29',
       label: 'Animated surprise',
       note: 'simple & joyful',
       feature: 'no photos',
     },
     {
-      price: '₹29',
+      price: '₹9',
       label: 'Cinematic show',
       note: 'effects & interaction',
       feature: 'no photos',

@@ -5,6 +5,7 @@ export type CategoryId =
   | 'proposal'
   | 'friendship'
   | 'graduation'
+  | 'special'
 
 export type ExperienceBadge =
   | 'BESTSELLER'
@@ -15,8 +16,8 @@ export type ExperienceBadge =
 
 /**
  * Experience pricing tier. `basic` experiences (Experience #01) are the
- * quick & joyful ₹9 animated surprises; `premium` experiences (Experience
- * #02) are the cinematic, interactive ₹29 deluxe editions.
+ * quick & joyful ₹29 animated surprises; `premium` experiences (Experience
+ * #02) are the cinematic, interactive ₹9 deluxe editions.
  */
 export type ExperienceTier = 'basic' | 'premium'
 
