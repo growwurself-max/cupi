@@ -49,7 +49,7 @@ function drawHeart(
 
 export function HeartBurstOverlay({
   origin = { x: 0.5, y: 0.26 },
-  colors = ['#ff5c8a', '#ff8fb0', '#ffb9cd', '#ffd9a6', '#f5b861', '#ffe9d1'],
+  colors = ['#ff8296', '#ffb3c1', '#ffd6c9', '#f9b16e', '#e3b35b', '#ffe9d1'],
   duration = 1700,
   className = '',
 }: HeartBurstOverlayProps) {
@@ -117,12 +117,12 @@ export function HeartBurstOverlay({
         const rad = 46 + ring * Math.min(w, h) * 0.65
         ctx.beginPath()
         ctx.arc(cx, cy, rad, 0, Math.PI * 2)
-        ctx.strokeStyle = `rgba(255,217,166,${0.5 * (1 - ring)})`
+        ctx.strokeStyle = `rgba(227,179,91,${0.6 * (1 - ring)})`
         ctx.lineWidth = 1.6
         ctx.stroke()
         const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad)
-        glow.addColorStop(0, `rgba(255,217,166,${0.24 * (1 - ring)})`)
-        glow.addColorStop(1, 'rgba(255,217,166,0)')
+        glow.addColorStop(0, `rgba(227,179,91,${0.22 * (1 - ring)})`)
+        glow.addColorStop(1, 'rgba(227,179,91,0)')
         ctx.fillStyle = glow
         ctx.beginPath()
         ctx.arc(cx, cy, rad, 0, Math.PI * 2)

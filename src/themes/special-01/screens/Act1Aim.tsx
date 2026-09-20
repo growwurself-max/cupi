@@ -192,7 +192,7 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.5, ease: 'easeInOut' }}
-      className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-5 py-6 text-center sm:px-8"
+      className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-x-hidden px-5 py-6 text-center sm:px-8"
     >
       {/* ambient warmth */}
       <div
@@ -200,7 +200,7 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse 70% 42% at 50% 22%, rgba(255,217,166,0.13), transparent 62%), radial-gradient(ellipse 60% 46% at 50% 118%, rgba(255,92,138,0.1), transparent 60%)',
+            'radial-gradient(ellipse 70% 42% at 50% 22%, rgba(233,183,132,0.2), transparent 62%), radial-gradient(ellipse 60% 46% at 50% 118%, rgba(255,130,150,0.14), transparent 60%)',
         }}
       />
 
@@ -209,7 +209,7 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-[11px] font-bold tracking-[0.32em] text-[#f3e7da]/45 uppercase"
+          className="text-[11px] font-bold tracking-[0.32em] text-[#A62B4C]/55 uppercase"
         >
           Act One · The Bow
         </motion.p>
@@ -218,7 +218,7 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.18 }}
-          className="font-display text-balance text-4xl font-semibold text-[#f3e7da] italic sm:text-5xl"
+          className="font-script text-balance text-4xl leading-snug text-[#8B1E3F] sm:text-5xl"
         >
           {config.content.teaserHeading}
         </motion.h1>
@@ -227,13 +227,18 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3 }}
-          className="max-w-sm text-sm leading-relaxed font-medium text-[#e7cfb8]/70"
+          className="max-w-sm text-sm leading-relaxed font-medium text-[#8B1E3F]/70"
         >
           {config.content.teaserSubtext}
         </motion.p>
 
         <div ref={heartRef} className="mt-1">
-          <FloatingHeart size={118} excited={fired} />
+          <FloatingHeart
+            size={118}
+            color={config.branding.accentColor}
+            glow={config.branding.accentSecondary}
+            excited={fired}
+          />
         </div>
 
         {/* Bow & pull area */}
@@ -246,15 +251,15 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
           <div className="flex items-end gap-3 sm:gap-5">
             {/* Power meter */}
             <div className="flex h-52 w-9 flex-col items-center gap-2">
-              <span className="text-[10px] font-bold tracking-[0.2em] text-[#f3e7da]/40 uppercase [writing-mode:vertical-lr]">
+              <span className="text-[10px] font-bold tracking-[0.2em] text-[#A62B4C]/60 uppercase [writing-mode:vertical-lr]">
                 pull
               </span>
-              <div className="relative h-full w-2.5 overflow-hidden rounded-full bg-[#f3e7da]/10 ring-1 ring-[#f3e7da]/15">
+              <div className="relative h-full w-2.5 overflow-hidden rounded-full bg-[#8B1E3F]/10 ring-1 ring-[#8B1E3F]/15">
                 <motion.div
                   className="w-full rounded-full"
                   style={{
-                    background: 'linear-gradient(180deg, #ffd9a6 0%, #ff8fb0 55%, #ff5c8a 100%)',
-                    boxShadow: '0 0 12px rgba(255,140,176,0.7)',
+                    background: 'linear-gradient(180deg, #f9b16e 0%, #ff8296 55%, #d13f68 100%)',
+                    boxShadow: '0 0 12px rgba(255,130,150,0.55)',
                   }}
                   animate={{ height: `${ready ? Math.max(pull, 0.42) * 100 : pull * 100}%` }}
                   transition={{ type: 'spring', stiffness: 260, damping: 26 }}
@@ -288,13 +293,13 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
               >
                 <defs>
                   <linearGradient id="hb-bow-arm" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#e8c39a" />
-                    <stop offset="55%" stopColor="#b97f55" />
-                    <stop offset="100%" stopColor="#7a4a33" />
+                    <stop offset="0%" stopColor="#d9a877" />
+                    <stop offset="55%" stopColor="#a86e46" />
+                    <stop offset="100%" stopColor="#6d3d2a" />
                   </linearGradient>
                   <linearGradient id="hb-arrow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f6d9bd" />
-                    <stop offset="100%" stopColor="#e7c4a2" />
+                    <stop offset="0%" stopColor="#8B1E3F" />
+                    <stop offset="100%" stopColor="#5d142b" />
                   </linearGradient>
                 </defs>
 
@@ -328,8 +333,8 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
                 <path
                   d={buildStringPath(pull)}
                   fill="none"
-                  stroke="#f3e7da"
-                  strokeOpacity={fired ? 0.35 : 0.9}
+                  stroke="#8B1E3F"
+                  strokeOpacity={fired ? 0.4 : 0.9}
                   strokeWidth={2}
                   strokeLinecap="round"
                 />
@@ -339,19 +344,19 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
                   <line x1={0} y1={-ARROW_TIP_OFFSET} x2={0} y2={ARROW_TAIL + 4} stroke="url(#hb-arrow)" strokeWidth={3.4} strokeLinecap="round" />
                   <path
                     d={`M 0 ${-ARROW_TIP_OFFSET - 7} L -4.5 ${-ARROW_TIP_OFFSET + 3} L 4.5 ${-ARROW_TIP_OFFSET + 3} Z`}
-                    fill="#f6d9bd"
-                    stroke="#fff7ed"
+                    fill="#8B1E3F"
+                    stroke="#fde8d8"
                     strokeWidth={0.8}
                   />
-                  <circle cx={0} cy={-ARROW_TIP_OFFSET + 1} r={4.4} fill="#ff8fb0" opacity={0.9} />
+                  <circle cx={0} cy={-ARROW_TIP_OFFSET + 1} r={4.4} fill="#ff8296" opacity={0.95} />
                   <path
                     d={`M 0 ${ARROW_TAIL - 12} L 0 ${ARROW_TAIL + 2} M 0 ${ARROW_TAIL - 12} L 5 ${ARROW_TAIL - 6} L 4.6 ${ARROW_TAIL - 1} M 0 ${ARROW_TAIL - 12} L -5 ${ARROW_TAIL - 6} L -4.6 ${ARROW_TAIL - 1}`}
-                    stroke="#ffd9a6"
+                    stroke="#c89b3c"
                     strokeWidth={1.6}
                     strokeLinecap="round"
                     fill="none"
                   />
-                  <circle cx={0} cy={ARROW_TAIL + 4} r={5} fill="#ffd9a6" opacity={0.8} />
+                  <circle cx={0} cy={ARROW_TAIL + 4} r={5} fill="#c89b3c" opacity={0.85} />
                 </g>
 
                 {/* target ring reachable zone */}
@@ -359,8 +364,10 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
                   cx={NOCK_X}
                   cy={NOCK_Y}
                   r={34}
-                  fill="transparent"
-                  animate={pulling ? { opacity: [0.25, 0.5, 0.25] } : { opacity: 0 }}
+                  fill="rgba(255,130,150,0.06)"
+                  stroke="#ff8296"
+                  strokeWidth={1.2}
+                  animate={pulling ? { opacity: [0.35, 0.7, 0.35] } : { opacity: 0 }}
                   transition={{ duration: 1, repeat: Infinity }}
                 />
               </svg>
@@ -380,10 +387,10 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
               transition={weak ? { duration: 0.4 } : { duration: 0.8, repeat: Infinity }}
               className={`rounded-full border px-5 py-2 text-[11px] font-black tracking-[0.28em] uppercase backdrop-blur-sm ${
                 ready
-                  ? 'border-[#ff8fb0]/60 bg-[#ff5c8a]/20 text-[#ffb9cd] shadow-[0_0_22px_-4px_rgba(255,92,138,0.8)]'
+                  ? 'border-[#d13f68]/60 bg-[#ffe3ea]/70 text-[#a0284e] shadow-[0_0_22px_-4px_rgba(255,130,150,0.75)]'
                   : pulling
-                    ? 'border-[#ffd9a6]/50 bg-[#ffd9a6]/10 text-[#ffd9a6]'
-                    : 'border-[#f3e7da]/15 bg-white/[0.03] text-[#f3e7da]/60'
+                    ? 'border-[#c89b3c]/55 bg-[#fff6e8]/80 text-[#9a6a22]'
+                    : 'border-[#8B1E3F]/20 bg-white/60 text-[#8B1E3F]/70'
               }`}
             >
               {weak || !pulling ? 'PULL & release' : 'RELEASE'}
@@ -392,7 +399,7 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
               key={hint}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-xs font-medium text-[#e7cfb8]/45 italic"
+              className="text-xs font-medium text-[#8B1E3F]/50 italic"
             >
               {hint}
             </motion.p>
@@ -422,10 +429,10 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
             transition={{ duration: 0.78, ease: [0.22, 1, 0.36, 1] }}
           >
             <svg width={30} height={120} viewBox="0 0 30 120" className="overflow-visible">
-              <line x1={15} y1={8} x2={15} y2={112} stroke="#f6d9bd" strokeWidth={3.4} strokeLinecap="round" />
-              <path d="M 15 2 L 10 12 L 20 12 Z" fill="#f6d9bd" />
-              <circle cx={15} cy={11} r={5} fill="#ff8fb0" />
-              <path d="M 15 96 L 15 112 M 15 96 L 20 104 L 19 110 M 15 96 L 10 104 L 11 110" stroke="#ffd9a6" strokeWidth={1.8} fill="none" strokeLinecap="round" />
+              <line x1={15} y1={8} x2={15} y2={112} stroke="#8B1E3F" strokeWidth={3.4} strokeLinecap="round" />
+              <path d="M 15 2 L 10 12 L 20 12 Z" fill="#8B1E3F" />
+              <circle cx={15} cy={11} r={5} fill="#ff8296" />
+              <path d="M 15 96 L 15 112 M 15 96 L 20 104 L 19 110 M 15 96 L 10 104 L 11 110" stroke="#c89b3c" strokeWidth={1.8} fill="none" strokeLinecap="round" />
             </svg>
           </motion.div>
 
@@ -442,8 +449,8 @@ export function Act1Aim({ config, onFire, onTwang }: Act1AimProps) {
                 width: 7,
                 height: 7,
                 borderRadius: '50%',
-                background: i % 2 ? '#ffd9a6' : '#ffb9cd',
-                boxShadow: '0 0 10px rgba(255,185,205,0.9)',
+                background: i % 2 ? '#c89b3c' : '#ff8296',
+                boxShadow: '0 0 10px rgba(255,130,150,0.55)',
               }}
             />
           ))}

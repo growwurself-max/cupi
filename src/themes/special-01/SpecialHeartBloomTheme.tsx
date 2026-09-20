@@ -10,6 +10,9 @@ import { Act3Tree } from './screens/Act3Tree'
 
 const TOTAL_STEPS = 3
 
+const PAPER_GRAIN =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E"
+
 interface SpecialThemeProps {
   config?: ExperienceConfig
   onExit: () => void
@@ -56,8 +59,29 @@ export function SpecialHeartBloomTheme({
   return (
     <div
       ref={scrollRef}
-      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#16100c]"
+      style={{ color: '#3f3a37' }}
+      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FFF9F5]"
     >
+      {/* soft paper grain + ambient warmth */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage: `url("${PAPER_GRAIN}")`,
+          backgroundSize: '160px 160px',
+          opacity: 0.05,
+          mixBlendMode: 'multiply',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 62% 46% at 50% -6%, rgba(249,177,110,0.16), transparent 62%), radial-gradient(ellipse 55% 42% at 50% 108%, rgba(255,130,150,0.1), transparent 60%)',
+        }}
+      />
+
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}
@@ -95,6 +119,8 @@ export function SpecialHeartBloomTheme({
             onAmbient={sound.playAmbientPad}
             onGrow={sound.playRevealChime}
             onBloom={sound.playBurstShimmer}
+            isMuted={sound.isMuted}
+            onToggleMute={sound.toggleMute}
           />
         )}
       </AnimatePresence>

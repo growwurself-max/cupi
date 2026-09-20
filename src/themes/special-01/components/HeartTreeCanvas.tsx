@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 export interface HeartTreePalette {
   pink: string
   peach: string
+  magenta?: string
   gold: string
   bark: string
 }
@@ -182,7 +183,7 @@ export function HeartTreeCanvas({
         { loop: 44, off: 0.24 },
         { loop: 30, off: 0.32 },
       ]
-      const palette = [colors.pink, colors.peach, colors.gold]
+      const palette = [colors.pink, colors.magenta ?? colors.pink, colors.peach, colors.gold]
       for (let li = 0; li < layers.length; li++) {
         const { loop, off } = layers[li]
         for (let i = 0; i < loop; i++) {
@@ -258,16 +259,14 @@ export function HeartTreeCanvas({
       ctx.clearRect(0, 0, w, h)
 
       // ambient twinkles
-      ctx.globalCompositeOperation = 'lighter'
       for (const tw of state.twinkles) {
-        const a = (reduced ? 0.5 : 0.5 + 0.5 * Math.sin(t * 0.0012 + tw.phase)) * 0.35
+        const a = (reduced ? 0.5 : 0.5 + 0.5 * Math.sin(t * 0.0012 + tw.phase)) * 0.5
         ctx.globalAlpha = a
         ctx.fillStyle = colors.gold
         ctx.beginPath()
         ctx.arc(tw.x, tw.y, tw.size, 0, Math.PI * 2)
         ctx.fill()
       }
-      ctx.globalCompositeOperation = 'source-over'
 
       // canopy aura
       const aura = ctx.createRadialGradient(
@@ -311,16 +310,14 @@ export function HeartTreeCanvas({
 
       // grow tip glow
       if (growEased < 1) {
-        ctx.globalCompositeOperation = 'lighter'
         ctx.globalAlpha = glowA
         const tipGlow = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, 26)
-        tipGlow.addColorStop(0, 'rgba(255,217,166,0.8)')
-        tipGlow.addColorStop(1, 'rgba(255,217,166,0)')
+        tipGlow.addColorStop(0, 'rgba(227,179,91,0.75)')
+        tipGlow.addColorStop(1, 'rgba(227,179,91,0)')
         ctx.fillStyle = tipGlow
         ctx.beginPath()
         ctx.arc(tipX, tipY, 26, 0, Math.PI * 2)
         ctx.fill()
-        ctx.globalCompositeOperation = 'source-over'
         ctx.globalAlpha = 1
       }
 
@@ -333,14 +330,13 @@ export function HeartTreeCanvas({
       const bloomProg = clamp01((t - bloomStart) / BLOOM_MS)
 
       if (bloomProg > 0) {
-        ctx.globalCompositeOperation = 'lighter'
         for (const heart of state.hearts) {
           const localAge = t - bloomStart - heart.delay
           if (localAge < 0) continue
           const progress = clamp01(localAge / 460)
           const scale = reduced ? 1 : easeOutBack(progress)
           const pulse = reduced ? 1 : 1 + 0.07 * Math.sin(t * 0.004 + heart.phase)
-          const alpha = clamp01(progress) * 0.9
+          const alpha = clamp01(progress) * 0.95
           drawMiniHeart(
             ctx,
             heart.x,
@@ -350,7 +346,6 @@ export function HeartTreeCanvas({
             alpha,
           )
         }
-        ctx.globalCompositeOperation = 'source-over'
       }
 
       if (bloomProg >= 0.96 && !bloomFiredRef.current && !reduced) {

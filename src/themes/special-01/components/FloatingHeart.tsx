@@ -15,8 +15,8 @@ interface FloatingHeartProps {
  */
 export function FloatingHeart({
   size = 104,
-  color = '#ff5c8a',
-  glow = '#ffd9a6',
+  color = '#ff8296',
+  glow = '#f9b16e',
   excited = false,
   className = '',
 }: FloatingHeartProps) {
