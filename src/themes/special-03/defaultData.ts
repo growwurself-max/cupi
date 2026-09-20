@@ -31,7 +31,7 @@ export const defaultSpecialStorybookConfig: ExperienceConfig = {
     letterSignoff: 'Yours in every chapter,',
     wishPrompt: 'Open the box',
     finalMessage: 'You are my favorite reply.',
-    finalCelebration: 'Pop the first balloon of our new chapter together.',
+    finalCelebration: 'You are my forever surprise',
     photos: [
       {
         src: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=800&auto=format&fit=crop',
@@ -44,6 +44,12 @@ export const defaultSpecialStorybookConfig: ExperienceConfig = {
         alt: 'Silhouette of a couple under stars',
         caption: 'The chapter we keep writing.',
         rotate: 4,
+      },
+      {
+        src: 'https://images.unsplash.com/photo-1464349153735-7db50ed83c84?q=80&w=800&auto=format&fit=crop',
+        alt: 'Couple laughing together',
+        caption: 'My favorite plot twist.',
+        rotate: -2,
       },
     ],
   },

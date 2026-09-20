@@ -29,7 +29,7 @@ export const defaultSpecialHeartBloomConfig: ExperienceConfig = {
       'Close your eyes, make a wish, and watch it bloom.',
     ],
     letterSignoff: 'Always yours,',
-    wishPrompt: '…make it count',
+    wishPrompt: 'make it count',
     finalMessage: 'Happy Birthday',
     finalCelebration: 'to a year that blooms',
     photos: [],

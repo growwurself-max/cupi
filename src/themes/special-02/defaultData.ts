@@ -18,7 +18,7 @@ export const defaultSpecialBunnyConfig: ExperienceConfig = {
     teaserSubtext:
       'Tap the hearts, pop the balloons, and find the gift that hides inside.',
     suspenseHeading: '',
-    suspenseSubtext: '',
+    suspenseSubtext: '1234',
     countdownTagline: '',
     revealHeading: 'You cracked the code! 🎉',
     revealSubtext: '',

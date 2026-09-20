@@ -89,10 +89,10 @@ export function Act3Tree({
         className="z-[5]"
       />
 
-      {/* legibility scrim behind the copy */}
+      {/* narrow left scrim — keeps the tree visible on the right */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-full bg-gradient-to-b from-[#FFF9F5]/85 via-[#FFF9F5]/55 lg:w-[46vw] lg:bg-gradient-to-r lg:from-[#FFF9F5]/95 lg:via-[#FFF9F5]/75 lg:to-transparent"
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-[min(100%,380px)] bg-gradient-to-r from-[#FFF9F5]/88 via-[#FFF9F5]/35 to-transparent sm:w-[min(46vw,440px)] sm:from-[#FFF9F5]/82 sm:via-[#FFF9F5]/28"
       />
 
       <AnimatePresence>
@@ -103,7 +103,7 @@ export function Act3Tree({
             animate="show"
             className="relative z-20 mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col justify-start px-5 pt-24 sm:px-8 sm:pt-28 lg:justify-center lg:pt-0"
           >
-            <div className="max-w-xl rounded-[2rem] bg-[#FFF9F5]/80 p-6 text-left ring-1 ring-[#A62B4C]/10 backdrop-blur-[3px] shadow-[0_28px_70px_-40px_rgba(139,30,63,0.4)] sm:p-8">
+            <div className="max-w-xl text-left">
               <motion.p
                 variants={lineVariants}
                 className="flex items-center gap-3 text-[11px] font-bold tracking-[0.32em] text-[#A62B4C]/60 uppercase"

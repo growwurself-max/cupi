@@ -168,39 +168,58 @@ export function HeartTreeCanvas({
         }
       }
 
-      const baseY = height * 1.02
-      const cx = width / 2
-      const trunkLen = height * 0.17
+      const baseY = height * 0.98
+      const cx = width > 768 ? width * 0.72 : width * 0.58
+      const trunkLen = height * 0.19
       growBranch(cx, baseY, -Math.PI / 2, trunkLen, Math.max(9, Math.min(16, width * 0.028)), DEPTH)
 
-      const s = Math.max(6, Math.min(15, Math.min(width, height) * 0.0215))
-      const canopyY = height * 0.46
+      const s = Math.max(7, Math.min(17, Math.min(width, height) * 0.024)) * 1.15
+      const canopyY = height * 0.4
 
       const hearts: Heart[] = []
       const layers = [
-        { loop: 96, off: 0 },
-        { loop: 64, off: 0.14 },
-        { loop: 44, off: 0.24 },
-        { loop: 30, off: 0.32 },
+        { loop: 200, off: 0 },
+        { loop: 160, off: 0.12 },
+        { loop: 120, off: 0.24 },
+        { loop: 90, off: 0.36 },
+        { loop: 60, off: 0.48 },
       ]
       const palette = [colors.pink, colors.magenta ?? colors.pink, colors.peach, colors.gold]
       for (let li = 0; li < layers.length; li++) {
         const { loop, off } = layers[li]
         for (let i = 0; i < loop; i++) {
-          const t = (i / loop) * Math.PI * 2 + r() * 0.4
+          const t = (i / loop) * Math.PI * 2 + r() * 0.35
           const pt = heartPoint(t)
-          const jx = (r() - 0.5) * 3.4 * s * 0.2
-          const jy = (r() - 0.5) * 3.4 * s * 0.2
+          const jx = (r() - 0.5) * s * 0.55
+          const jy = (r() - 0.5) * s * 0.55
           const f = 1 - off
           hearts.push({
             x: cx + pt.x * s * f + jx,
             y: canopyY - pt.y * s * f + jy,
-            size: 2.4 + r() * 3.6,
+            size: 2.2 + r() * 4.2,
             color: palette[Math.floor(r() * palette.length)],
-            delay: off * 3.2 + r() * 1.35,
+            delay: off * 2.8 + r() * 1.2,
             phase: r() * Math.PI * 2,
           })
         }
+      }
+
+      let fillAttempts = 0
+      while (hearts.length < 320 && fillAttempts < 2400) {
+        fillAttempts += 1
+        const t = r() * Math.PI * 2
+        const pt = heartPoint(t)
+        const shrink = 0.15 + r() * 0.72
+        const jx = (r() - 0.5) * s * 0.35
+        const jy = (r() - 0.5) * s * 0.35
+        hearts.push({
+          x: cx + pt.x * s * shrink + jx,
+          y: canopyY - pt.y * s * shrink + jy,
+          size: 1.8 + r() * 3.4,
+          color: palette[Math.floor(r() * palette.length)],
+          delay: 0.55 + r() * 2.4,
+          phase: r() * Math.PI * 2,
+        })
       }
 
       const petals: Petal[] = Array.from({ length: 26 }).map(() => ({
