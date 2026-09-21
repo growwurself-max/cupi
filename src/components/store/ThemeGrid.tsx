@@ -63,13 +63,46 @@ export function ThemeGrid({
           </p>
         </motion.div>
 
-        <div className="mb-12 flex justify-center">
+        <div className="mb-8 flex justify-center">
           <CategoryFilter
             categories={categories}
             active={activeCategory}
             onChange={onCategoryChange}
           />
         </div>
+
+        <AnimatePresence mode="wait">
+          {activeCategory === 'special' && (
+            <motion.div
+              key="special-banner"
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="mb-10 flex flex-col items-center gap-4 rounded-2xl border border-amber-300/60 bg-gradient-to-r from-[#FFF4E0] via-[#FDE8EC] to-[#FDE8E6] px-6 py-5 text-center shadow-[0_18px_48px_-22px_rgba(251,146,60,0.6)] sm:flex-row sm:justify-between sm:text-left"
+            >
+              <div>
+                <p className="text-xs font-bold tracking-[0.28em] text-amber-600 uppercase sm:text-sm">
+                  ✦ Limited-time special drop ✦
+                </p>
+                <h3 className="mt-1.5 font-display text-xl font-bold text-stone-800 sm:text-2xl">
+                  Handcrafted and fully animated — from ₹9.
+                </h3>
+                <p className="mt-1 max-w-md text-pretty text-sm leading-relaxed text-stone-500">
+                  Storybook letters, bunny mini-games and heart-bloom
+                  animations. Demo each one before you create yours.
+                </p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-2.5 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 px-5 py-2.5 text-xs font-bold tracking-wide text-white uppercase shadow-lg shadow-amber-200">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                </span>
+                Now live
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <motion.div layout className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <AnimatePresence mode="popLayout">

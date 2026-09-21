@@ -18,7 +18,7 @@ export function Act4Polaroids({ config, onContinue }: Act4PolaroidsProps) {
   }, [config.content.photos])
 
   return (
-    <ScreenShell className="bg-[#FDFBF7] py-24">
+    <ScreenShell className="bg-[#FCF1ED] py-24">
       {photos.length > 0 ? (
         <PolaroidSwipeStack photos={photos} onDone={onContinue} />
       ) : (

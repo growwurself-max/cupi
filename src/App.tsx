@@ -129,7 +129,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FFFDFB] bg-gradient-to-b from-[#FFF7F3] via-[#FEFCFB] to-[#FBEDF0]">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FEFAF4] bg-gradient-to-b from-[#FDF3EC] via-[#FEF9F4] to-[#FBE9EC]">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-40 left-1/2 h-[540px] w-[860px] -translate-x-1/2 rounded-full bg-rose-100/35 blur-3xl"
@@ -176,7 +176,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="demo-scope fixed inset-0 z-[100] bg-[#FFFDFB]"
+            className="demo-scope fixed inset-0 z-[100] bg-[#FEFAF4]"
             role="dialog"
             aria-label={`${activeRegistration?.metadata.name ?? 'Surprise'} live demo preview`}
           >

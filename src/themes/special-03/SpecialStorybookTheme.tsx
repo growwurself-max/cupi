@@ -37,8 +37,14 @@ export function SpecialStorybookTheme({
     enabled: resolvedConfig.audio.enabled,
   })
 
+  const isDemoPreview = !isSharedLink
+
   const goNext = useCallback(() => {
     setStep((prev) => Math.min(prev + 1, TOTAL_STEPS))
+  }, [])
+
+  const jumpToStep = useCallback((target: number) => {
+    setStep(Math.max(1, Math.min(target, TOTAL_STEPS)))
   }, [])
 
   const replay = useCallback(() => {
@@ -59,8 +65,11 @@ export function SpecialStorybookTheme({
   return (
     <div
       ref={scrollRef}
-      style={{ color: '#3f3a37' }}
-      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FDFBF7]"
+      style={{
+        color: '#3f3a37',
+        background: 'linear-gradient(170deg, #FFF6F1 0%, #FCEDE8 52%, #F9DEDF 100%)',
+      }}
+      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto"
     >
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel || 'Storybook'}
@@ -71,6 +80,7 @@ export function SpecialStorybookTheme({
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
         variant={isSharedLink ? 'shared' : 'demo'}
+        onJumpToStep={isDemoPreview ? jumpToStep : undefined}
       />
 
       <AnimatePresence mode="wait">

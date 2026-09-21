@@ -172,6 +172,24 @@ export function useSoundEffects({ audio, enabled }: UseSoundEffectsOptions) {
     scheduleNotes(ctx, master, notes, audio.volume * 0.75)
   }, [audio.volume, ensureContext])
 
+  const playSoftClick = useCallback(() => {
+    const ctx = ensureContext()
+    const master = masterRef.current
+    if (!ctx || !master) return
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(880, now)
+    osc.frequency.exponentialRampToValueAtTime(520, now + 0.04)
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(audio.volume * 0.22, now + 0.006)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07)
+    osc.connect(gain).connect(master)
+    osc.start(now)
+    osc.stop(now + 0.08)
+  }, [audio.volume, ensureContext])
+
   const playPop = useCallback(() => {
     const ctx = ensureContext()
     const master = masterRef.current
@@ -234,6 +252,7 @@ export function useSoundEffects({ audio, enabled }: UseSoundEffectsOptions) {
     playAmbientPad,
     playBowTwang,
     playBurstShimmer,
+    playSoftClick,
     playPop,
     resume: ensureContext,
   }

@@ -36,8 +36,14 @@ export function SpecialBunnyTheme({
     enabled: resolvedConfig.audio.enabled,
   })
 
+  const isDemoPreview = !isSharedLink
+
   const goNext = useCallback(() => {
     setStep((prev) => Math.min(prev + 1, TOTAL_STEPS))
+  }, [])
+
+  const jumpToStep = useCallback((target: number) => {
+    setStep(Math.max(1, Math.min(target, TOTAL_STEPS)))
   }, [])
 
   const replay = useCallback(() => {
@@ -58,7 +64,7 @@ export function SpecialBunnyTheme({
     <div
       ref={scrollRef}
       style={{ color: '#3f3a37' }}
-      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FFF0F3]"
+      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FCEBEE]"
     >
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel || 'Bunny'}
@@ -69,6 +75,7 @@ export function SpecialBunnyTheme({
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
         variant={isSharedLink ? 'shared' : 'demo'}
+        onJumpToStep={isDemoPreview ? jumpToStep : undefined}
       />
 
       <AnimatePresence mode="wait">
@@ -76,6 +83,12 @@ export function SpecialBunnyTheme({
           <Act1Passcode
             key="act1"
             config={resolvedConfig}
+            demoPreview={isDemoPreview}
+            onKeyTap={sound.playSoftClick}
+            onSkip={() => {
+              sound.playRevealChime()
+              goNext()
+            }}
             onSuccess={() => {
               sound.playRevealChime()
               goNext()
@@ -88,6 +101,7 @@ export function SpecialBunnyTheme({
             config={resolvedConfig}
             onBlowOut={() => {
               sound.playBlowSound()
+              sound.playRevealChime()
               sound.playBurstShimmer()
               goNext()
             }}

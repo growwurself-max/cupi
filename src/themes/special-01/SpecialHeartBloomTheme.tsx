@@ -37,8 +37,14 @@ export function SpecialHeartBloomTheme({
     enabled: resolvedConfig.audio.enabled,
   })
 
+  const isDemoPreview = !isSharedLink
+
   const goNext = useCallback(() => {
     setStep((prev) => Math.min(prev + 1, TOTAL_STEPS))
+  }, [])
+
+  const jumpToStep = useCallback((target: number) => {
+    setStep(Math.max(1, Math.min(target, TOTAL_STEPS)))
   }, [])
 
   const replay = useCallback(() => {
@@ -60,7 +66,7 @@ export function SpecialHeartBloomTheme({
     <div
       ref={scrollRef}
       style={{ color: '#3f3a37' }}
-      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FFF9F5]"
+      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FBF1E7]"
     >
       {/* soft paper grain + ambient warmth */}
       <div
@@ -91,6 +97,7 @@ export function SpecialHeartBloomTheme({
         onToggleMute={sound.toggleMute}
         onExit={handleExit}
         variant={isSharedLink ? 'shared' : 'demo'}
+        onJumpToStep={isDemoPreview ? jumpToStep : undefined}
       />
 
       <AnimatePresence mode="wait">

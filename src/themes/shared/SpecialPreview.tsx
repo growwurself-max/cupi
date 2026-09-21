@@ -40,7 +40,7 @@ export function SpecialPreview({
   }, [onExit, sound])
 
   return (
-    <div className="relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FFFDFB]">
+    <div className="relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FEFAF4]">
       <ThemeToolbar
         themeLabel={config.branding.themeLabel}
         step={1}

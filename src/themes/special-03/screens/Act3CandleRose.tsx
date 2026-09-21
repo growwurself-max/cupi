@@ -22,7 +22,7 @@ export function Act3CandleRose({ config, onBlow, onComplete }: Act3CandleRosePro
   }, [onBlow, onComplete])
 
   return (
-    <ScreenShell className="bg-[#FDFBF7] py-24">
+    <ScreenShell className="bg-[#FCF1ED] py-24">
       <p className="relative z-10 text-xs font-bold tracking-[0.28em] text-amber-800/55 uppercase">
         {config.content.wishPrompt || 'Make a wish'}
       </p>

@@ -63,9 +63,19 @@ interface TreeState {
   canopyY: number
 }
 
+interface Vec2 {
+  x: number
+  y: number
+}
+
 const GROW_MS = 4000
-const BLOOM_MS = 2600
+const BLOOM_MS = 5000
 const BLOOM_OVERLAP = 320
+const POP_MS = 520
+const BLOOM_LEVELS = 6
+const WAVE_LEVEL_MS = 4200
+const WAVE_OUTWARD_MS = 300
+const WAVE_JITTER_MS = 240
 const DEPTH = 5
 
 function mulberry32(seed: number) {
@@ -84,6 +94,50 @@ function heartPoint(t: number) {
     x: 16 * Math.pow(Math.sin(t), 3),
     y: 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t),
   }
+}
+
+const HEART_POLY: Vec2[] = (() => {
+  const pts: Vec2[] = []
+  for (let i = 0; i < 960; i++) {
+    pts.push(heartPoint((i / 960) * Math.PI * 2))
+  }
+  return pts
+})()
+
+const HEART_BBOX = (() => {
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (const p of HEART_POLY) {
+    if (p.x < minX) minX = p.x
+    if (p.x > maxX) maxX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.y > maxY) maxY = p.y
+  }
+  return { minX, maxX, minY, maxY }
+})()
+
+function polygonArea(poly: Vec2[]) {
+  let area = 0
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    area += poly[j].x * poly[i].y - poly[i].x * poly[j].y
+  }
+  return Math.abs(area) / 2
+}
+
+const HEART_AREA_UNITS = polygonArea(HEART_POLY)
+
+function pointInPoly(pt: Vec2, poly: Vec2[]) {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]
+    const b = poly[j]
+    if (a.y > pt.y !== b.y > pt.y && pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside
+    }
+  }
+  return inside
 }
 
 function easeOutBack(t: number) {
@@ -109,6 +163,87 @@ function drawMiniHeart(
   ctx.bezierCurveTo(x + r * 0.28, y - r * 0.72, x + r * 0.6, y - r * 0.1, x, y + r * 0.4)
   ctx.closePath()
   ctx.fill()
+}
+
+function traceHeartPath(ctx: CanvasRenderingContext2D, cx: number, canopyY: number, s: number) {
+  ctx.beginPath()
+  for (let i = 0; i < HEART_POLY.length; i++) {
+    const p = HEART_POLY[i]
+    const x = cx + p.x * s
+    const y = canopyY - p.y * s
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.closePath()
+}
+
+// Dense fill of the silhouette with vibrant pinks, reds, magentas and warm gold/peach accents.
+const HOT_TINTS = ['#FF1E56', '#FF2E63', '#FF4D8D', '#FB2576', '#FF5C8A', '#FF6F91']
+const SWEET_TINTS = ['#FF8EAD', '#FFA3C0', '#FFB3C6', '#E91E63', '#EC407A', '#D81B60', '#F06292']
+const WARM_TINTS = ['#FF9A76', '#FFB26B', '#FFC93C', '#FFD166', '#F59E0B']
+
+function pickCanopyColor(r: () => number) {
+  const roll = r()
+  const bucket = roll < 0.55 ? HOT_TINTS : roll < 0.85 ? SWEET_TINTS : WARM_TINTS
+  return bucket[Math.floor(r() * bucket.length)]
+}
+
+function buildHearts(cx: number, canopyY: number, s: number, r: () => number): Heart[] {
+  const hearts: Heart[] = []
+  const bboxW = HEART_BBOX.maxX - HEART_BBOX.minX
+  const bboxH = HEART_BBOX.maxY - HEART_BBOX.minY
+  // sequential level-by-level bloom: hearts at the trunk/base bloom first and
+  // the pop ripples band by band upward, spreading slightly outward to the rim.
+  const halfW = (HEART_BBOX.maxX - HEART_BBOX.minX) / 2
+  const height = HEART_BBOX.maxY - HEART_BBOX.minY
+  const levelDelay = (ux: number, uy: number) => {
+    const nv = (uy - HEART_BBOX.minY) / height
+    const band = Math.min(BLOOM_LEVELS - 1, Math.floor(nv * BLOOM_LEVELS))
+    const bandBase = (band / BLOOM_LEVELS) * WAVE_LEVEL_MS
+    const outward = (Math.abs(ux) / halfW) * WAVE_OUTWARD_MS
+    return bandBase + outward + r() * WAVE_JITTER_MS
+  }
+
+  const density = 0.4
+  const interiorTarget = Math.max(700, Math.min(4300, Math.round(HEART_AREA_UNITS / (density * density))))
+
+  let attempts = 0
+  while (hearts.length < interiorTarget && attempts < interiorTarget * 6) {
+    attempts++
+    const ux = HEART_BBOX.minX + r() * bboxW
+    const uy = HEART_BBOX.minY + r() * bboxH
+    if (!pointInPoly({ x: ux, y: uy }, HEART_POLY)) continue
+    const jx = (r() - 0.5) * s * 0.14
+    const jy = (r() - 0.5) * s * 0.14
+    hearts.push({
+      x: cx + ux * s + jx,
+      y: canopyY - uy * s + jy,
+      size: s * (0.26 + r() * 0.36),
+      color: pickCanopyColor(r),
+      delay: levelDelay(ux, uy),
+      phase: r() * Math.PI * 2,
+    })
+  }
+
+  // crisp contour: trace the silhouette edge so the canopy reads as a clean heart outline.
+  const boundaryCount = 280
+  for (let i = 0; i < boundaryCount; i++) {
+    const t = (i / boundaryCount) * Math.PI * 2 + r() * 0.025
+    const pt = heartPoint(t)
+    const k = 0.968 + r() * 0.024
+    const ux = pt.x * k
+    const uy = pt.y * k
+    hearts.push({
+      x: cx + ux * s,
+      y: canopyY - uy * s,
+      size: s * (0.22 + r() * 0.3),
+      color: pickCanopyColor(r),
+      delay: levelDelay(ux, uy),
+      phase: r() * Math.PI * 2,
+    })
+  }
+
+  return hearts
 }
 
 export function HeartTreeCanvas({
@@ -141,10 +276,15 @@ export function HeartTreeCanvas({
     const seed = 20240920
     let state: TreeState = buildTree(seed, w, h)
 
+    // Cache the fully-bloomed canopy on an offscreen canvas so dense rendering stays cheap.
+    let settled: HTMLCanvasElement | null = null
+
     function buildTree(seedNum: number, width: number, height: number): TreeState {
       const r = mulberry32(seedNum)
       const limbs: Limb[] = []
       let totalLen = 0
+
+      const branchTips: { x: number; y: number }[] = []
 
       const growBranch = (
         x: number,
@@ -158,7 +298,10 @@ export function HeartTreeCanvas({
         const ey = y + Math.sin(angle) * len
         limbs.push({ x0: x, y0: y, x1: ex, y1: ey, len, w: width })
         totalLen += len
-        if (depth <= 0) return
+        if (depth <= 0) {
+          branchTips.push({ x: ex, y: ey })
+          return
+        }
         const childCount = width > 6 && r() < 0.55 ? 3 : 2
         for (let i = 0; i < childCount; i++) {
           const dir = i - (childCount - 1) / 2
@@ -176,63 +319,34 @@ export function HeartTreeCanvas({
       const s = Math.max(7, Math.min(17, Math.min(width, height) * 0.024)) * 1.15
       const canopyY = height * 0.4
 
-      const hearts: Heart[] = []
-      const layers = [
-        { loop: 200, off: 0 },
-        { loop: 160, off: 0.12 },
-        { loop: 120, off: 0.24 },
-        { loop: 90, off: 0.36 },
-        { loop: 60, off: 0.48 },
-      ]
-      const palette = [colors.pink, colors.magenta ?? colors.pink, colors.peach, colors.gold]
-      for (let li = 0; li < layers.length; li++) {
-        const { loop, off } = layers[li]
-        for (let i = 0; i < loop; i++) {
-          const t = (i / loop) * Math.PI * 2 + r() * 0.35
-          const pt = heartPoint(t)
-          const jx = (r() - 0.5) * s * 0.55
-          const jy = (r() - 0.5) * s * 0.55
-          const f = 1 - off
+      const hearts = buildHearts(cx, canopyY, s, r)
+
+      // blossoms that sprout straight from the branch tips reaching into the heart
+      for (const tip of branchTips) {
+        for (let k = 0; k < 5; k++) {
           hearts.push({
-            x: cx + pt.x * s * f + jx,
-            y: canopyY - pt.y * s * f + jy,
-            size: 2.2 + r() * 4.2,
-            color: palette[Math.floor(r() * palette.length)],
-            delay: off * 2.8 + r() * 1.2,
+            x: tip.x + (r() - 0.5) * s * 0.24,
+            y: tip.y + (r() - 0.5) * s * 0.24,
+            size: s * (0.24 + r() * 0.3),
+            color: pickCanopyColor(r),
+            delay: 0.35 + r() * 0.9,
             phase: r() * Math.PI * 2,
           })
         }
       }
 
-      let fillAttempts = 0
-      while (hearts.length < 320 && fillAttempts < 2400) {
-        fillAttempts += 1
-        const t = r() * Math.PI * 2
-        const pt = heartPoint(t)
-        const shrink = 0.15 + r() * 0.72
-        const jx = (r() - 0.5) * s * 0.35
-        const jy = (r() - 0.5) * s * 0.35
-        hearts.push({
-          x: cx + pt.x * s * shrink + jx,
-          y: canopyY - pt.y * s * shrink + jy,
-          size: 1.8 + r() * 3.4,
-          color: palette[Math.floor(r() * palette.length)],
-          delay: 0.55 + r() * 2.4,
-          phase: r() * Math.PI * 2,
-        })
-      }
-
-      const petals: Petal[] = Array.from({ length: 26 }).map(() => ({
+      const petalTints = ['#FF2E63', '#FF8EAD', '#FFB3C6', '#FFD166']
+      const petals: Petal[] = Array.from({ length: 54 }).map(() => ({
         x: r() * width,
-        y: r() * height,
-        size: 2.6 + r() * 3.4,
-        vy: 0.5 + r() * 0.55,
-        sway: 0.5 + r() * 1.2,
+        y: r() * height * 0.85,
+        size: 2.4 + r() * 3.8,
+        vy: 0.45 + r() * 0.65,
+        sway: 0.6 + r() * 1.4,
         phase: r() * Math.PI * 2,
         rot: r() * Math.PI * 2,
         vr: (r() - 0.5) * 0.02,
-        alpha: 0.35 + r() * 0.4,
-        color: r() < 0.5 ? colors.pink : colors.peach,
+        alpha: 0.32 + r() * 0.45,
+        color: petalTints[Math.floor(r() * petalTints.length)],
       }))
 
       const twinkles: Twinkle[] = Array.from({ length: 34 }).map(() => ({
@@ -243,6 +357,19 @@ export function HeartTreeCanvas({
       }))
 
       return { limbs, totalLen, hearts, petals, twinkles, cx, canopyY }
+    }
+
+    const renderSettled = () => {
+      if (settled) return
+      settled = document.createElement('canvas')
+      settled.width = Math.floor(w * dpr)
+      settled.height = Math.floor(h * dpr)
+      const sctx = settled.getContext('2d')
+      if (!sctx) return
+      sctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      for (const heart of state.hearts) {
+        drawMiniHeart(sctx, heart.x, heart.y, heart.size, heart.color, 0.95)
+      }
     }
 
     const resize = () => {
@@ -257,6 +384,7 @@ export function HeartTreeCanvas({
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      settled = null
       state = buildTree(seed, w, h)
     }
 
@@ -272,7 +400,7 @@ export function HeartTreeCanvas({
     let raf = 0
     const start = performance.now()
 
-    const frame = (now: number) => {
+    const paint = (now: number) => {
       const elapsed = now - start
       const t = reduced ? Infinity : elapsed
       ctx.clearRect(0, 0, w, h)
@@ -348,22 +476,64 @@ export function HeartTreeCanvas({
       const bloomStart = GROW_MS - BLOOM_OVERLAP
       const bloomProg = clamp01((t - bloomStart) / BLOOM_MS)
 
-      if (bloomProg > 0) {
-        for (const heart of state.hearts) {
-          const localAge = t - bloomStart - heart.delay
-          if (localAge < 0) continue
-          const progress = clamp01(localAge / 460)
-          const scale = reduced ? 1 : easeOutBack(progress)
-          const pulse = reduced ? 1 : 1 + 0.07 * Math.sin(t * 0.004 + heart.phase)
-          const alpha = clamp01(progress) * 0.95
-          drawMiniHeart(
-            ctx,
-            heart.x,
-            heart.y,
-            heart.size * scale * pulse,
-            heart.color,
-            alpha,
-          )
+      if (bloomProg > 0.02) {
+        // soft blush wash behind the mini-hearts so the silhouette reads instantly
+        const wash = Math.min(0.14, bloomProg * 0.1)
+        ctx.globalAlpha = wash
+        ctx.fillStyle = '#FF8098'
+        traceHeartPath(ctx, state.cx, state.canopyY, Math.max(7, Math.min(17, Math.min(w, h) * 0.024)) * 1.15)
+        ctx.fill()
+        ctx.globalAlpha = 1
+      }
+
+      if (t >= bloomStart) {
+        // last heart finishes its pop only after the full staggered wave has run
+        const bloomEnd = bloomStart + WAVE_LEVEL_MS + WAVE_OUTWARD_MS + WAVE_JITTER_MS + POP_MS
+        if (t >= bloomEnd) {
+          if (!settled) renderSettled()
+          if (settled) {
+            ctx.drawImage(settled, 0, 0, w, h)
+            // live shimmer highlights keep the canopy feeling alive without re-drawing 4k hearts
+            if (!reduced) {
+              for (let i = 0; i < state.hearts.length; i += 11) {
+                const heart = state.hearts[i]
+                const pulse = 1 + 0.08 * Math.sin(t * 0.0035 + heart.phase)
+                const shimmer = 0.72 + 0.28 * Math.sin(t * 0.002 + heart.phase)
+                drawMiniHeart(ctx, heart.x, heart.y, heart.size * pulse, heart.color, shimmer)
+              }
+            }
+            ctx.globalAlpha = 1
+          }
+        } else {
+          for (let i = 0; i < state.hearts.length; i++) {
+            const heart = state.hearts[i]
+            const localAge = t - bloomStart - heart.delay
+            if (localAge < 0) continue
+            const progress = clamp01(localAge / POP_MS)
+            const scale = reduced ? 1 : easeOutBack(progress)
+            const pulse = reduced ? 1 : 1 + 0.07 * Math.sin(t * 0.004 + heart.phase)
+            const alpha = clamp01(progress) * 0.95
+
+            // soft "blossom pop" ring on a light sample of hearts as they unfold
+            if (!reduced && i % 3 === 0 && progress < 0.5) {
+              const ringR = (1 - progress / 0.5) * 6.5
+              ctx.globalAlpha = progress * 0.4
+              ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+              ctx.lineWidth = 1
+              ctx.beginPath()
+              ctx.arc(heart.x, heart.y, heart.size * 0.55 + ringR, 0, Math.PI * 2)
+              ctx.stroke()
+            }
+
+            drawMiniHeart(
+              ctx,
+              heart.x,
+              heart.y,
+              heart.size * scale * pulse,
+              heart.color,
+              alpha,
+            )
+          }
         }
       }
 
@@ -372,8 +542,8 @@ export function HeartTreeCanvas({
         onBloomRef.current?.()
       }
 
-      // falling petals
-      const petalsActive = t > bloomStart + 500 || reduced
+      // continuous drifting petals
+      const petalsActive = t > 400 || reduced
       if (petalsActive) {
         ctx.globalAlpha = 1
         for (const petal of state.petals) {
@@ -398,11 +568,17 @@ export function HeartTreeCanvas({
           ctx.restore()
         }
       }
-
-      raf = requestAnimationFrame(frame)
     }
 
-    raf = requestAnimationFrame(frame)
+    if (reduced) {
+      paint(performance.now())
+    } else {
+      const loop = (now: number) => {
+        paint(now)
+        raf = requestAnimationFrame(loop)
+      }
+      raf = requestAnimationFrame(loop)
+    }
 
     return () => {
       window.removeEventListener('resize', resize)

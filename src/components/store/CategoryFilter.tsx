@@ -44,6 +44,7 @@ export function CategoryFilter({
     >
       {options.map((option) => {
         const isActive = active === option.id
+        const isFeatured = option.id === 'special'
         return (
           <button
             key={option.id}
@@ -53,14 +54,24 @@ export function CategoryFilter({
             onClick={() => onChange(option.id)}
             className={`relative flex min-h-12 shrink-0 items-center gap-2 rounded-full border bg-white px-5 text-sm font-semibold transition-all duration-200 ${
               isActive
-                ? 'border-transparent text-white shadow-md shadow-rose-200'
-                : 'border-stone-200/80 text-stone-600 hover:border-rose-300 hover:text-rose-600'
+                ? `border-transparent text-white shadow-md ${
+                    isFeatured
+                      ? 'shadow-amber-300/80'
+                      : 'shadow-rose-200'
+                  }`
+                : isFeatured
+                  ? 'border-amber-300/80 bg-gradient-to-r from-[#FFF8EA] to-[#FDEFF2] text-amber-800 shadow-[0_0_16px_-6px_rgba(251,191,36,0.75)] hover:border-amber-400 hover:text-amber-900 hover:shadow-[0_0_24px_-6px_rgba(251,191,36,0.95)]'
+                  : 'border-stone-200/80 text-stone-600 hover:border-rose-300 hover:text-rose-600'
             }`}
           >
             {isActive && (
               <motion.span
                 layoutId="category-pill"
-                className="absolute inset-0 rounded-full bg-gradient-to-r from-rose-500 to-pink-500"
+                className={`absolute inset-0 rounded-full bg-gradient-to-r ${
+                  isFeatured
+                    ? 'from-amber-500 via-rose-500 to-pink-500'
+                    : 'from-rose-500 to-pink-500'
+                }`}
                 transition={{ type: 'spring', stiffness: 400, damping: 32 }}
               />
             )}
@@ -76,6 +87,15 @@ export function CategoryFilter({
             >
               {option.count}
             </span>
+            {isFeatured && (
+              <span
+                aria-hidden
+                className="absolute -top-1.5 -right-1.5 flex h-4 w-4"
+              >
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-4 w-4 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 ring-2 ring-white" />
+              </span>
+            )}
           </button>
         )
       })}

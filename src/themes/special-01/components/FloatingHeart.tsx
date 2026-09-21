@@ -27,7 +27,7 @@ export function FloatingHeart({
       animate={
         excited
           ? { y: [0, -12, 0], scale: [1, 1.28, 0.92, 1.18, 1] }
-          : { y: [0, -12, 0], scale: 1 }
+          : { y: [0, -12, 0], scale: [1, 1.045, 1] }
       }
       transition={
         excited
@@ -52,8 +52,16 @@ export function FloatingHeart({
           transformStyle: 'preserve-3d',
           filter: `drop-shadow(0 8px 20px ${color}66)`,
         }}
-        animate={excited ? { rotateX: [18, 26, 18], rotateY: [-14, -6, -14] } : {}}
-        transition={excited ? { duration: 0.9, ease: 'easeInOut' } : {}}
+        animate={
+          excited
+            ? { rotateX: [18, 26, 18], rotateY: [-14, -6, -14] }
+            : { rotateX: [18, 23, 18], rotateY: [-14, -7, -14], scale: [1, 1.02, 1] }
+        }
+        transition={
+          excited
+            ? { duration: 0.9, ease: 'easeInOut' }
+            : { duration: 4.2, repeat: Infinity, ease: 'easeInOut' }
+        }
       >
         <motion.path
           d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"

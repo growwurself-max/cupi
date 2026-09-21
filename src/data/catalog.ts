@@ -2,6 +2,13 @@ import type { Category, ExperienceMetadata } from '../types/catalog'
 
 export const categories: Category[] = [
   {
+    id: 'special',
+    name: 'Special',
+    emoji: '🎁',
+    description: 'Curated drops and one-off surprises, just in.',
+    count: 3,
+  },
+  {
     id: 'birthday',
     name: 'Birthday',
     emoji: '🎂',
@@ -42,13 +49,6 @@ export const categories: Category[] = [
     emoji: '🎓',
     description: 'Mark the climb, celebrate the milestone.',
     count: 2,
-  },
-  {
-    id: 'special',
-    name: 'Special',
-    emoji: '🎁',
-    description: 'Curated drops and one-off surprises, just in.',
-    count: 3,
   },
 ]
 
@@ -433,8 +433,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'One bow. One floating heart. One bloom.',
     description:
       'A gentle arrow-pull surprise — launch a floating 3D heart, watch a heart-tree bloom to life, and seal it all with a custom wish made just for them.',
-    price: '₹29',
-    amountInPaise: 2900,
+    price: '₹9',
+    amountInPaise: 900,
     badge: 'POPULAR',
     tierLabel: 'BASIC',
     tierNote: 'Aesthetic & Minimal',

@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
+import { fireHeartRain } from '../../../utils/confetti'
 import { CandleFlame } from '../../shared/InteractiveCandle'
 import { ScreenShell } from '../../shared/ScreenShell'
 
@@ -19,11 +20,12 @@ export function Act2Cake({ config, onBlowOut }: Act2CakeProps) {
     if (!lit || blown) return
     setLit(false)
     setBlown(true)
-    setTimeout(onBlowOut, 1400)
+    fireHeartRain(1200)
+    setTimeout(onBlowOut, 1600)
   }, [blown, lit, onBlowOut])
 
   return (
-    <ScreenShell className="bg-[#FFF0F3] py-24">
+    <ScreenShell className="bg-[#FCEBEE] py-24">
       <motion.p
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -104,14 +106,38 @@ export function Act2Cake({ config, onBlowOut }: Act2CakeProps) {
 
         <AnimatePresence>
           {!lit && (
-            <motion.div
-              initial={{ opacity: 0.8, y: 0 }}
-              animate={{ opacity: 0, y: -30 }}
-              className="pointer-events-none mt-2 flex gap-2 text-stone-400"
-            >
-              <span>💨</span>
-              <span>✨</span>
-            </motion.div>
+            <>
+              <motion.div
+                initial={{ opacity: 0.9, y: 0 }}
+                animate={{ opacity: 0, y: -48 }}
+                transition={{ duration: 1.8, ease: 'easeOut' }}
+                className="pointer-events-none absolute top-[52%] flex gap-3"
+              >
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <motion.span
+                    key={i}
+                    animate={{ x: [(i - 2) * 4, (i - 2) * 18], y: [0, -40 - i * 8] }}
+                    className="h-3 w-3 rounded-full bg-stone-300/80 blur-[3px]"
+                  />
+                ))}
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 flex gap-2 text-lg"
+              >
+                {['💕', '✨', '💖', '✨', '💕'].map((h, i) => (
+                  <motion.span
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: [0, 1, 0], y: [-20 - i * 6] }}
+                    transition={{ duration: 1.4, delay: i * 0.08 }}
+                  >
+                    {h}
+                  </motion.span>
+                ))}
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
       </div>

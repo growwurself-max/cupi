@@ -61,13 +61,13 @@ export function Act3Tree({
 
   const palette = useMemo<HeartTreePalette>(
     () => ({
-      pink: config.branding.accentColor,
-      peach: config.branding.accentSecondary,
-      magenta: '#e7557e',
-      gold: '#e3b35b',
+      pink: '#FF6B8B',
+      peach: '#FFB3C1',
+      magenta: '#FF8E9E',
+      gold: '#FFD166',
       bark: '#8a5a44',
     }),
-    [config.branding.accentColor, config.branding.accentSecondary],
+    [],
   )
 
   const addressee = config.recipient.name?.trim()
@@ -92,7 +92,7 @@ export function Act3Tree({
       {/* narrow left scrim — keeps the tree visible on the right */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-[min(100%,380px)] bg-gradient-to-r from-[#FFF9F5]/88 via-[#FFF9F5]/35 to-transparent sm:w-[min(46vw,440px)] sm:from-[#FFF9F5]/82 sm:via-[#FFF9F5]/28"
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-[min(100%,380px)] bg-gradient-to-r from-[#FBF1E7]/88 via-[#FBF1E7]/35 to-transparent sm:w-[min(46vw,440px)] sm:from-[#FBF1E7]/82 sm:via-[#FBF1E7]/28"
       />
 
       <AnimatePresence>
@@ -183,7 +183,7 @@ export function Act3Tree({
               <button
                 type="button"
                 onClick={onExit}
-                className="flex min-h-14 items-center gap-2.5 rounded-full border border-[#A62B4C]/35 bg-[#FFF9F5]/80 px-7 text-base font-semibold text-[#A62B4C] shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-[1.04] hover:bg-white active:scale-95"
+                className="flex min-h-14 items-center gap-2.5 rounded-full border border-[#A62B4C]/35 bg-[#FBF1E7]/80 px-7 text-base font-semibold text-[#A62B4C] shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-[1.04] hover:bg-white active:scale-95"
               >
                 <WandSparkles className="h-5 w-5 text-[#c89b3c]" />
                 Create one of your own
