@@ -76,8 +76,11 @@ export function Act2Cake({ config, onBlowOut }: Act2CakeProps) {
 
       <div className="relative z-10 mt-10 flex flex-col items-center">
         <div className="relative flex flex-col items-center">
-          <CandleFlame lit={lit} />
-          <div className="relative -mt-2 flex flex-col items-center">
+          {/* Flame zone — flame bottom tucks into the top of the wick below */}
+          <div className="relative h-24 w-full">
+            <CandleFlame lit={lit} />
+          </div>
+          <div className="relative -mt-3 flex flex-col items-center">
             <div className="h-10 w-2 rounded-t bg-gradient-to-b from-rose-300 to-rose-400" />
             <button
               type="button"

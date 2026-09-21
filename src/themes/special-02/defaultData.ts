@@ -32,6 +32,7 @@ export const defaultSpecialBunnyConfig: ExperienceConfig = {
     wishPrompt: 'Pop a balloon',
     finalMessage: 'You make every day feel like a mystery worth solving.',
     finalCelebration: 'Here is to a hundred more balloon pops with you.',
+    passcode: '1234',
     photos: [
       {
         src: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=800&auto=format&fit=crop',

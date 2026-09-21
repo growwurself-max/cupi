@@ -6,6 +6,7 @@ import type { ExperienceMetadata } from '../types/catalog'
  */
 export type CustomizerStepId =
   | 'basics'
+  | 'passcode'
   | 'question'
   | 'message'
   | 'bouquet'
@@ -44,6 +45,12 @@ const BOUQUET_THEMES = new Set(['birthday-01', 'birthday-02', 'birthday-03'])
 const QUESTION_THEMES = new Set(['proposal-01', 'proposal-02', 'special-01'])
 
 /**
+ * Themes gated behind a 4-digit secret passcode (a meaningful date) that the
+ * creator sets at customization time. Asked right after the basics step.
+ */
+const PASSCODE_THEMES = new Set(['special-02'])
+
+/**
  * Returns the customizer steps that match what a given experience actually
  * renders. The birthday experience keeps its existing flow (basics, message,
  * bouquet). Memories/photos are driven by metadata.supportsPhotos.
@@ -52,6 +59,7 @@ export function getCustomizerStepIds(
   theme: ExperienceMetadata,
 ): CustomizerStepId[] {
   const steps: CustomizerStepId[] = ['basics']
+  if (PASSCODE_THEMES.has(theme.id)) steps.push('passcode')
   if (QUESTION_THEMES.has(theme.id)) steps.push('question')
   if (LETTER_THEMES.has(theme.id)) steps.push('message')
   if (BOUQUET_THEMES.has(theme.id)) steps.push('bouquet')

@@ -63,6 +63,7 @@ function mergeContent(
       fetched.finalCelebration,
       base.finalCelebration,
     ),
+    passcode: pickFirstString(fetched.passcode, base.passcode ?? ''),
     photos: pickArray<PhotoItem>(fetched.photos, base.photos).slice(0, maxPhotos),
   }
 }

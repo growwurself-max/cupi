@@ -35,10 +35,11 @@ export function CandleFlame({ lit }: { lit: boolean }) {
       {lit && (
         <motion.div
           key="flame"
-          initial={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 0.15, y: -8 }}
           transition={{ duration: 0.22, ease: 'easeIn' }}
-          className="pointer-events-none absolute -top-14 left-1/2 -translate-x-1/2"
+          className="pointer-events-none absolute bottom-0 left-1/2"
+          style={{ x: '-50%', transformOrigin: 'bottom center' }}
         >
           <motion.div
             animate={{
@@ -203,91 +204,96 @@ export function InteractiveCandle({ onBlow, tone = 'rose', className }: Interact
 
   return (
     <motion.div className={className}>
-      <div className="relative flex h-20 items-start">
-        <CandleFlame lit={lit} />
+      <div className="relative flex flex-col items-center">
+        {/* Flame zone — the flame hangs from the bottom edge of this band,
+            which tucks into the top of the wick so it always sits on it. */}
+        <div className="relative h-24 w-full">
+          <CandleFlame lit={lit} />
 
-        {/* Smoke on blow */}
-        <AnimatePresence>
-          {!lit && (
-            <motion.div
-              key="smoke"
-              initial={{ opacity: 0.9 }}
-              animate={{ opacity: 0, y: -70 }}
-              transition={{ duration: 1.6, ease: 'easeOut' }}
-            >
-              <div
-                ref={smokeRef}
-                className="absolute -top-12 left-1/2 flex -translate-x-1/2 gap-1.5"
+          {/* Smoke on blow */}
+          <AnimatePresence>
+            {!lit && (
+              <motion.div
+                key="smoke"
+                initial={{ opacity: 0.9 }}
+                animate={{ opacity: 0, y: -70 }}
+                transition={{ duration: 1.6, ease: 'easeOut' }}
               >
-                {[0, 1, 2].map((i) => (
-                  <motion.span
-                    key={i}
-                    animate={{ x: [0, (i - 1) * 14], y: [0, -36] }}
-                    transition={{ duration: 1.2, delay: i * 0.09 }}
-                    className="h-2.5 w-2.5 rounded-full bg-[#E890B4]/90 blur-[4px]"
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+                <div
+                  ref={smokeRef}
+                  className="absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-1.5"
+                >
+                  {[0, 1, 2].map((i) => (
+                    <motion.span
+                      key={i}
+                      animate={{ x: [0, (i - 1) * 14], y: [0, -36] }}
+                      transition={{ duration: 1.2, delay: i * 0.09 }}
+                      className="h-2.5 w-2.5 rounded-full bg-[#E890B4]/90 blur-[4px]"
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-      <motion.button
-        type="button"
-        onClick={fireCandle}
-        aria-label={lit ? 'Blow out the candle' : 'Candle is out'}
-        animate={lit ? { rotate: [0, 1.5, -1.5, 0] } : { rotate: 0 }}
-        transition={
-          lit ? { duration: 3.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.4 }
-        }
-        whileTap={{ scale: 0.96 }}
-        className="relative mt-6 flex flex-col items-center outline-none"
-      >
+        {/* Wick (on top of the wax) */}
         <motion.div
-          ref={bodyRef}
-          animate={lit ? { scaleY: 1 } : { scaleY: 0.92, opacity: 0.85 }}
-          transition={{ duration: 0.25 }}
+          animate={lit ? { scaleY: 1 } : { scaleY: 0.6 }}
+          transition={{ duration: 0.3 }}
           style={{ transformOrigin: 'bottom center' }}
-          className="relative"
+          className="pointer-events-none relative -mt-3 flex justify-center"
         >
-          <svg
-            width="88"
-            height="150"
-            viewBox="0 0 88 150"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <linearGradient id={`${gradId}-body`} x1="0" y1="0" x2="88" y2="0">
-                <stop stopColor={palette.bodyTop} />
-                <stop offset="0.5" stopColor={palette.bodyMid} />
-                <stop offset="1" stopColor={palette.bodyEnd} />
-              </linearGradient>
-            </defs>
-            <rect x="9" y="34" width="70" height="112" rx="10" fill={`url(#${gradId}-body)`} />
-            <rect x="9" y="34" width="34" height="112" rx="10" fill="white" opacity="0.14" />
-            <path d="M18 34 C18 40 16 46 18 52 C20 46 22 40 20 34 Z" fill="#fff0e8" opacity="0.7" />
-            <path
-              d="M62 34 C61 42 57 50 60 58 C64 50 66 41 64 34 Z"
-              fill="#fff0e8"
-              opacity="0.55"
-            />
+          <svg width="6" height="26" viewBox="0 0 6 26">
+            <path d="M3 0 C4.5 8 5 15 3 26 C1 15 1.5 8 3 0 Z" fill="#3a2417" />
           </svg>
         </motion.div>
-      </motion.button>
 
-      {/* Wick */}
-      <motion.div
-        animate={lit ? { scaleY: 1 } : { scaleY: 0.6 }}
-        transition={{ duration: 0.3 }}
-        style={{ transformOrigin: 'bottom center' }}
-        className="pointer-events-none relative -mt-1 flex justify-center"
-      >
-        <svg width="6" height="26" viewBox="0 0 6 26">
-          <path d="M3 0 C4.5 8 5 15 3 26 C1 15 1.5 8 3 0 Z" fill="#3a2417" />
-        </svg>
-      </motion.div>
+        {/* Wax body — tappable to blow */}
+        <motion.button
+          type="button"
+          onClick={fireCandle}
+          aria-label={lit ? 'Blow out the candle' : 'Candle is out'}
+          animate={lit ? { rotate: [0, 1.5, -1.5, 0] } : { rotate: 0 }}
+          transition={
+            lit ? { duration: 3.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.4 }
+          }
+          whileTap={{ scale: 0.96 }}
+          className="relative -mt-9 flex flex-col items-center outline-none"
+        >
+          <motion.div
+            ref={bodyRef}
+            animate={lit ? { scaleY: 1 } : { scaleY: 0.92, opacity: 0.85 }}
+            transition={{ duration: 0.25 }}
+            style={{ transformOrigin: 'bottom center' }}
+            className="relative"
+          >
+            <svg
+              width="88"
+              height="150"
+              viewBox="0 0 88 150"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <linearGradient id={`${gradId}-body`} x1="0" y1="0" x2="88" y2="0">
+                  <stop stopColor={palette.bodyTop} />
+                  <stop offset="0.5" stopColor={palette.bodyMid} />
+                  <stop offset="1" stopColor={palette.bodyEnd} />
+                </linearGradient>
+              </defs>
+              <rect x="9" y="34" width="70" height="112" rx="10" fill={`url(#${gradId}-body)`} />
+              <rect x="9" y="34" width="34" height="112" rx="10" fill="white" opacity="0.14" />
+              <path d="M18 34 C18 40 16 46 18 52 C20 46 22 40 20 34 Z" fill="#fff0e8" opacity="0.7" />
+              <path
+                d="M62 34 C61 42 57 50 60 58 C64 50 66 41 64 34 Z"
+                fill="#fff0e8"
+                opacity="0.55"
+              />
+            </svg>
+          </motion.div>
+        </motion.button>
+      </div>
 
       {/* Mic listening + breath meter */}
       <AnimatePresence>

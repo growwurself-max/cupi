@@ -16,8 +16,11 @@ interface Act1PasscodeProps {
 }
 
 function resolvePin(config: ExperienceConfig) {
-  const candidate = config.content.suspenseSubtext?.trim() ?? ''
-  return /^\d{4}$/.test(candidate) ? candidate : '1234'
+  const candidate = config.content.passcode?.trim() ?? ''
+  if (/^\d{4}$/.test(candidate)) return candidate
+  // Legacy surprises persisted the code inside suspenseSubtext — keep them working.
+  const legacy = config.content.suspenseSubtext?.trim() ?? ''
+  return /^\d{4}$/.test(legacy) ? legacy : '1234'
 }
 
 export function Act1Passcode({

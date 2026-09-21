@@ -279,6 +279,18 @@ export function HeartTreeCanvas({
     // Cache the fully-bloomed canopy on an offscreen canvas so dense rendering stays cheap.
     let settled: HTMLCanvasElement | null = null
 
+    // A representative sample that keeps the settled canopy clearly alive on
+    // every breakpoint — softly pulsing, breathing and shimmering on top of the
+    // cached silhouette so the tree never reads as a static picture on desktop.
+    let live: Heart[] = []
+    const buildLive = (hearts: Heart[]) => {
+      const target = Math.min(240, Math.max(96, Math.round(hearts.length * 0.05)))
+      const step = Math.max(1, Math.ceil(hearts.length / target))
+      const offset = hearts.length % step
+      return hearts.filter((_, i) => i % step === offset)
+    }
+    live = buildLive(state.hearts)
+
     function buildTree(seedNum: number, width: number, height: number): TreeState {
       const r = mulberry32(seedNum)
       const limbs: Limb[] = []
@@ -336,7 +348,10 @@ export function HeartTreeCanvas({
       }
 
       const petalTints = ['#FF2E63', '#FF8EAD', '#FFB3C6', '#FFD166']
-      const petals: Petal[] = Array.from({ length: 54 }).map(() => ({
+      // Scale the particle field with the viewport so wide desktop canvases stay
+      // as richly populated as small phone screens.
+      const petalCount = Math.round(Math.max(44, Math.min(132, width * 0.055)))
+      const petals: Petal[] = Array.from({ length: petalCount }).map(() => ({
         x: r() * width,
         y: r() * height * 0.85,
         size: 2.4 + r() * 3.8,
@@ -349,7 +364,8 @@ export function HeartTreeCanvas({
         color: petalTints[Math.floor(r() * petalTints.length)],
       }))
 
-      const twinkles: Twinkle[] = Array.from({ length: 34 }).map(() => ({
+      const twinkleCount = Math.round(Math.max(26, Math.min(84, width * 0.042)))
+      const twinkles: Twinkle[] = Array.from({ length: twinkleCount }).map(() => ({
         x: r() * width,
         y: r() * height,
         size: 0.8 + r() * 1.6,
@@ -386,6 +402,7 @@ export function HeartTreeCanvas({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       settled = null
       state = buildTree(seed, w, h)
+      live = buildLive(state.hearts)
     }
 
     canvas.width = Math.floor(w * dpr)
@@ -493,13 +510,23 @@ export function HeartTreeCanvas({
           if (!settled) renderSettled()
           if (settled) {
             ctx.drawImage(settled, 0, 0, w, h)
-            // live shimmer highlights keep the canopy feeling alive without re-drawing 4k hearts
+            // Live breathing pixel field over the cached silhouette keeps the
+            // canopy feeling alive without re-drawing 4k hearts.
             if (!reduced) {
-              for (let i = 0; i < state.hearts.length; i += 11) {
-                const heart = state.hearts[i]
-                const pulse = 1 + 0.08 * Math.sin(t * 0.0035 + heart.phase)
-                const shimmer = 0.72 + 0.28 * Math.sin(t * 0.002 + heart.phase)
-                drawMiniHeart(ctx, heart.x, heart.y, heart.size * pulse, heart.color, shimmer)
+              for (const heart of live) {
+                const p = heart.phase
+                const pulse = 1 + 0.11 * Math.sin(t * 0.004 + p)
+                const dx = Math.sin(t * 0.0008 + p) * 1.2
+                const dy = Math.cos(t * 0.001 + p) * 1
+                const shimmer = 0.55 + 0.4 * Math.sin(t * 0.0021 + p)
+                drawMiniHeart(
+                  ctx,
+                  heart.x + dx,
+                  heart.y + dy,
+                  heart.size * pulse,
+                  heart.color,
+                  shimmer,
+                )
               }
             }
             ctx.globalAlpha = 1

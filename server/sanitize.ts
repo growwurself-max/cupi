@@ -23,6 +23,17 @@ function cleanString(value: unknown, max: number): string {
 }
 
 /**
+ * Keeps an exactly-4-digit secret passcode (a DDMM/MMDD date code). Anything
+ * else is dropped so a locked surprise can never be shielded behind a
+ * malformed value.
+ */
+function cleanPasscode(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  const digits = value.replace(/\D/g, '').slice(0, 4)
+  return digits.length === 4 ? digits : ''
+}
+
+/**
  * Photo sources may be hosted images (https://) OR client-compressed base64
  * data URLs from the upload picker. Data URLs are never truncated (a sliced
  * base64 blob is corrupt) — they are validated whole and capped by length.
@@ -94,6 +105,7 @@ export interface SanitizedCustomization {
     finalMessage: string
     finalCelebration: string
     photos: SanitizedPhoto[]
+    passcode: string
   }
   branding: {
     accentColor: string
@@ -226,6 +238,7 @@ export function sanitizeCustomization(
       finalMessage: cleanString(content.finalMessage, LIMITS.heading),
       finalCelebration: cleanString(content.finalCelebration, LIMITS.paragraph),
       photos,
+      passcode: cleanPasscode(content.passcode),
     },
     branding: {
       accentColor: cleanString(branding?.accentColor, 32) || '#f6c6b6',

@@ -28,6 +28,8 @@ import type { ExperienceMetadata } from '../../types/catalog'
 import {
   buildExperienceConfig,
   emptyDraft,
+  isValidPasscode,
+  normalizePasscode,
   type CustomizerDraft,
   type PhotoDraft,
 } from '../../utils/experienceDraft'
@@ -42,6 +44,7 @@ interface CustomizerModalProps {
 
 const STEP_DEFS = {
   basics: { label: 'Basics', icon: Heart },
+  passcode: { label: 'Passcode', icon: Lock },
   question: { label: 'Question', icon: MessagesSquare },
   message: { label: 'Message', icon: PenLine },
   bouquet: { label: 'Notes', icon: MessagesSquare },
@@ -133,6 +136,14 @@ export function CustomizerModal({
       return draft.finalMessage.trim()
         ? null
         : 'Write the question or headline for the big moment.'
+    }
+    if (currentStepId === 'passcode') {
+      if (!draft.passcode?.trim()) {
+        return 'Pick a 4-digit date passcode.'
+      }
+      return isValidPasscode(draft.passcode)
+        ? null
+        : 'Use a real date — e.g. 0512 = 5 December, or 1205 = 12 May.'
     }
     return null
   }, [currentStepId, draft])
@@ -417,6 +428,41 @@ export function CustomizerModal({
                         aria-label="Your question or headline"
                       />
                     </Field>
+                  )}
+
+                  {currentStepId === 'passcode' && (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm font-bold text-stone-900">
+                          Secret passcode 🔒
+                        </p>
+                        <p className="mt-0.5 text-xs text-stone-500">
+                          The experience stays locked until they type this
+                          4-digit code. Use their birthday as DDMM or MMDD —{' '}
+                          <span className="font-semibold text-stone-700">
+                            0512 = 5 December
+                          </span>
+                          . Pick something they already know: no hints are given.
+                        </p>
+                      </div>
+                      <div className="flex justify-center py-2">
+                        <input
+                          inputMode="numeric"
+                          autoComplete="off"
+                          className="h-16 w-52 rounded-2xl border-2 border-stone-200 text-center font-mono text-2xl font-bold tracking-[0.55em] text-stone-900 transition outline-none placeholder:tracking-[0.35em] placeholder:text-stone-300 focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+                          placeholder="0000"
+                          value={draft.passcode}
+                          onChange={(event) =>
+                            update('passcode', normalizePasscode(event.target.value))
+                          }
+                          maxLength={4}
+                          aria-label="Secret passcode"
+                        />
+                      </div>
+                      <p className="text-center text-xs text-stone-400">
+                        e.g. their birthday · 0512, 1205, 3108
+                      </p>
+                    </div>
                   )}
 
                   {currentStepId === 'message' && (

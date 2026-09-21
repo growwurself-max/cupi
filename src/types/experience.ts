@@ -40,6 +40,11 @@ export interface ExperienceContent {
   finalMessage: string
   finalCelebration: string
   photos: PhotoItem[]
+  /**
+   * Optional 4-digit secret passcode (e.g. a birth date in DDMM/MMDD form)
+   * that unlocks passcode-gated experiences such as Special #02.
+   */
+  passcode?: string
 }
 
 export interface ExperienceAudio {
