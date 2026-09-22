@@ -1,9 +1,5 @@
 import type { ExperienceMetadata } from '../types/catalog'
 
-/**
- * Steps available inside the customizer. Each maps to real, rendered fields
- * inside the target experience — never to fake inputs the experience ignores.
- */
 export type CustomizerStepId =
   | 'basics'
   | 'passcode'
@@ -11,58 +7,53 @@ export type CustomizerStepId =
   | 'message'
   | 'bouquet'
   | 'memories'
-
-/** Themes that render the letter (content.letterLines) inside the experience. */
-const LETTER_THEMES = new Set([
-  'birthday-01',
-  'birthday-02',
-  'birthday-03',
-  'love-01',
-  'love-02',
-  'anniversary-01',
-  'anniversary-02',
-  'proposal-01',
-  'proposal-02',
-  'friendship-01',
-  'friendship-02',
-  'graduation-01',
-  'graduation-02',
-  'special-01',
-  'special-02',
-  'special-03',
-])
+  | 'moment'
 
 /**
- * Themes with an interactive bouquet/notes section. Only the birthday
- * experiences actually render this — preserved untouched for them.
+ * Per-theme customization schema.
+ *
+ * Each theme only asks for the inputs its screens actually render:
+ *  - basics       every theme renders the recipient's name and the sender
+ *  - passcode     special-02 gates itself behind a 4-digit date passcode
+ *  - question     proposal-01/02 headline the YES moment; special-01 shows a
+ *                 birthday headline wish (rendered via finalMessage)
+ *  - message      the rendered letter — every theme except the two proposals,
+ *                 whose screens never draw letterLines
+ *  - bouquet      config.bouquet.notes pop in only in birthday-01 (bouquet
+ *                 screen) and birthday-04 (teddy letter); birthday-02/03 carry
+ *                 bouquet defaults but never render them
+ *  - memories     photos slide in only where screens map config.content.photos
+ *  - moment       the handwritten letter theme asks for one optional memory
+ *                 date + memory tag instead of a photo wall
  */
-const BOUQUET_THEMES = new Set(['birthday-01', 'birthday-02', 'birthday-03'])
+const SCHEMA: Record<string, CustomizerStepId[]> = {
+  'birthday-01': ['basics', 'message', 'bouquet', 'memories'],
+  'birthday-02': ['basics', 'message'],
+  'birthday-03': ['basics', 'message', 'memories'],
+  'birthday-04': ['basics', 'message', 'bouquet'],
+  'love-01': ['basics', 'message', 'moment'],
+  'love-02': ['basics', 'message'],
+  'anniversary-01': ['basics', 'message', 'memories'],
+  'anniversary-02': ['basics', 'message', 'memories'],
+  'proposal-01': ['basics', 'question'],
+  'proposal-02': ['basics', 'question'],
+  'friendship-01': ['basics', 'message', 'memories'],
+  'friendship-02': ['basics', 'message'],
+  'graduation-01': ['basics', 'message', 'memories'],
+  'graduation-02': ['basics', 'message'],
+  'special-01': ['basics', 'question', 'message'],
+  'special-02': ['basics', 'passcode', 'message', 'memories'],
+  'special-03': ['basics', 'message', 'memories'],
+}
 
-/**
- * Themes that render content.finalMessage as their big headline / the
- * proposal question itself (they do NOT render a letter).
- */
-const QUESTION_THEMES = new Set(['proposal-01', 'proposal-02', 'special-01'])
+/** Safe default for unknown or newly registered themes. */
+const FALLBACK_STEPS: CustomizerStepId[] = ['basics', 'message']
 
-/**
- * Themes gated behind a 4-digit secret passcode (a meaningful date) that the
- * creator sets at customization time. Asked right after the basics step.
- */
-const PASSCODE_THEMES = new Set(['special-02'])
-
-/**
- * Returns the customizer steps that match what a given experience actually
- * renders. The birthday experience keeps its existing flow (basics, message,
- * bouquet). Memories/photos are driven by metadata.supportsPhotos.
- */
 export function getCustomizerStepIds(
   theme: ExperienceMetadata,
 ): CustomizerStepId[] {
-  const steps: CustomizerStepId[] = ['basics']
-  if (PASSCODE_THEMES.has(theme.id)) steps.push('passcode')
-  if (QUESTION_THEMES.has(theme.id)) steps.push('question')
-  if (LETTER_THEMES.has(theme.id)) steps.push('message')
-  if (BOUQUET_THEMES.has(theme.id)) steps.push('bouquet')
-  if (theme.supportsPhotos) steps.push('memories')
-  return steps
+  return (
+    SCHEMA[theme.id] ??
+    (theme.supportsPhotos ? [...FALLBACK_STEPS, 'memories'] : FALLBACK_STEPS)
+  )
 }

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowDown,
   ArrowUp,
+  CalendarHeart,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -43,13 +44,52 @@ interface CustomizerModalProps {
 }
 
 const STEP_DEFS = {
-  basics: { label: 'Basics', icon: Heart },
-  passcode: { label: 'Passcode', icon: Lock },
-  question: { label: 'Question', icon: MessagesSquare },
-  message: { label: 'Message', icon: PenLine },
-  bouquet: { label: 'Notes', icon: MessagesSquare },
-  memories: { label: 'Memories', icon: ImagePlus },
-} as const satisfies Record<CustomizerStepId, { label: string; icon: typeof Heart }>
+  basics: {
+    label: 'Basics',
+    icon: Heart,
+    heading: 'Who is this little surprise for?',
+    copy: 'Two names make it personal — theirs and yours. Anything else stays your secret.',
+  },
+  passcode: {
+    label: 'Passcode',
+    icon: Lock,
+    heading: 'Set their secret key 🔐',
+    copy: 'A 4-digit date only they know — like 0512 for 5 December. Typing it unlocks the whole surprise.',
+  },
+  question: {
+    label: 'Question',
+    icon: MessagesSquare,
+    heading: 'Make the big moment yours',
+    copy: 'This line steals the show. Write the question or headline they’ll remember.',
+  },
+  message: {
+    label: 'Message',
+    icon: PenLine,
+    heading: 'Your words, from your heart',
+    copy: 'One line becomes one paragraph in the letter they read. Short and true beats long and loud.',
+  },
+  bouquet: {
+    label: 'Notes',
+    icon: MessagesSquare,
+    heading: 'A bouquet of tiny notes 💐',
+    copy: 'Sweet little stickers left just for them. Keep our suggestions or write your own.',
+  },
+  memories: {
+    label: 'Memories',
+    icon: ImagePlus,
+    heading: 'Your favourite moments 📸',
+    copy: 'Photos are compressed on your phone in a blink and pop up as pretty polaroids.',
+  },
+  moment: {
+    label: 'Moment',
+    icon: CalendarHeart,
+    heading: 'One tiny detail to keep 🕰️',
+    copy: 'A date and a one-line memory, drawn at the end of their letter like a small doodle. Purely optional.',
+  },
+} as const satisfies Record<
+  CustomizerStepId,
+  { label: string; icon: typeof Heart; heading: string; copy: string }
+>
 
 const GRID_CLASS: Record<number, string> = {
   2: 'grid-cols-2',
@@ -58,7 +98,7 @@ const GRID_CLASS: Record<number, string> = {
 }
 
 const INPUT_CLASS =
-  'w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-900 placeholder-stone-400 shadow-sm outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
+  'w-full rounded-xl border border-rose-200/60 bg-white/80 px-4 py-3 text-sm text-stone-800 placeholder-stone-400 shadow-sm outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
 
 type PaymentResult =
   | { kind: 'verified'; experienceId: string; shareUrl: string }
@@ -277,7 +317,7 @@ export function CustomizerModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
         transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-rose-100/70 bg-white p-6 shadow-[0_24px_70px_rgba(30,15,20,0.22)] sm:p-8"
+        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-rose-100/70 bg-ivory p-6 shadow-[0_24px_70px_rgba(30,15,20,0.22)] sm:p-8"
       >
         <div
           aria-hidden
@@ -294,7 +334,7 @@ export function CustomizerModal({
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-bold tracking-[0.2em] text-rose-500 uppercase">
-                    Create yours
+                    Let’s make this yours 💗
                   </p>
                   <h2 className="font-display truncate text-lg font-semibold text-stone-900">
                     {theme.name}
@@ -329,8 +369,8 @@ export function CustomizerModal({
                       isActive
                         ? 'border-rose-200 bg-rose-50 text-rose-600'
                         : isPast
-                          ? 'border-stone-100 bg-stone-50 text-stone-600'
-                          : 'border-transparent text-stone-600'
+                          ? 'border-rose-100 bg-cream-50 text-stone-500'
+                          : 'border-transparent text-stone-400'
                     }`}
                     aria-label={`Step ${i + 1}: ${stepDef.label}`}
                   >
@@ -339,8 +379,8 @@ export function CustomizerModal({
                         isActive
                           ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md shadow-rose-200'
                           : isPast
-                            ? 'bg-white text-stone-500'
-                            : 'bg-stone-100 text-stone-500'
+                            ? 'bg-white text-rose-500'
+                            : 'bg-cream-50 text-stone-400'
                       }`}
                     >
                       {isPast ? <CheckIcon /> : <StepIcon className="h-3.5 w-3.5" />}
@@ -363,17 +403,23 @@ export function CustomizerModal({
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.25, ease: 'easeOut' }}
                 >
+                  <div className="mb-5">
+                    <h3 className="font-display text-[22px] leading-tight font-bold text-stone-900">
+                      {steps[step]?.heading}
+                    </h3>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-stone-500">
+                      {steps[step]?.copy}
+                    </p>
+                  </div>
+
                   {currentStepId === 'basics' && (
                     <div className="space-y-4">
-                      <Field
-                        label="Who’s it for?"
-                        hint="They’ll see this name throughout the experience."
-                      >
+                      <Field label="Their name">
                         <div className="relative">
                           <UserIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-500" />
                           <input
                             className={`${INPUT_CLASS} pl-10`}
-                            placeholder="Sophia"
+                            placeholder="e.g. Sophia"
                             value={draft.recipientName}
                             onChange={(event) =>
                               update('recipientName', event.target.value)
@@ -383,12 +429,16 @@ export function CustomizerModal({
                           />
                         </div>
                       </Field>
-                      <Field label="Nickname" hint="Optional — used for a cute greeting.">
+                      <Field
+                        label="Nickname"
+                        optional
+                        hint="Only if they go by another name."
+                      >
                         <div className="relative">
                           <PenLineIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-500" />
                           <input
                             className={`${INPUT_CLASS} pl-10`}
-                            placeholder="Bubs"
+                            placeholder="e.g. Bubs"
                             value={draft.nickname}
                             onChange={(event) => update('nickname', event.target.value)}
                             maxLength={40}
@@ -396,12 +446,12 @@ export function CustomizerModal({
                           />
                         </div>
                       </Field>
-                      <Field label="From (your name)" hint="Shown as the sender.">
+                      <Field label="And this is from" hint="Shown as the sender.">
                         <div className="relative">
                           <HeartIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-stone-500" />
                           <input
                             className={`${INPUT_CLASS} pl-10`}
-                            placeholder="Alex"
+                            placeholder="e.g. Alex"
                             value={draft.senderName}
                             onChange={(event) => update('senderName', event.target.value)}
                             maxLength={40}
@@ -414,12 +464,16 @@ export function CustomizerModal({
 
                   {currentStepId === 'question' && (
                     <Field
-                      label="Your big moment"
-                      hint="Shown big at the instant they say YES."
+                      label="The big line"
+                      hint="Wins the show — shown big at the moment they see it."
                     >
                       <textarea
                         className={`${INPUT_CLASS} min-h-28 resize-none leading-relaxed`}
-                        placeholder="Will you make me the happiest person alive? 💍"
+                        placeholder={
+                          theme.categoryId === 'proposal'
+                            ? 'Will you make me the happiest person alive? 💍'
+                            : 'The line they’ll never forget…'
+                        }
                         value={draft.finalMessage}
                         onChange={(event) =>
                           update('finalMessage', event.target.value)
@@ -432,24 +486,11 @@ export function CustomizerModal({
 
                   {currentStepId === 'passcode' && (
                     <div className="space-y-4">
-                      <div>
-                        <p className="text-sm font-bold text-stone-900">
-                          Secret passcode 🔒
-                        </p>
-                        <p className="mt-0.5 text-xs text-stone-500">
-                          The experience stays locked until they type this
-                          4-digit code. Use their birthday as DDMM or MMDD —{' '}
-                          <span className="font-semibold text-stone-700">
-                            0512 = 5 December
-                          </span>
-                          . Pick something they already know: no hints are given.
-                        </p>
-                      </div>
                       <div className="flex justify-center py-2">
                         <input
                           inputMode="numeric"
                           autoComplete="off"
-                          className="h-16 w-52 rounded-2xl border-2 border-stone-200 text-center font-mono text-2xl font-bold tracking-[0.55em] text-stone-900 transition outline-none placeholder:tracking-[0.35em] placeholder:text-stone-300 focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+                          className="h-16 w-52 rounded-2xl border-2 border-rose-200 bg-white/80 text-center font-mono text-2xl font-bold tracking-[0.55em] text-stone-900 transition outline-none placeholder:tracking-[0.35em] placeholder:text-stone-300 focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
                           placeholder="0000"
                           value={draft.passcode}
                           onChange={(event) =>
@@ -459,15 +500,15 @@ export function CustomizerModal({
                           aria-label="Secret passcode"
                         />
                       </div>
-                      <p className="text-center text-xs text-stone-400">
-                        e.g. their birthday · 0512, 1205, 3108
+                      <p className="text-center text-xs text-stone-500">
+                        e.g. their birthday · <span className="font-semibold text-rose-500">0512</span>, 1205, 3108
                       </p>
                     </div>
                   )}
 
                   {currentStepId === 'message' && (
                     <Field
-                      label="Your heartfelt message"
+                      label="Write the letter"
                       hint="One line = one paragraph. Say what words cannot."
                     >
                       <textarea
@@ -483,16 +524,6 @@ export function CustomizerModal({
 
                   {currentStepId === 'bouquet' && (
                     <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-bold text-stone-900">
-                          Sticky notes 💐
-                        </p>
-                        <p className="mt-0.5 text-xs text-stone-500">
-                          Each note becomes an interactive tag inside the
-                          experience. Customize them — or keep the sweet
-                          suggestions.
-                        </p>
-                      </div>
                       <div className="space-y-2.5">
                         {draft.bouquetNotes.map((note, i) => (
                           <div key={i} className="flex items-center gap-2">
@@ -550,28 +581,21 @@ export function CustomizerModal({
 
 {currentStepId === 'memories' && (
                     <div className="space-y-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-bold text-stone-900">
-                            Memories 📸
-                          </p>
-                          <p className="mt-0.5 text-xs text-stone-500">
-                            Pick photos from your phone — they&apos;re compressed
-                            on-device in under a second and pop straight into a
-                            pretty polaroid frame.
-                          </p>
-                        </div>
+                      <div className="flex flex-wrap items-center gap-2">
                         {canReorderPhotos && (
                           <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-600">
                             {draft.photos.filter((p) => p.src).length}/{maxPhotos}{' '}
                             photos
                           </span>
                         )}
+                        <span className="text-[11px] font-medium text-stone-400">
+                          Optional — skip for a photo-free surprise.
+                        </span>
                       </div>
                       {draft.photos.map((photo, i) => (
                         <div
                           key={i}
-                          className="space-y-3 rounded-2xl border border-stone-100 bg-stone-50/50 p-3"
+                          className="space-y-3 rounded-2xl border border-rose-100/70 bg-cream-50/50 p-3"
                         >
                           <MemoryUpload
                             index={i}
@@ -606,7 +630,7 @@ export function CustomizerModal({
                                       return { ...prev, photos }
                                     })
                                   }
-                                  className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 transition-colors hover:border-rose-200 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
+                                  className="flex h-9 w-9 items-center justify-center rounded-full border border-rose-200/70 bg-white text-stone-500 transition-colors hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
                                   aria-label={`Move photo ${i + 1} up`}
                                 >
                                   <ArrowUp className="h-4 w-4" />
@@ -624,7 +648,7 @@ export function CustomizerModal({
                                       return { ...prev, photos }
                                     })
                                   }
-                                  className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 transition-colors hover:border-rose-200 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
+                                  className="flex h-9 w-9 items-center justify-center rounded-full border border-rose-200/70 bg-white text-stone-500 transition-colors hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
                                   aria-label={`Move photo ${i + 1} down`}
                                 >
                                   <ArrowDown className="h-4 w-4" />
@@ -651,6 +675,43 @@ export function CustomizerModal({
                           leads the story reel.
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {currentStepId === 'moment' && (
+                    <div className="space-y-4">
+                      <Field
+                        label="A date to remember"
+                        optional
+                        hint="Draws at the end of their letter, like a tiny doodle."
+                      >
+                        <input
+                          className={INPUT_CLASS}
+                          placeholder="e.g. 12.05 — or May 12"
+                          value={draft.memoryDate}
+                          onChange={(event) =>
+                            update('memoryDate', event.target.value)
+                          }
+                          maxLength={24}
+                          aria-label="Special date"
+                        />
+                      </Field>
+                      <Field
+                        label="One line to remember"
+                        optional
+                        hint="A place, a song, an inside joke — keep it short."
+                      >
+                        <input
+                          className={INPUT_CLASS}
+                          placeholder="that song, that smile, that midnight…"
+                          value={draft.memoryTag}
+                          onChange={(event) =>
+                            update('memoryTag', event.target.value)
+                          }
+                          maxLength={60}
+                          aria-label="Memory tag"
+                        />
+                      </Field>
                     </div>
                   )}
                 </motion.div>
@@ -956,15 +1017,24 @@ function MemoryUpload({
 function Field({
   label,
   hint,
+  optional,
   children,
 }: {
   label: string
   hint?: string
+  optional?: boolean
   children: ReactNode
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[13px] font-bold text-stone-800">{label}</span>
+      <span className="mb-1.5 flex items-center gap-2 text-[13px] font-bold text-stone-800">
+        {label}
+        {optional && (
+          <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-500 uppercase">
+            Optional
+          </span>
+        )}
+      </span>
       {children}
       {hint && <span className="mt-1.5 block text-xs text-stone-500">{hint}</span>}
     </label>

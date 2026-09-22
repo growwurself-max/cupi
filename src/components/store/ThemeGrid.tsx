@@ -37,7 +37,7 @@ export function ThemeGrid({
   return (
     <section
       id="experiences"
-      className="relative scroll-mt-24 px-5 py-24 sm:px-8"
+      className="relative scroll-mt-24 px-5 py-16 sm:px-8 sm:py-24"
     >
       <div className="mx-auto max-w-6xl">
         <motion.div
@@ -45,7 +45,7 @@ export function ThemeGrid({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="mb-10 text-center"
+          className="mb-8 text-center sm:mb-10"
         >
           <p className="mb-3 text-sm font-semibold tracking-[0.25em] text-rose-500 uppercase">
             Explore the collection
@@ -63,7 +63,7 @@ export function ThemeGrid({
           </p>
         </motion.div>
 
-        <div className="mb-8 flex justify-center">
+        <div className="mb-6 flex justify-center sm:mb-8">
           <CategoryFilter
             categories={categories}
             active={activeCategory}
@@ -104,7 +104,10 @@ export function ThemeGrid({
           )}
         </AnimatePresence>
 
-        <motion.div layout className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <motion.div
+          layout
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
+        >
           <AnimatePresence mode="popLayout">
             {visibleExperiences.map((experience) => (
               <motion.div

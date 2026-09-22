@@ -16,6 +16,10 @@ export interface CustomizerDraft {
   finalMessage: string
   /** 4-digit secret passcode (a date such as DDMM/MMDD) for passcode themes. */
   passcode: string
+  /** Short special date (e.g. "12.05") rendered by letter-based themes. */
+  memoryDate: string
+  /** One-line memory tag rendered by letter-based themes. */
+  memoryTag: string
 }
 
 const NOTE_EMOJIS = ['🌹', '🌸', '🌷', '🍀', '🌺', '🏵️']
@@ -38,6 +42,8 @@ export function emptyDraft(): CustomizerDraft {
     ],
     finalMessage: '',
     passcode: '',
+    memoryDate: '',
+    memoryTag: '',
   }
 }
 
@@ -126,6 +132,16 @@ export function buildExperienceConfig(
   const passcode = normalizePasscode(draft.passcode ?? '')
   if (passcode.length === 4) {
     config.content.passcode = passcode
+  }
+
+  const memoryDate = draft.memoryDate?.trim()
+  if (memoryDate) {
+    config.content.memoryDate = memoryDate.slice(0, 24)
+  }
+
+  const memoryTag = draft.memoryTag?.trim()
+  if (memoryTag) {
+    config.content.memoryTag = memoryTag.slice(0, 60)
   }
 
   const photos = (draft.photos ?? []).filter(

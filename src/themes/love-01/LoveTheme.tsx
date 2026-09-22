@@ -4,13 +4,12 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultLoveConfig } from './defaultData'
-import { WhisperScreen } from './screens/Screen1Whisper'
-import { CheckScreen } from './screens/Screen2Check'
-import { HeartbeatScreen } from './screens/Screen3Heartbeat'
-import { MemoriesScreen } from './screens/Screen4Memories'
-import { ConstellationScreen } from './screens/Screen5Constellation'
+import { Act1Envelope } from './acts/Act1Envelope'
+import { Act2Letter } from './acts/Act2Letter'
+import { Act3Seal } from './acts/Act3Seal'
+import { Act4Closing } from './acts/Act4Closing'
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 4
 
 interface LoveThemeProps {
   config?: ExperienceConfig
@@ -51,7 +50,7 @@ export function LoveTheme({ config, onExit, isSharedLink }: LoveThemeProps) {
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFF0F3] via-[#FFE3E8] to-[#FFF5F7]"
+      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-cream-50"
     >
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
@@ -66,29 +65,34 @@ export function LoveTheme({ config, onExit, isSharedLink }: LoveThemeProps) {
 
       <AnimatePresence mode="wait">
         {step === 1 && (
-          <WhisperScreen key="love-whisper" config={resolvedConfig} onBegin={goNext} />
+          <Act1Envelope
+            key="lv-envelope"
+            config={resolvedConfig}
+            onReveal={sound.playRevealChime}
+            onContinue={goNext}
+          />
         )}
         {step === 2 && (
-          <CheckScreen key="love-check" config={resolvedConfig} onYes={goNext} />
+          <Act2Letter
+            key="lv-letter"
+            config={resolvedConfig}
+            onContinue={goNext}
+          />
         )}
         {step === 3 && (
-          <HeartbeatScreen
-            key="love-heartbeat"
+          <Act3Seal
+            key="lv-seal"
             config={resolvedConfig}
-            onBeat={sound.playRevealChime}
+            onKiss={sound.playRevealChime}
             onContinue={goNext}
           />
         )}
         {step === 4 && (
-          <MemoriesScreen key="love-memories" config={resolvedConfig} onContinue={goNext} />
-        )}
-        {step === 5 && (
-          <ConstellationScreen
-            key="love-constellation"
+          <Act4Closing
+            key="lv-closing"
             config={resolvedConfig}
             onReplay={replay}
             onExit={handleExit}
-            onTap={sound.playRevealChime}
           />
         )}
       </AnimatePresence>

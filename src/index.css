@@ -9,13 +9,23 @@
     serif;
   --font-script: 'Great Vibes', 'Segoe Script', 'Brush Script MT', cursive;
 
-  --color-obsidian-900: #0a0c10;
-  --color-obsidian-800: #12151e;
-  --color-obsidian-700: #1a1e2a;
+  --color-obsidian-900: #1a1310;
+  --color-obsidian-800: #231a15;
+  --color-obsidian-700: #2d211b;
 
   --color-rose-gold: #e8b4a0;
   --color-soft-amber: #fcd9a6;
-  --color-soft-violet: #c9b8ff;
+  --color-soft-violet: #d9c8f5;
+
+  --color-cream-50: #fffaf4;
+  --color-cream-100: #fdf4ea;
+  --color-cream-200: #f8e9d9;
+  --color-ivory: #fef8f1;
+  --color-blush-50: #fdf0f2;
+  --color-blush-100: #fbe1e7;
+  --color-blush-200: #f6c6d0;
+  --color-sakura: #f4b0c6;
+  --color-lavender-soft: #edeaf9;
 
   --animate-float-slow: floatSlow 7s ease-in-out infinite;
   --animate-pulse-glow: pulseGlow 3.5s ease-in-out infinite;
@@ -141,89 +151,57 @@ textarea {
 }
 
 .demo-scope ::-webkit-scrollbar-track {
-  background: #0a0c10;
+  background: #171110;
 }
 
 .demo-scope ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #8a5a4a, #4a3f63);
-  border: 2px solid #0a0c10;
+  background: linear-gradient(180deg, #8a5a4a, #6e4038);
+  border: 2px solid #171110;
 }
 
 .demo-scope ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #b07a63, #66588f);
+  background: linear-gradient(180deg, #b07a63, #8a5a4a);
 }
 
 .surface-obsidian {
-  background-color: #0a0c10;
+  background-color: #1a1310;
   background-image:
     radial-gradient(
       ellipse 75% 55% at 18% -10%,
-      rgba(232, 180, 160, 0.16),
+      rgba(232, 180, 160, 0.14),
       transparent 60%
     ),
     radial-gradient(
       ellipse 60% 50% at 88% -5%,
-      rgba(201, 184, 255, 0.14),
+      rgba(244, 176, 198, 0.1),
       transparent 60%
     ),
     radial-gradient(
       ellipse 55% 45% at 50% 115%,
-      rgba(252, 217, 166, 0.12),
+      rgba(252, 217, 166, 0.1),
       transparent 62%
     ),
-    linear-gradient(180deg, #0a0c10 0%, #12151e 100%);
+    linear-gradient(180deg, #1c1512 0%, #150f0c 100%);
 }
 
 .text-gradient-lux {
   background-image: linear-gradient(
     92deg,
-    #fde8cf 0%,
-    #f6c6b6 34%,
-    #e0b3f2 68%,
-    #c9b8ff 100%
+    #fdf0dd 0%,
+    #f6c6b6 30%,
+    #f3b7c1 62%,
+    #f4b0c6 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-}
-
-.text-shimmer {
-  background: linear-gradient(
-    100deg,
-    #f6c6b6 0%,
-    #fff 25%,
-    #c9b8ff 50%,
-    #f6c6b6 75%,
-    #fde8cf 100%
-  );
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.glass-panel {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow:
-    0 24px 60px -24px rgba(0, 0, 0, 0.7),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-.glow-primary {
-  box-shadow:
-    0 0 0 1px rgba(246, 198, 182, 0.25),
-    0 0 24px -4px rgba(246, 198, 182, 0.55),
-    0 14px 40px -12px rgba(224, 179, 242, 0.5);
 }
 
 .glow-violet {
   box-shadow:
-    0 0 0 1px rgba(201, 184, 255, 0.25),
-    0 0 26px -4px rgba(201, 184, 255, 0.5),
-    0 14px 40px -12px rgba(201, 184, 255, 0.45);
+    0 0 0 1px rgba(217, 200, 245, 0.22),
+    0 0 22px -6px rgba(226, 170, 200, 0.35),
+    0 12px 36px -14px rgba(198, 160, 190, 0.35);
 }
 
 .no-scrollbar {

@@ -45,6 +45,16 @@ export interface ExperienceContent {
    * that unlocks passcode-gated experiences such as Special #02.
    */
   passcode?: string
+  /**
+   * Optional short date (e.g. "12.05" or "May 12") rendered as a hand-drawn
+   * memory doodle in letter-based themes like love-01.
+   */
+  memoryDate?: string
+  /**
+   * Optional one-line memory tag (a place, song or inside joke) rendered as a
+   * hand-drawn memory doodle in letter-based themes like love-01.
+   */
+  memoryTag?: string
 }
 
 export interface ExperienceAudio {
