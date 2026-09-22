@@ -7,9 +7,10 @@ import express, {
   type Response,
 } from 'express'
 import {
-  createCashfreeOrder,
-  getCashfreeOrderStatus,
-} from './cashfree.js'
+  createFamGatewayOrder,
+  getFamGatewayOrderStatus,
+  verifyFamGatewayWebhookSignature,
+} from './famgateway.js'
 import {
   DIST_DIR,
   FRONTEND_ORIGINS,
@@ -24,9 +25,27 @@ import {
   getOrderByGatewayOrderId,
   getOrderById,
   incrementViewCount,
-  shortId,
+  systemId,
 } from './db.js'
 import { sanitizeCustomization } from './sanitize.js'
+
+// Public backend origin used to build the FamGateway webhook URL. Override
+// with BACKEND_URL when deploying the API somewhere other than Render.
+export const PUBLIC_API_URL =
+  process.env.BACKEND_URL || 'https://cupi-psmr.onrender.com'
+
+interface RawBodyRequest extends Request {
+  rawBody?: Buffer
+}
+
+export function buildFamGatewayWebhookUrl(): string {
+  return `${PUBLIC_API_URL}/api/famgateway/webhook`
+}
+
+export function buildPaymentResultUrl(cupiOrderId: string): string {
+  const origin = process.env.FRONTEND_URL || 'https://cupi-one.vercel.app'
+  return `${origin}/payment-result?orderId=${encodeURIComponent(cupiOrderId)}`
+}
 
 const app = express()
 
@@ -71,9 +90,17 @@ app.use(
   }),
 )
 // 2. JSON body parser — 10mb so a full customization with compressed
-// (base64) photos always fits through.
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+// (base64) photos always fits through. The verify() hook preserves the raw
+// request body so the FamGateway webhook can be HMAC-verified verbatim.
+app.use(
+  express.json({
+    limit: '10mb',
+    verify: (req: RawBodyRequest, _res, buf) => {
+      req.rawBody = buf
+    },
+  }),
+)
+app.use(express.urlencoded({ extended: true, limit: '10mb', verify: (req: RawBodyRequest, _res, buf) => { req.rawBody = buf } }))
 // 3. Request logger (visibility in Render logs)
 app.use((req: Request, _res: Response, next) => {
   console.log(`[HTTP] ${req.method} ${req.originalUrl}`)
@@ -90,7 +117,9 @@ function handleHealth(_req: Request, res: Response): void {
 
 /**
  * POST /orders/create
- * Creates a Cashfree PG order and stores a PENDING order with the sanitized draft.
+ * Creates a FamGateway payment order and stores a PENDING Cupi order with the
+ * sanitized draft. Returns the hosted FamGateway checkout URL (plus optional
+ * QR / UPI-intent fallbacks) and the Cupi order id used for redirect/verify.
  */
 async function handleCreateOrder(
   req: Request,
@@ -131,43 +160,46 @@ async function handleCreateOrder(
     }
 
     const amount = resolvePriceInRupees(templateId)
-    const orderId = shortId(8)
 
-    if (!process.env.CASHFREE_SECRET_KEY) {
+    if (!process.env.FAMGATEWAY_API_KEY) {
       res.status(500).json({
-        message: 'Cashfree credentials not configured',
-        error: 'Cashfree credentials not configured',
+        message: 'FamGateway credentials not configured',
+        error: 'FamGateway credentials not configured',
       })
       return
     }
 
-    const cashfreeData = await createCashfreeOrder({
-      orderId,
+    // The Cupi order id is generated first so the FamGateway redirect_url can
+    // point the customer back to a payment-result page that identifies this
+    // exact Cupi order (never the gateway order id).
+    const cupiOrderId = systemId()
+
+    const famOrder = await createFamGatewayOrder({
       amount,
+      redirectUrl: buildPaymentResultUrl(cupiOrderId),
+      webhookUrl: buildFamGatewayWebhookUrl(),
       customerName: sanitizedCustomization.senderName,
     })
 
-    if (!cashfreeData.payment_session_id) {
-      console.error('[CASHFREE CREATE] No payment_session_id returned:', cashfreeData)
-      res.status(502).json({
-        error: 'Payment gateway did not return a payment session.',
-      })
-      return
-    }
-
     createOrder({
-      gatewayOrderId: orderId,
+      id: cupiOrderId,
+      gatewayOrderId: famOrder.orderId,
       templateId,
       amount,
       currency: 'INR',
       customizationPayload: sanitized,
     })
 
+    console.log('[FamGateway] Cupi order stored as PENDING:', cupiOrderId)
+
     res.status(201).json({
       success: true,
-      orderId,
-      paymentSessionId: cashfreeData.payment_session_id,
-      amount,
+      orderId: cupiOrderId,
+      gatewayOrderId: famOrder.orderId,
+      checkoutUrl: famOrder.checkoutUrl,
+      qrUrl: famOrder.qrUrl ?? null,
+      upiIntent: famOrder.upiIntent ?? null,
+      amount: famOrder.payableAmount ?? amount,
       currency: 'INR',
     })
   } catch (error) {
@@ -175,10 +207,24 @@ async function handleCreateOrder(
   }
 }
 
+function sendExperiencePayload(res: Response, experience: { id: string }): void {
+  res.status(200).json({
+    success: true,
+    experienceId: experience.id,
+    id: experience.id,
+    sharePath: `/x/${experience.id}`,
+    shareUrl: `${process.env.FRONTEND_URL || 'https://cupi-one.vercel.app'}/x/${experience.id}`,
+  })
+}
+
 /**
  * POST /orders/verify
- * Confirms the payment status with Cashfree PG, then locks the experience.
- * Idempotent: a replayed payment returns the already-locked experience.
+ * Final authoritative confirmation used by the frontend after the customer
+ * returns from FamGateway's hosted checkout. The server checks payment status
+ * with the FamGateway API (never trusting the browser) and, only when the
+ * amount matches a confirmed payment, locks the experience via the existing
+ * idempotent finalizeOrderForPayment(). A webhook that already marked the
+ * order PAID short-circuits here to the existing experience.
  */
 async function handleVerifyOrder(
   req: Request,
@@ -196,38 +242,160 @@ async function handleVerifyOrder(
       return
     }
 
-    const orderData = await getCashfreeOrderStatus(orderId)
-
-    if (orderData.order_status !== 'PAID') {
-      console.error('[VERIFY ERROR] Payment not completed:', {
-        orderId,
-        order_status: orderData.order_status,
-      })
-      res.status(400).json({ error: 'Payment not completed.' })
-      return
-    }
-
-    const order = getOrderByGatewayOrderId(orderId) ?? getOrderById(orderId)
+    const order = getOrderById(orderId) ?? getOrderByGatewayOrderId(orderId)
     if (!order) {
       res.status(404).json({ error: 'Order not found.' })
       return
     }
 
+    // Already finalized (typically by the webhook): return the existing
+    // experience/share URL without creating anything new.
+    if (order.status === 'PAID' && order.experienceId) {
+      const existing = getExperienceById(order.experienceId)
+      if (existing) {
+        console.log('[FamGateway] Order already PAID:', order.id)
+        sendExperiencePayload(res, existing)
+        return
+      }
+    }
+
+    if (!process.env.FAMGATEWAY_API_KEY) {
+      res.status(500).json({ error: 'FamGateway credentials not configured' })
+      return
+    }
+
+    let statusData
+    try {
+      statusData = await getFamGatewayOrderStatus(order.gatewayOrderId)
+    } catch (error) {
+      console.error('[FamGateway] Status check failed:', order.id, error)
+      res.status(502).json({ success: false, error: 'Payment status check failed.' })
+      return
+    }
+
+    if (statusData.status !== 'success') {
+      console.log('[FamGateway] Verify not confirmed:', order.id, statusData.status)
+      res.status(200).json({
+        success: false,
+        status: statusData.status,
+        error:
+          statusData.status === 'pending'
+            ? 'Payment is still pending.'
+            : 'Payment not completed.',
+      })
+      return
+    }
+
+    // Authoritative amount validation — never unlock on a mismatched amount.
+    if (
+      statusData.amount != null &&
+      Math.abs(statusData.amount - order.amount) > 0.001
+    ) {
+      console.error('[FamGateway] Amount mismatch on verify:', {
+        orderId: order.id,
+        expected: order.amount,
+        received: statusData.amount,
+      })
+      res.status(200).json({ success: false, status: 'failed', error: 'Payment amount mismatch.' })
+      return
+    }
+
     const experience = finalizeOrderForPayment({
-      orderId: order.id,
-      gatewayPaymentId: orderData.cf_order_id ?? null,
+      orderId: order.gatewayOrderId,
+      gatewayPaymentId: statusData.utr || statusData.transactionId || null,
     })
 
-    res.status(200).json({
-      success: true,
-      experienceId: experience.id,
-      id: experience.id,
-      sharePath: `/x/${experience.id}`,
-      shareUrl: `${process.env.FRONTEND_URL || 'https://cupi-one.vercel.app'}/x/${experience.id}`,
-    })
+    console.log('[FamGateway] Payment confirmed via verify:', order.id)
+    sendExperiencePayload(res, experience)
   } catch (error) {
     next(error)
   }
+}
+
+/**
+ * POST /api/famgateway/webhook
+ * Signed server-to-server notification from FamGateway when a payment
+ * succeeds. The raw request body is HMAC-SHA256 verified before anything is
+ * parsed or fulfilled. Unknown orders and amount mismatches are acknowledged
+ * but never fulfilled; already-PAID orders short-circuit idempotently.
+ */
+async function handleFamGatewayWebhook(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  console.log('[FamGateway] Webhook received')
+
+  const rawBody = (req as RawBodyRequest).rawBody
+  const signature = req.get('X-FamGateway-Signature')
+
+  if (!process.env.FAMGATEWAY_API_KEY) {
+    res.status(500).json({ error: 'FamGateway credentials not configured' })
+    return
+  }
+
+  if (!verifyFamGatewayWebhookSignature(rawBody, signature)) {
+    console.log('[FamGateway] Invalid webhook signature')
+    res.status(401).json({ error: 'Invalid webhook signature' })
+    return
+  }
+
+  console.log('[FamGateway] Webhook verified')
+
+  let payload: Record<string, unknown> = {}
+  try {
+    payload = JSON.parse((rawBody as Buffer).toString('utf8')) as Record<string, unknown>
+  } catch {
+    res.status(400).json({ error: 'Malformed webhook payload' })
+    return
+  }
+
+  // FamGateway only dispatches confirmed-success events. Anything else is
+  // acknowledged without fulfilling anything.
+  if (payload.status !== 'success') {
+    console.log('[FamGateway] Webhook ignored (status != success):', payload.status)
+    res.status(200).json({ status: 'ignored' })
+    return
+  }
+
+  const gatewayOrderId = payload.order_id
+  if (!isNonEmptyString(gatewayOrderId)) {
+    res.status(200).json({ status: 'ignored' })
+    return
+  }
+
+  const order = getOrderByGatewayOrderId(gatewayOrderId)
+  if (!order) {
+    // Unknown order — never create a Cupi order from a webhook.
+    console.log('[FamGateway] Webhook for unknown order:', gatewayOrderId)
+    res.status(200).json({ status: 'ignored' })
+    return
+  }
+
+  const gatewayAmount = Number(payload.amount)
+  if (!Number.isFinite(gatewayAmount) || Math.abs(gatewayAmount - order.amount) > 0.001) {
+    console.error('[FamGateway] Amount mismatch', {
+      orderId: order.id,
+      expected: order.amount,
+      received: payload.amount,
+    })
+    res.status(200).json({ status: 'ignored', reason: 'amount_mismatch' })
+    return
+  }
+
+  const gatewayPaymentId =
+    (typeof payload.utr === 'string' && payload.utr) ||
+    (typeof payload.transaction_id === 'string' && payload.transaction_id) ||
+    null
+
+  // Idempotent: already-PAID orders return the existing experience, so a
+  // replayed/delivered-again webhook never creates a second experience.
+  const experience = finalizeOrderForPayment({
+    orderId: order.gatewayOrderId,
+    gatewayPaymentId,
+  })
+
+  console.log('[FamGateway] Payment confirmed:', order.id, 'experience:', experience.id)
+  res.status(200).json({ status: 'ok' })
 }
 
 /**
@@ -269,6 +437,8 @@ orderRoutes.post('/verify', handleVerifyOrder)
 app.use('/api/orders', orderRoutes)
 app.use('/orders', orderRoutes)
 
+app.post('/api/famgateway/webhook', handleFamGatewayWebhook)
+
 app.get('/api/experiences/:id', handleGetExperience)
 app.get('/experiences/:id', handleGetExperience)
 
@@ -301,9 +471,9 @@ app.use(errorHandler)
 
 app.listen(PORT, HOST, () => {
   console.log(`[cupi-api] listening on http://${HOST}:${PORT}`)
-  if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
+  if (!process.env.FAMGATEWAY_API_KEY) {
     console.warn(
-      '[cupi-api] CASHFREE_APP_ID / CASHFREE_SECRET_KEY not set — checkout will be unavailable until configured in .env',
+      '[cupi-api] FAMGATEWAY_API_KEY not set — checkout will be unavailable until configured in .env',
     )
   }
 })

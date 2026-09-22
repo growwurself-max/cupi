@@ -4,6 +4,7 @@ import { ContactUs } from './pages/legal/ContactUs'
 import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
 import { RefundPolicy } from './pages/legal/RefundPolicy'
 import { TermsConditions } from './pages/legal/TermsConditions'
+import { PaymentResult } from './pages/PaymentResult'
 import type { CategorySelection } from './components/store/CategoryFilter'
 import { CustomizerModal } from './components/store/CustomizerModal'
 import { ExperienceView } from './components/store/ExperienceView'
@@ -20,7 +21,7 @@ type View = 'store' | 'demo'
 type LegalPage = 'privacy' | 'terms' | 'refund' | 'contact'
 
 interface Route {
-  view: View | 'share' | 'legal'
+  view: View | 'share' | 'payment-result' | 'legal'
   shareId: string | null
   legalPage: LegalPage | null
 }
@@ -37,6 +38,9 @@ const LEGAL_ROUTES: Record<string, LegalPage> = {
 }
 
 function parsePath(pathname: string): Route {
+  if (pathname.startsWith('/payment-result')) {
+    return { view: 'payment-result', shareId: null, legalPage: null }
+  }
   const match = pathname.match(/^\/x\/([A-Za-z0-9_-]{4,64})$/)
   if (match) {
     return { view: 'share', shareId: match[1], legalPage: null }
@@ -100,19 +104,15 @@ export default function App() {
     document.getElementById('experiences')?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  const handleOpenExperience = useCallback(
-    (path: string) => {
-      setCustomizeTheme(null)
-      navigate(path)
-    },
-    [navigate],
-  )
-
   const activeRegistration = themeRegistry[activeThemeId]
   const DemoExperience = activeRegistration?.component
 
   if (route.view === 'share' && route.shareId) {
     return <ExperienceView experienceId={route.shareId} onExit={goToStore} />
+  }
+
+  if (route.view === 'payment-result') {
+    return <PaymentResult onExit={goToStore} />
   }
 
   if (route.view === 'legal') {
@@ -165,7 +165,6 @@ export default function App() {
       <CustomizerModal
         theme={customizeTheme}
         onClose={() => setCustomizeTheme(null)}
-        onOpenExperience={handleOpenExperience}
       />
 
       <AnimatePresence>

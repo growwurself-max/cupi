@@ -33,12 +33,11 @@ export function PrivacyPolicy({ onExit }: LegalPageProps) {
 
       <LegalSection heading="2. Payment Processing">
         <p>
-          Payments on Cupi are processed securely through certified third-party
-          payment aggregators (<strong>PhonePe</strong> and{' '}
-          <strong>Cashfree</strong>). Cupi does not see, collect, or store card
+          Payments on Cupi are processed securely through trusted third-party
+          payment gateways. Cupi does not see, collect, or store card
           numbers, card CVVs, UPI PINs, or any sensitive payment credentials.
           All payment data stays within the secure, PCI-DSS compliant
-          infrastructure of our trusted payment partner.
+          infrastructure of our payment partner.
         </p>
       </LegalSection>
 
@@ -57,7 +56,7 @@ export function PrivacyPolicy({ onExit }: LegalPageProps) {
           We are proud to keep your moments private. Cupi never sells, rents, or
           shares your personal data with advertisers, data brokers, or any other
           third parties. The only exception is processing your payment through
-          our secured payment aggregator (Cashfree), which is necessary to
+          our secured payment gateway, which is necessary to
           complete your purchase.
         </p>
       </LegalSection>

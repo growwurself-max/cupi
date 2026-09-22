@@ -18,8 +18,8 @@ import {
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useCashfree } from '../../hooks/useCashfree'
-import { createOrder, verifyOrder } from '../../lib/api'
+import { useFamGateway } from '../../hooks/useFamGateway'
+import { createOrder } from '../../lib/api'
 import {
   getCustomizerStepIds,
   type CustomizerStepId,
@@ -35,12 +35,10 @@ import {
   type PhotoDraft,
 } from '../../utils/experienceDraft'
 import { resizeAndCompressImage } from '../../utils/imageResize'
-import { OrderSuccessModal } from './OrderSuccessModal'
 
 interface CustomizerModalProps {
   theme: ExperienceMetadata | null
   onClose: () => void
-  onOpenExperience: (path: string) => void
 }
 
 const STEP_DEFS = {
@@ -101,15 +99,13 @@ const INPUT_CLASS =
   'w-full rounded-xl border border-rose-200/60 bg-white/80 px-4 py-3 text-sm text-stone-800 placeholder-stone-400 shadow-sm outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-100'
 
 type PaymentResult =
-  | { kind: 'verified'; experienceId: string; shareUrl: string }
   | { kind: 'failed'; message: string }
 
 export function CustomizerModal({
   theme,
   onClose,
-  onOpenExperience,
 }: CustomizerModalProps) {
-  const { openCheckout } = useCashfree()
+  const { openCheckout } = useFamGateway()
 
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<CustomizerDraft>(emptyDraft)
@@ -247,30 +243,15 @@ export function CustomizerModal({
     try {
       const orderRes = await createOrder(theme.id, previewConfig)
 
-      if (!orderRes.paymentSessionId) {
-        throw new Error('Failed to create payment session with Cashfree.')
+      if (!orderRes.checkoutUrl) {
+        throw new Error('Failed to arrange payment. Please try again.')
       }
 
-      // Open native Cashfree popup (UPI, Cards, Netbanking)
-      await openCheckout(orderRes.paymentSessionId)
-
-      // Verify on backend
-      const verifyRes = await verifyOrder({ orderId: orderRes.orderId })
-
-      if (!verifyRes.success) {
-        throw new Error('Payment verification failed.')
-      }
-
-      const generatedId = verifyRes.experienceId || verifyRes.id
-      if (!generatedId) {
-        throw new Error('No experience ID returned from verification server.')
-      }
-
-      setPaymentResult({
-        kind: 'verified',
-        experienceId: generatedId,
-        shareUrl: verifyRes.sharePath || `/x/${generatedId}`,
-      })
+      // Full-page redirect to the FamGateway hosted checkout (reliable on
+      // mobile browsers, no popup blockers). Once paid, FamGateway redirects
+      // back to /payment-result?orderId=<cupiOrderId>, where the payment is
+      // verified server-side before the success experience is unlocked.
+      openCheckout(orderRes.checkoutUrl)
     } catch (err) {
       console.error('Checkout error:', err)
       const message =
@@ -282,11 +263,6 @@ export function CustomizerModal({
       setChecking(false)
     }
   }, [theme, previewConfig, checking, openCheckout])
-
-  const handleOpenExperience = useCallback(() => {
-    if (!paymentResult || paymentResult.kind !== 'verified') return
-    onOpenExperience(paymentResult.shareUrl)
-  }, [paymentResult, onOpenExperience])
 
   const handleClose = useCallback(() => {
     if (checking) return
@@ -767,7 +743,7 @@ export function CustomizerModal({
                       {checking ? (
                         <>
                           <LoaderCircle className="h-4 w-4 animate-spin" />
-                          Contacting Cashfree…
+                          Preparing payment…
                         </>
                       ) : (
                         <>
@@ -825,19 +801,9 @@ export function CustomizerModal({
         )}
       </AnimatePresence>
 
-      {/* Post-payment celebration */}
-      <AnimatePresence>
-        {paymentResult?.kind === 'verified' && (
-          <OrderSuccessModal
-            key="success"
-            experienceId={paymentResult.experienceId}
-            onClose={() => setPaymentResult(null)}
-            onOpen={handleOpenExperience}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Inline payment error */}
+      {/* Inline payment error — only reachable if order creation fails
+          before the redirect. Post-checkout success/verification is handled
+          on the dedicated /payment-result page. */}
       <AnimatePresence>
         {paymentResult?.kind === 'failed' && (
           <motion.div

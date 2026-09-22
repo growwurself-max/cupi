@@ -54,18 +54,26 @@ export async function apiRequest<T>(path: string, options?: RequestOptions): Pro
 
 export interface CreateOrderResponse {
   success: boolean
+  /** Cupi internal order id — used for the redirect URL and verify calls. */
   orderId: string
-  paymentSessionId: string
+  /** FamGateway order id (`fg_...`) — never used for redirect/verify by name. */
+  gatewayOrderId: string
+  checkoutUrl: string
+  qrUrl: string | null
+  upiIntent: string | null
   amount: number
   currency: string
 }
 
 export interface VerifyOrderResponse {
   success: boolean
-  experienceId: string
+  experienceId?: string
   id?: string
-  sharePath: string
-  shareUrl: string
+  sharePath?: string
+  shareUrl?: string
+  /** Gateway lifecycle when not paid yet: pending | expired | failed | error. */
+  status?: string
+  error?: string
 }
 
 export interface VerifyOrderPayload {

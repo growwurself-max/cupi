@@ -92,6 +92,9 @@ export function systemId(): string {
 }
 
 export function createOrder(input: {
+  // Optional internal Cupi order id, generated in the route handler when the
+  // id must be known before the gateway order is created (redirect URLs).
+  id?: string
   gatewayOrderId: string
   templateId: string
   amount: number
@@ -101,7 +104,7 @@ export function createOrder(input: {
   const db = loadDb()
   const now = new Date().toISOString()
   const record: OrderRecord = {
-    id: systemId(),
+    id: input.id ?? systemId(),
     gatewayOrderId: input.gatewayOrderId,
     gatewayPaymentId: null,
     templateId: input.templateId,
