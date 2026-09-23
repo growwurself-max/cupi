@@ -108,6 +108,7 @@ interface PendingPayment {
   orderId: string
   checkoutUrl: string
   upiIntent: string
+  qrUrl: string | null
 }
 
 export function CustomizerModal({
@@ -293,12 +294,14 @@ export function CustomizerModal({
       }
 
       // Keep this single PENDING order on screen and let the customer choose
-      // between UPI (via the returned intent deep link) and the hosted
-      // checkout. Switching between them must NOT create a second order.
+      // between UPI (via the returned intent deep link), the same order's QR
+      // code, and the hosted checkout. Switching between them must NOT create
+      // a second order.
       setPendingPayment({
         orderId: orderRes.orderId,
         checkoutUrl: orderRes.checkoutUrl,
         upiIntent: orderRes.upiIntent,
+        qrUrl: orderRes.qrUrl,
       })
     } catch (err) {
       console.error('Checkout error:', err)
@@ -762,17 +765,21 @@ export function CustomizerModal({
                 <p className="text-[11px] font-medium text-stone-400">
                   Amount due · {theme.price}
                 </p>
-                <a
-                  href={pendingPayment.upiIntent}
-                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 px-6 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-200 active:scale-95"
-                >
-                  💳 Pay with UPI
-                </a>
-                <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-                  <span className="h-px flex-1 bg-stone-200" />
-                  or
-                  <span className="h-px flex-1 bg-stone-200" />
-                </div>
+                {pendingPayment.qrUrl && (
+                  <div className="space-y-2">
+                    <div className="mx-auto w-fit rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
+                      <img
+                        src={pendingPayment.qrUrl}
+                        alt="Scan with any UPI app to pay this order"
+                        className="mx-auto h-44 w-44"
+                      />
+                    </div>
+                    <p className="text-[11px] leading-relaxed font-medium text-stone-400">
+                      Scan with any UPI app (FamPay, GPay, PhonePe, Paytm) to
+                      pay this same order.
+                    </p>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => openCheckout(pendingPayment.checkoutUrl)}
