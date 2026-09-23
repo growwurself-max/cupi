@@ -24,7 +24,7 @@ export const defaultSpecialBunnyConfig: ExperienceConfig = {
     revealSubtext: '',
     letterIntro: 'The mystery gift is…',
     letterLines: [
-      'Dear Mia, the passcode was easy — it has always been your smile.',
+      'Dear {{name}}, the passcode was easy — it has always been your smile.',
       'Every balloon I pop, every candle I light, reminds me that you are my favorite surprise.',
       'Peek inside the gift box whenever life feels heavy — it is filled with us.',
     ],

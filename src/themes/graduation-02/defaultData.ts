@@ -24,14 +24,14 @@ export const defaultGraduationChapterConfig: ExperienceConfig = {
     revealHeading: 'GRADUATION CHAPTER',
     revealSubtext:
       'This is the "cap in the air" part. Somewhere between nonsense and all-nighters, you graduated.',
-    letterIntro: 'Dear Ananya,',
+    letterIntro: 'Dear {{name}},',
     letterLines: [
       'You aced the exams, the panic, and the group-project damage control where you did everything. That deserves a ceremony.',
       'Nobody else could pull off juggling a thesis, a side hustle, and still making time to roast us. Legend behavior.',
       'We have watched you turn "maybe it won‘t work" into a milestone. That is the whole graduation in one sentence.',
       'Today we celebrate every all-nighter, every re-take, every "I will figure it out." You always did.',
       'The squad graduated the day you dragged us through. Now go collect the glory — you earned every bit of this confetti.',
-      'Congratulations, Ananya. The future is terrified of you, in a good way.',
+      'Congratulations, {{name}}. The future is terrified of you, in a good way.',
     ],
     letterSignoff: 'Your personal fan club,',
     wishPrompt: 'Tap to toss the cap',

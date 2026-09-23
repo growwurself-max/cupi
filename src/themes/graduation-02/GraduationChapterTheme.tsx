@@ -1,6 +1,7 @@
 import { AnimatePresence } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSoundEffects } from '../../hooks/useSoundEffects'
+import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultGraduationChapterConfig } from './defaultData'
@@ -27,7 +28,7 @@ export function GraduationChapterTheme({
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const resolvedConfig = useMemo(
-    () => config ?? defaultGraduationChapterConfig,
+    () => config ?? resolveConfigPlaceholders(defaultGraduationChapterConfig),
     [config],
   )
 

@@ -26,7 +26,7 @@ export const defaultProposalGreatestConfig: ExperienceConfig = {
       'Golden fireworks for one golden answer.',
     letterIntro: 'Before I ask…',
     letterLines: [
-      'Ishaan, I have imagined this moment in a hundred different rooms, and in every one of them, you said yes.',
+      '{{name}}, I have imagined this moment in a hundred different rooms, and in every one of them, you said yes.',
       'I did not fall for the version of you that tries. I fell for the you that forgets to try — the real one, unguarded and good.',
       'I want the boring Tuesdays. The tantrums over groceries. The 3am conversations that start nowhere and end everywhere.',
       'I am not asking for a ring on a finger. I am asking for a ring in a story we keep writing together.',

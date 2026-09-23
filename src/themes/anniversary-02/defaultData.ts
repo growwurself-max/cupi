@@ -26,7 +26,7 @@ export const defaultAnniversaryForeverConfig: ExperienceConfig = {
       'Years on the odometer, gold in the glass, and still only the beginning.',
     letterIntro: 'A letter for the ages…',
     letterLines: [
-      'My dearest Aanya, people keep milestones. We keep turning ours into chapters.',
+      'My dearest {{name}}, people keep milestones. We keep turning ours into chapters.',
       'I have counted the years the way others count blessings — slowly, carefully, and always with a little disbelief that they are mine.',
       'You loved me through the version of me that was still figuring things out, and you love me still.',
       'Every champagne pop, every golden candle, every silent moment at 2am — I replay them all like a reel I never skip.',

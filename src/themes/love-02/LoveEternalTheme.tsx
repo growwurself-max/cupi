@@ -1,6 +1,7 @@
 import { AnimatePresence } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSoundEffects } from '../../hooks/useSoundEffects'
+import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultLoveEternalConfig } from './defaultData'
@@ -22,7 +23,10 @@ export function LoveEternalTheme({ config, onExit, isSharedLink }: LoveEternalTh
   const [step, setStep] = useState(1)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
-  const resolvedConfig = useMemo(() => config ?? defaultLoveEternalConfig, [config])
+  const resolvedConfig = useMemo(
+    () => config ?? resolveConfigPlaceholders(defaultLoveEternalConfig),
+    [config],
+  )
 
   const sound = useSoundEffects({
     audio: resolvedConfig.audio,

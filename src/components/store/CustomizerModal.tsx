@@ -35,6 +35,7 @@ import {
   type PhotoDraft,
 } from '../../utils/experienceDraft'
 import { resizeAndCompressImage } from '../../utils/imageResize'
+import { resolveContentPlaceholders } from '../../utils/placeholders'
 
 interface CustomizerModalProps {
   theme: ExperienceMetadata | null
@@ -109,6 +110,7 @@ export function CustomizerModal({
 
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<CustomizerDraft>(emptyDraft)
+  const [letterEdited, setLetterEdited] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [checking, setChecking] = useState(false)
   const [processingIndex, setProcessingIndex] = useState<number | null>(null)
@@ -144,12 +146,32 @@ export function CustomizerModal({
     }
   }, [theme, onClose, previewing, paymentResult])
 
+  const baseConfig = useMemo(
+    () => (theme ? (themeRegistry[theme.id]?.defaultConfig ?? null) : null),
+    [theme],
+  )
+
   const previewConfig = useMemo(() => {
-    if (!theme) return null
-    const baseConfig = themeRegistry[theme.id]?.defaultConfig
-    if (!baseConfig) return null
+    if (!theme || !baseConfig) return null
     return buildExperienceConfig(draft, baseConfig, theme.maxPhotos ?? 3)
-  }, [theme, draft])
+  }, [theme, baseConfig, draft])
+
+  const defaultLetterText = useMemo(() => {
+    if (!baseConfig) return ''
+    // Fill the curated default letter with the names as soon as they are
+    // entered — nickname wins over the full name, matching the rendered
+    // experience. Falls back to the theme's sample name so the textarea never
+    // opens empty.
+    const recipient =
+      draft.nickname.trim() ||
+      draft.recipientName.trim() ||
+      baseConfig.recipient.name
+    const sender = draft.senderName.trim() || baseConfig.sender.name
+    return resolveContentPlaceholders(baseConfig.content, {
+      recipient,
+      sender,
+    }).letterLines.join('\n')
+  }, [baseConfig, draft.nickname, draft.recipientName, draft.senderName])
 
   const PreviewComponent =
     theme ? themeRegistry[theme.id]?.component ?? null : null
@@ -159,6 +181,9 @@ export function CustomizerModal({
       return 'Add who it’s for and who it’s from.'
     }
     if (currentStepId === 'message') {
+      // The curated letter is already complete — the only requirement is that
+      // the customer didn't wipe it out after choosing to edit it themselves.
+      if (!letterEdited) return null
       return draft.letterLines.some((line) => line.trim())
         ? null
         : 'Write at least one line of your letter.'
@@ -182,7 +207,7 @@ export function CustomizerModal({
         : 'Use a real date — e.g. 0512 = 5 December, or 1205 = 12 May.'
     }
     return null
-  }, [currentStepId, draft])
+  }, [currentStepId, draft, letterEdited])
 
   const update = useCallback(
     <K extends keyof CustomizerDraft>(key: K, value: CustomizerDraft[K]) => {
@@ -485,13 +510,20 @@ export function CustomizerModal({
                   {currentStepId === 'message' && (
                     <Field
                       label="Write the letter"
-                      hint="One line = one paragraph. Say what words cannot."
+                      hint="A complete letter is already written with their name — tweak any part you want, or leave it exactly as it is."
                     >
                       <textarea
                         className={`${INPUT_CLASS} min-h-44 resize-none leading-relaxed`}
                         placeholder={`To ${draft.recipientName.trim() || 'my favourite person'} — I keep trying to find the right words…\nYou make ordinary moments feel like small adventures.`}
-                        value={draft.letterLines.join('\n')}
-                        onChange={(event) => setLetterText(event.target.value)}
+                        value={
+                          letterEdited
+                            ? draft.letterLines.join('\n')
+                            : defaultLetterText
+                        }
+                        onChange={(event) => {
+                          setLetterEdited(true)
+                          setLetterText(event.target.value)
+                        }}
                         maxLength={1500}
                         aria-label="Heartfelt message"
                       />

@@ -25,7 +25,7 @@ export const defaultBirthdayTeddyConfig: ExperienceConfig = {
       'Another year of you — softer, braver, and still the best part of every story.',
     letterIntro: 'A letter, from me to you',
     letterLines: [
-      'Happy birthday, Sophia. I tried to put words around what you mean to me, and then I remembered — some things are too bright to fit inside sentences.',
+      'Happy birthday, {{name}}. I tried to put words around what you mean to me, and then I remembered — some things are too bright to fit inside sentences.',
       'You make ordinary days feel like a film I never want to pause: your laugh, your terrible dance moves, the way you cheer loudest for everyone else.',
       'I hope this year hands you back a little of everything you keep giving away — patience, courage, and people who love you in the same loud, full-hearted way you love them.',
       'Wherever this year takes you, remember the version of you I get to witness: the one who turns strangers into friends and bad days into stories.',

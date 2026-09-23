@@ -26,7 +26,7 @@ export const defaultProposalConfig: ExperienceConfig = {
       'A tiny box. One question. Zero doubts.',
     letterIntro: 'If I could write it forever,',
     letterLines: [
-      'Dear Aaliyah, I have imagined this moment in a hundred different tomorrows, and it always looks the same — you, smiling, saying yes.',
+      'Dear {{name}}, I have imagined this moment in a hundred different tomorrows, and it always looks the same — you, smiling, saying yes.',
       'You make ordinary days feel like beginnings. You are my favorite thought, my safest place, and my wildest dream all at once.',
       'I am not asking because the timing is perfect. I am asking because everything about my life points to you, and it always has.',
     ],

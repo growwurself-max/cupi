@@ -26,7 +26,7 @@ export const defaultFriendshipBroadcastConfig: ExperienceConfig = {
       'Broadcast received. Friendship confirmed. Chaos level: maximum.',
     letterIntro: 'A note, real talk…',
     letterLines: [
-      'Zara, you are the first person I text and the last person I judge (almost never). That is basically a lifelong contract.',
+      '{{name}}, you are the first person I text and the last person I judge (almost never). That is basically a lifelong contract.',
       'We have laughed at nothing so much that I have permanent abs theory. We have cried about things that genuinely matter, and you never made me feel small for it.',
       'You keep my secrets like they are your own library — untouchable and slightly chaotic.',
       'Some people are an acquired taste. You are my safe place that also somehow enables my worst decisions. Perfect match.',

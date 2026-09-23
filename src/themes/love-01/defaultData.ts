@@ -25,7 +25,7 @@ export const defaultLoveConfig: ExperienceConfig = {
     revealSubtext: 'Some things are too big for a text message.',
     letterIntro: 'for your eyes only',
     letterLines: [
-      'Dear Ava, I have rewritten this letter seven times because words never quite do you justice.',
+      'Dear {{name}}, I have rewritten this letter seven times because words never quite do you justice.',
       'You are my favorite hello, my hardest goodbye, and every soft moment in between. Loving you is the easiest thing I have ever done.',
       'I do not need a special day to tell you this — but tonight felt like the right one. With you, every midnight feels like the start of something wonderful.',
       'Whatever tomorrow brings, I will be there — holding your hand through all of it.',

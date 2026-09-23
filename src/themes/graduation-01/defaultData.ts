@@ -26,7 +26,7 @@ export const defaultGraduationConfig: ExperienceConfig = {
       'Tap the cap. Throw it high. This is your victory lap.',
     letterIntro: 'A word from the proud team',
     letterLines: [
-      'Dear Zara, we watched you carry a whole library home in one backpack and argued about it for four years. Worth it.',
+      'Dear {{name}}, we watched you carry a whole library home in one backpack and argued about it for four years. Worth it.',
       'We are not surprised you made it. We are just proud you did it your way — messy notes, stubborn dreams, and all.',
       'Wherever the tassel falls and the door opens, walk like you own the place. You did the work. Now go be brilliant.',
     ],

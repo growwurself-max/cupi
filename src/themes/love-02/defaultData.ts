@@ -26,7 +26,7 @@ export const defaultLoveEternalConfig: ExperienceConfig = {
       'Every star you lit is a promise I intend to keep.',
     letterIntro: 'I have been carrying these words…',
     letterLines: [
-      'Mira, there is a version of me that exists only when you are near — softer, braver, more alive. I want you to meet him properly.',
+      '{{name}}, there is a version of me that exists only when you are near — softer, braver, more alive. I want you to meet him properly.',
       'I have loved you quietly and then loudly, in the small hours and in the messiest moments. It never once went the other way.',
       'You are not the peace I was looking for. You are the calm that makes the noise worth living through.',
       'If love were a constellation, ours would be the brightest one — drawn fast, by two clumsy hands, and beautiful anyway.',

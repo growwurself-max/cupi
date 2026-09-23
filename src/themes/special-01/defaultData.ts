@@ -24,7 +24,7 @@ export const defaultSpecialHeartBloomConfig: ExperienceConfig = {
     revealSubtext: 'to someone worth celebrating',
     letterIntro: 'For your eyes only',
     letterLines: [
-      'Dear Ava, today the whole sky bows to you — every star, every heartbeat, every quiet beginning.',
+      'Dear {{name}}, today the whole sky bows to you — every star, every heartbeat, every quiet beginning.',
       'You have a way of turning ordinary days into something worth celebrating.',
       'Close your eyes, make a wish, and watch it bloom.',
     ],

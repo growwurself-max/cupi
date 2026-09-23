@@ -24,7 +24,7 @@ export const defaultSpecialStorybookConfig: ExperienceConfig = {
     revealSubtext: '',
     letterIntro: 'Chapter One',
     letterLines: [
-      'Dear Diya, once upon a time a boy met a girl and forgot his own name.',
+      'Dear {{name}}, once upon a time a boy met a girl and forgot his own name.',
       'Page after page, I keep writing you — in polaroids, in roses, in quiet good mornings.',
       'This wax seal is not the end. It is just where our forever begins.',
     ],

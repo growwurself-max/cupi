@@ -26,7 +26,7 @@ export const defaultBirthdayConfig: ExperienceConfig = {
       'Another trip around the sun, and somehow you keep making the world a little brighter.',
     letterIntro: 'So I wrote you something…',
     letterLines: [
-      'Happy birthday, Sophia. I keep trying to find the right words, but they never feel big enough for what you mean to me.',
+      'Happy birthday, {{name}}. I keep trying to find the right words, but they never feel big enough for what you mean to me.',
       'You are the kind of person who makes ordinary moments feel like small adventures — laughing at nothing, staying up late for no reason, turning bad days into inside jokes.',
       'I hope this next year gives you everything you give to everyone else: patience, kindness, and a love that never runs dry.',
       'Wherever you are in the world, know that I am out here thinking of you. Today — and every day after.',

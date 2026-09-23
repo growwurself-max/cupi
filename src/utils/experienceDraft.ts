@@ -1,4 +1,5 @@
 import type { BouquetNote, ExperienceConfig, PhotoItem } from '../types/experience'
+import { resolveConfigPlaceholders } from './placeholders'
 
 export interface PhotoDraft {
   src: string
@@ -161,5 +162,9 @@ export function buildExperienceConfig(
     })
   }
 
-  return config
+  // Swap any remaining placeholder tokens ({{name}} / {{sender}}) for the
+  // final recipient/sender names. This fills the curated default letter with
+  // the customer's name whenever they leave it untouched, and fills any tokens
+  // a customer wrote themselves in an edited letter.
+  return resolveConfigPlaceholders(config)
 }

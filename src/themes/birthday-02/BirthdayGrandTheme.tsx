@@ -1,6 +1,7 @@
 import { AnimatePresence } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSoundEffects } from '../../hooks/useSoundEffects'
+import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultBirthdayGrandConfig } from './defaultData'
@@ -26,7 +27,7 @@ export function BirthdayGrandTheme({
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const resolvedConfig = useMemo(
-    () => config ?? defaultBirthdayGrandConfig,
+    () => config ?? resolveConfigPlaceholders(defaultBirthdayGrandConfig),
     [config],
   )
 

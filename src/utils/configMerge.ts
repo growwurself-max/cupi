@@ -5,6 +5,7 @@ import type {
   ExperienceContent,
   PhotoItem,
 } from '../types/experience'
+import { resolveConfigPlaceholders } from './placeholders'
 
 function pickFirstString(
   value: string | undefined | null,
@@ -114,8 +115,8 @@ export function deepMergeExperienceConfig(
   fetched: Partial<ExperienceConfig> | null | undefined,
   maxPhotos = 3,
 ): ExperienceConfig {
-  if (!fetched) return base
-  return {
+  if (!fetched) return resolveConfigPlaceholders(base)
+  return resolveConfigPlaceholders({
     recipient: {
       name: pickFirstString(fetched.recipient?.name, base.recipient.name),
     },
@@ -139,5 +140,5 @@ export function deepMergeExperienceConfig(
     bouquet: fetched.bouquet
       ? mergeBouquet(base.bouquet ?? FALLBACK_BOUQUET, fetched.bouquet)
       : base.bouquet,
-  }
+  })
 }

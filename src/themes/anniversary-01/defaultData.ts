@@ -26,7 +26,7 @@ export const defaultAnniversaryConfig: ExperienceConfig = {
       'Years together, and you still manage to feel brand new.',
     letterIntro: 'From the box, for you',
     letterLines: [
-      'Dear Serena, we started as strangers, stumbled into friends, and ended up here — building a home out of ordinary Tuesdays.',
+      'Dear {{name}}, we started as strangers, stumbled into friends, and ended up here — building a home out of ordinary Tuesdays.',
       'Every year I love you a little more, and I did not think that was possible. Thank you for the laughter, the slow mornings, and the way you hold my hand through everything.',
       'The years ahead are just more chances to be us. I cannot wait for not one more.',
     ],

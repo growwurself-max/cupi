@@ -26,7 +26,7 @@ export const defaultBirthdayGrandConfig: ExperienceConfig = {
       'Every stage you lit is a year of moments worth making golden.',
     letterIntro: 'One extended letter for you…',
     letterLines: [
-      'My dearest Sophia, if I could bottle how the world looks when you smile, I would hand you the whole sun on your birthday.',
+      'My dearest {{name}}, if I could bottle how the world looks when you smile, I would hand you the whole sun on your birthday.',
       'Some people cheer people up. You — you rearrange the weather. Bad days have a shorter lifespan around you.',
       'I hope this next orbit gives you more of the moments you collect: laughing until it hurts, terrible dancing that we swear is choreography, and people who love you loudly.',
       'Remember every year that outgrows you? This one is yours. Own it like you own every room you greet.',
