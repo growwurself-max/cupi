@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   CalendarHeart,
   ChevronLeft,
@@ -13,6 +14,7 @@ import {
   Lock,
   MessagesSquare,
   PenLine,
+  QrCode,
   RefreshCw,
   Trash2,
   X,
@@ -102,6 +104,12 @@ const INPUT_CLASS =
 type PaymentResult =
   | { kind: 'failed'; message: string }
 
+interface PendingPayment {
+  orderId: string
+  checkoutUrl: string
+  upiIntent: string
+}
+
 export function CustomizerModal({
   theme,
   onClose,
@@ -115,6 +123,7 @@ export function CustomizerModal({
   const [checking, setChecking] = useState(false)
   const [processingIndex, setProcessingIndex] = useState<number | null>(null)
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
+  const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null)
 
   const maxPhotos = theme?.maxPhotos ?? 3
   const canReorderPhotos = maxPhotos > 3
@@ -272,11 +281,25 @@ export function CustomizerModal({
         throw new Error('Failed to arrange payment. Please try again.')
       }
 
-      // Full-page redirect to the FamGateway hosted checkout (reliable on
-      // mobile browsers, no popup blockers). Once paid, FamGateway redirects
-      // back to /payment-result?orderId=<cupiOrderId>, where the payment is
-      // verified server-side before the success experience is unlocked.
-      openCheckout(orderRes.checkoutUrl)
+      // No UPI deep link on this order — fall straight through to the hosted
+      // checkout, exactly as before.
+      if (!orderRes.upiIntent) {
+        // Full-page redirect to the FamGateway hosted checkout (reliable on
+        // mobile browsers, no popup blockers). Once paid, FamGateway redirects
+        // back to /payment-result?orderId=<cupiOrderId>, where the payment is
+        // verified server-side before the success experience is unlocked.
+        openCheckout(orderRes.checkoutUrl)
+        return
+      }
+
+      // Keep this single PENDING order on screen and let the customer choose
+      // between UPI (via the returned intent deep link) and the hosted
+      // checkout. Switching between them must NOT create a second order.
+      setPendingPayment({
+        orderId: orderRes.orderId,
+        checkoutUrl: orderRes.checkoutUrl,
+        upiIntent: orderRes.upiIntent,
+      })
     } catch (err) {
       console.error('Checkout error:', err)
       const message =
@@ -731,6 +754,48 @@ export function CustomizerModal({
             )}
 
             {/* Footer */}
+            {pendingPayment ? (
+              <div className="mt-6 space-y-3 rounded-2xl border border-rose-100 bg-white/70 p-4 text-center shadow-sm">
+                <p className="font-display text-base font-bold text-stone-900">
+                  Payment ready
+                </p>
+                <p className="text-[11px] font-medium text-stone-400">
+                  Amount due · {theme.price}
+                </p>
+                <a
+                  href={pendingPayment.upiIntent}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 px-6 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-200 active:scale-95"
+                >
+                  💳 Pay with UPI
+                </a>
+                <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                  <span className="h-px flex-1 bg-stone-200" />
+                  or
+                  <span className="h-px flex-1 bg-stone-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openCheckout(pendingPayment.checkoutUrl)}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-rose-200 bg-white px-6 text-sm font-semibold text-rose-600 transition-all duration-200 hover:scale-[1.02] hover:bg-rose-50 active:scale-95"
+                >
+                  <QrCode className="h-4 w-4" />
+                  QR / Other payment options
+                </button>
+                <p className="pt-1 text-[11px] font-medium text-stone-400">
+                  Your payment is securely linked to this order.
+                </p>
+                <p className="text-[11px] font-medium text-stone-400">
+                  After payment, return to this page to complete your order.
+                </p>
+                <a
+                  href={`/payment-result?orderId=${encodeURIComponent(pendingPayment.orderId)}`}
+                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-rose-500 transition-colors hover:text-rose-600"
+                >
+                  Already paid? Check your order
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            ) : (
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex gap-3">
                 {step > 0 && (
@@ -788,6 +853,7 @@ export function CustomizerModal({
                 )}
               </div>
             </div>
+            )}
 
             <p className="mt-4 text-center text-[11px] font-medium text-stone-400">
               One payment · one locked surprise · one shareable link. Read more
