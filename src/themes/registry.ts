@@ -28,6 +28,8 @@ import { SpecialBunnyTheme } from './special-02/SpecialBunnyTheme'
 import { defaultSpecialBunnyConfig } from './special-02/defaultData'
 import { SpecialStorybookTheme } from './special-03/SpecialStorybookTheme'
 import { defaultSpecialStorybookConfig } from './special-03/defaultData'
+import { GoodMorningTheme } from './special-04/GoodMorningTheme'
+import { defaultGoodMorningConfig } from './special-04/defaultData'
 import { LoveEternalTheme } from './love-02/LoveEternalTheme'
 import { defaultLoveEternalConfig } from './love-02/defaultData'
 import { LoveTheme } from './love-01/LoveTheme'
@@ -72,6 +74,7 @@ const REGISTERED_THEMES: Array<{
   { id: 'special-01', component: SpecialHeartBloomTheme, defaultConfig: defaultSpecialHeartBloomConfig },
   { id: 'special-02', component: SpecialBunnyTheme, defaultConfig: defaultSpecialBunnyConfig },
   { id: 'special-03', component: SpecialStorybookTheme, defaultConfig: defaultSpecialStorybookConfig },
+  { id: 'special-04', component: GoodMorningTheme, defaultConfig: defaultGoodMorningConfig },
 ]
 
 const registrations: ThemeRegistration[] = REGISTERED_THEMES.flatMap(

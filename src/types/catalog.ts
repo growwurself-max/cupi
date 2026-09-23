@@ -13,6 +13,7 @@ export type ExperienceBadge =
   | 'TRENDING'
   | 'PREMIUM'
   | 'MOST LOVED'
+  | 'NEW'
 
 /**
  * Experience pricing tier. `basic` experiences (Experience #01) are the

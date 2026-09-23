@@ -32,6 +32,7 @@ export const ALLOWED_TEMPLATES = [
   'special-01',
   'special-02',
   'special-03',
+  'special-04',
 ]
 
 /**
@@ -58,6 +59,7 @@ export const PHOTO_LIMITS: Record<string, number> = {
   'special-01': 0,
   'special-02': 3,
   'special-03': 3,
+  'special-04': 0,
 }
 
 export const DATA_DIR = path.resolve(PROJECT_ROOT, 'server', 'data')

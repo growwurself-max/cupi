@@ -19,6 +19,7 @@ const BADGE_CLASSES: Record<ExperienceBadge, string> = {
     'bg-purple-100 text-purple-700 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
   'MOST LOVED':
     'bg-gradient-to-r from-rose-500 to-rose-400 text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm',
+  NEW: 'bg-emerald-100 text-emerald-700 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
 }
 
 export function ThemeCard({
