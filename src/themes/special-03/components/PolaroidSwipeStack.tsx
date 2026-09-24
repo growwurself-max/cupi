@@ -5,10 +5,18 @@ import {
   useTransform,
   type PanInfo,
 } from 'framer-motion'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { PhotoItem } from '../../../types/experience'
 
 const STACK_ROTATIONS = [-4, 3, -2, 2, -3]
+
+// A swipe triggers when the card moves past ~25% of its own width OR gets a
+// quick flick (velocity). Both feel natural on touch and mouse.
+const SWIPE_FRACTION = 0.25
+const SWIPE_VELOCITY = 450
+
+const SNAP_SPRING = { type: 'spring', stiffness: 360, damping: 30, restDelta: 0.5 } as const
+const THROW_SPRING = { type: 'spring', stiffness: 300, damping: 26, mass: 0.9 } as const
 
 interface PolaroidSwipeStackProps {
   photos: PhotoItem[]
@@ -22,38 +30,51 @@ export function PolaroidSwipeStack({
   onDone,
 }: PolaroidSwipeStackProps) {
   const [index, setIndex] = useState(0)
-  const [exitX, setExitX] = useState(0)
+  const [leaving, setLeaving] = useState(false)
+  const cardRef = useRef<HTMLDivElement | null>(null)
+
   const x = useMotionValue(0)
-  const rotate = useTransform(x, [-200, 0, 200], [-18, 0, 18])
+  const rotate = useTransform(x, [-260, 0, 260], [-22, 0, 22])
+  const opacity = useTransform(x, [-220, -150, 0, 150, 220], [0.05, 0.45, 1, 0.45, 0.05])
 
   const visible = photos.slice(index)
   const hasMore = index < photos.length - 1
 
-  const advance = useCallback(
+  const throwCard = useCallback(
     (direction: number) => {
-      setExitX(direction > 0 ? 420 : -420)
-      if (hasMore) {
-        setTimeout(() => {
+      const width = cardRef.current?.offsetWidth ?? 272
+      const travel = Math.max(width * 1.5, window.innerWidth * 0.9 + width / 2)
+      const target = (direction > 0 ? 1 : -1) * travel
+      setLeaving(true)
+      animate(x, target, THROW_SPRING).then(() => {
+        if (hasMore) {
           setIndex((i) => i + 1)
-          setExitX(0)
           x.set(0)
-        }, 280)
-      } else {
-        setTimeout(() => onDone?.(), 320)
-      }
+          setLeaving(false)
+        } else {
+          onDone?.()
+        }
+      })
     },
     [hasMore, onDone, x],
   )
 
-  const onDragEnd = (_: unknown, info: PanInfo) => {
-    const offset = info.offset.x
-    const velocity = info.velocity.x
-    if (Math.abs(offset) > 90 || Math.abs(velocity) > 500) {
-      advance(offset || velocity)
-      return
-    }
-    animate(x, 0, { type: 'spring', stiffness: 420, damping: 32 })
-  }
+  const onDragEnd = useCallback(
+    (_: unknown, info: PanInfo) => {
+      if (leaving) return
+      const width = cardRef.current?.offsetWidth ?? 272
+      const offset = info.offset.x
+      const velocity = info.velocity.x
+      const pastThreshold = Math.abs(offset) > width * SWIPE_FRACTION
+      const isFlick = Math.abs(velocity) > SWIPE_VELOCITY
+      if (pastThreshold || isFlick) {
+        throwCard(offset || velocity)
+        return
+      }
+      animate(x, 0, SNAP_SPRING)
+    },
+    [leaving, x, throwCard],
+  )
 
   if (photos.length === 0) return null
 
@@ -98,17 +119,11 @@ export function PolaroidSwipeStack({
             return (
               <motion.div
                 key={`${photo.src}-top-${index}`}
+                ref={cardRef}
                 drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.75}
-                style={{ x, rotate, zIndex: 20 }}
+                dragMomentum={false}
+                style={{ x, rotate, opacity, zIndex: 20 }}
                 onDragEnd={onDragEnd}
-                animate={
-                  exitX !== 0
-                    ? { x: exitX, opacity: 0, rotate: exitX > 0 ? 22 : -22 }
-                    : { scale: [1, 1.005, 1] }
-                }
-                transition={{ type: 'spring', stiffness: 260, damping: 26 }}
                 className="absolute inset-x-0 top-0 cursor-grab rounded-sm border-[10px] border-white bg-white p-3 pb-8 shadow-2xl active:cursor-grabbing"
               >
                 <img
