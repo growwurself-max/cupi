@@ -89,6 +89,7 @@ export function Footer({ onSelectCategory, onNavigate }: FooterProps) {
           with <span className="text-rose-500">♥</span> for the people who
           matter.
         </p>
+        <p className="mt-2">Legal Business Name: Mohammed Shafey</p>
       </div>
     </footer>
   )

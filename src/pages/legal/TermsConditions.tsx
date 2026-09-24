@@ -74,6 +74,10 @@ export function TermsConditions({ onExit }: LegalPageProps) {
           .
         </p>
       </LegalSection>
+
+      <LegalSection heading="7. Business Information">
+        <p>Legal Business Name: Mohammed Shafey</p>
+      </LegalSection>
     </LegalLayout>
   )
 }
