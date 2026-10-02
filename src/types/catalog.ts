@@ -6,6 +6,7 @@ export type CategoryId =
   | 'friendship'
   | 'graduation'
   | 'special'
+  | 'parents'
 
 export type ExperienceBadge =
   | 'BESTSELLER'

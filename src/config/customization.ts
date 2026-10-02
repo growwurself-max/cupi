@@ -45,6 +45,8 @@ const SCHEMA: Record<string, CustomizerStepId[]> = {
   'special-02': ['basics', 'passcode', 'message', 'memories'],
   'special-03': ['basics', 'message', 'memories'],
   'special-04': ['basics', 'message'],
+  'parent-01': ['basics', 'message', 'memories'],
+  'parent-02': ['basics', 'message', 'memories'],
 }
 
 /** Safe default for unknown or newly registered themes. */

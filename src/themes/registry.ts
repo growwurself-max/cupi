@@ -38,6 +38,10 @@ import { ProposalGreatestTheme } from './proposal-02/ProposalGreatestTheme'
 import { defaultProposalGreatestConfig } from './proposal-02/defaultData'
 import { ProposalTheme } from './proposal-01/ProposalTheme'
 import { defaultProposalConfig } from './proposal-01/defaultData'
+import { ParentDadTheme } from './parent-01/ParentDadTheme'
+import { defaultParentDadConfig } from './parent-01/defaultData'
+import { ParentMomTheme } from './parent-02/ParentMomTheme'
+import { defaultParentMomConfig } from './parent-02/defaultData'
 
 export interface ThemeComponentProps {
   config?: ExperienceConfig
@@ -75,6 +79,8 @@ const REGISTERED_THEMES: Array<{
   { id: 'special-02', component: SpecialBunnyTheme, defaultConfig: defaultSpecialBunnyConfig },
   { id: 'special-03', component: SpecialStorybookTheme, defaultConfig: defaultSpecialStorybookConfig },
   { id: 'special-04', component: GoodMorningTheme, defaultConfig: defaultGoodMorningConfig },
+  { id: 'parent-01', component: ParentDadTheme, defaultConfig: defaultParentDadConfig },
+  { id: 'parent-02', component: ParentMomTheme, defaultConfig: defaultParentMomConfig },
 ]
 
 const registrations: ThemeRegistration[] = REGISTERED_THEMES.flatMap(
