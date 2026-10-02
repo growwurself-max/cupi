@@ -17,8 +17,11 @@ dist-ssr
 .env.*
 !.env.example
 
-# Local server persistence
+# Local server persistence (db.json + migration backups)
 server/data
+
+# Scratch directories created by `npm run test:server`
+.tmp-*
 
 # Editor directories and files
 .vscode/*

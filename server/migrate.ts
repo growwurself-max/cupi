@@ -1,0 +1,316 @@
+/**
+ * npm run migrate-data
+ *
+ * Moves Cupi's persistent data out of the local `db.json` file and into the
+ * free, persistent cloud Postgres database, WITHOUT changing any identifier.
+ *
+ * Design rules this script follows:
+ *
+ *  • READ-ONLY on the source. db.json is never modified, moved or deleted; a
+ *    timestamped copy is exported first as an extra safety net.
+ *  • IDEMPOTENT. Every insert is an upsert keyed on the existing primary key, so
+ *    running it twice produces no duplicates and simply re-verifies.
+ *  • IDS ARE PRESERVED. Order ids, `fg_...` slugs and Cupi slugs are copied
+ *    verbatim. A URL that was already shared keeps resolving to the same record.
+ *  • VERIFY BEFORE TRUSTING. Record counts and every migrated identifier are
+ *    read back from the database before the script reports success.
+ *  • HONEST REPORTING. It never claims success unless the rows were actually
+ *    found in the destination.
+ *
+ * Usage:
+ *   SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm run migrate-data
+ *   npm run migrate-data -- --dry-run      # report only, write nothing
+ *   npm run migrate-data -- --source path/to/db.json
+ */
+
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import path from 'node:path'
+import { DATA_DIR } from './config.js'
+import { DB_FILE, readJsonDbFile, type JsonDatabase } from './jsonStore.js'
+import { PostgresStore } from './postgresStore.js'
+import { escapePostgrestValue, readSupabaseConfig, SupabaseRest } from './supabase.js'
+import type { StoredExperience, StoredOrder } from './store.js'
+
+const argv = process.argv.slice(2)
+const DRY_RUN = argv.includes('--dry-run')
+const sourceFlag = argv.indexOf('--source')
+const SOURCE_FILE = sourceFlag >= 0 ? (argv[sourceFlag + 1] ?? DB_FILE) : DB_FILE
+const BACKUP_DIR = path.join(DATA_DIR, 'migration-backups')
+
+function heading(text: string): void {
+  console.log(`\n=== ${text} ===`)
+}
+
+function fail(message: string): never {
+  console.error(`\nMIGRATION FAILED: ${message}`)
+  process.exit(1)
+}
+
+/** Total row count via the Content-Range header; 0 when the header is absent. */
+async function countRows(rest: SupabaseRest, table: string): Promise<number> {
+  const { headers } = await rest.request<unknown[]>({
+    method: 'GET',
+    path: table,
+    query: { select: 'id', limit: 1 },
+    prefer: 'count=exact',
+  })
+  return SupabaseRest.parseExactCount(headers) ?? 0
+}
+
+async function main(): Promise<void> {
+  heading('Cupi data migration: db.json -> Supabase PostgreSQL')
+
+  const config = readSupabaseConfig()
+  if (!config) {
+    fail(
+      'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must both be set.\n' +
+        '  Add them to your shell or .env, then re-run. See supabase/README.md.',
+    )
+  }
+
+  console.log(`destination : ${config.url.replace(/^(https?:\/\/)[^@]*@/, '$1***@')}`)
+  console.log(`source     : ${SOURCE_FILE}`)
+  console.log(`mode       : ${DRY_RUN ? 'DRY RUN (no writes)' : 'MIGRATE'}`)
+
+  // ---------------------------------------------------------------- source ---
+  heading('1. Read and validate the source')
+  if (!existsSync(SOURCE_FILE)) {
+    console.log(`No file at ${SOURCE_FILE} — treating the source as empty.`)
+  }
+
+  let source: JsonDatabase
+  try {
+    source = readJsonDbFile(SOURCE_FILE)
+  } catch (error) {
+    fail(
+      `could not parse ${SOURCE_FILE}: ${(error as Error).message}\n` +
+        '  Fix or restore the file first. Nothing was written to the database.',
+    )
+  }
+
+  const backupPath = existsSync(SOURCE_FILE) ? exportBackup(SOURCE_FILE) : null
+  console.log(`backup     : ${backupPath ?? 'nothing to back up'}`)
+  console.log(`orders found      : ${source.orders.length}`)
+  console.log(`experiences found : ${source.experiences.length}`)
+
+  // Per-row validation. A bad row is skipped and reported, never guessed at.
+  const orderErrors: string[] = []
+  const validOrders: StoredOrder[] = []
+  for (const row of source.orders) {
+    if (!row.id || !row.gateway_order_id) {
+      orderErrors.push(`order without id/gateway_order_id: ${JSON.stringify(row).slice(0, 120)}`)
+    } else if (!row.customization_payload) {
+      orderErrors.push(`order ${row.id} has no customization payload`)
+    } else {
+      validOrders.push(row)
+    }
+  }
+
+  const experienceErrors: string[] = []
+  const validExperiences: StoredExperience[] = []
+  const knownOrderIds = new Set(validOrders.map((order) => order.id))
+  for (const row of source.experiences) {
+    if (!row.id) {
+      experienceErrors.push('experience without an id')
+      continue
+    }
+    // The website is more valuable than its order row, so an orphan is kept —
+    // but reported, because its uniqueness can no longer be proven.
+    if (row.order_id && !knownOrderIds.has(row.order_id)) {
+      experienceErrors.push(`website ${row.id} references missing order ${row.order_id} (kept)`)
+    }
+    validExperiences.push(row)
+  }
+
+  const legacySlugs = validExperiences.filter((row) => row.id.startsWith('fg_')).length
+  console.log(`orders valid       : ${validOrders.length}`)
+  console.log(`experiences valid  : ${validExperiences.length}`)
+  console.log(`orders skipped     : ${orderErrors.length}`)
+  console.log(`experiences skipped: ${experienceErrors.length}`)
+  console.log(`legacy fg_ slugs   : ${legacySlugs}`)
+
+  if (DRY_RUN) {
+    heading('DRY RUN complete — nothing was written')
+    for (const message of [...orderErrors, ...experienceErrors]) console.log(`  ! ${message}`)
+    console.log('\nRe-run without --dry-run to migrate.')
+    return
+  }
+
+  // ----------------------------------------------------------- destination ---
+  heading('2. Connect to the database')
+  const rest = new SupabaseRest(config)
+
+  for (const table of ['cupi_orders', 'cupi_experiences']) {
+    try {
+      await rest.request({ method: 'GET', path: table, query: { select: 'id', limit: 1 } })
+    } catch (error) {
+      const status = (error as { status?: number }).status
+      if (status === 404) {
+        fail(
+          `the ${table} table does not exist yet.\n` +
+            '  Run supabase/schema.sql once in the Supabase dashboard (SQL Editor), then re-run this script.\n' +
+            '  Nothing was written.',
+        )
+      }
+      throw error
+    }
+  }
+  console.log('schema present     : cupi_orders, cupi_experiences')
+
+  // ------------------------------------------------------------- migrate ---
+  // Orders first: cupi_experiences.order_id is a foreign key onto cupi_orders.
+  heading('3. Migrate orders (upsert on the existing id — idempotent)')
+  let ordersWritten = 0
+  for (const order of validOrders) {
+    const { data } = await rest.request<StoredOrder[]>({
+      method: 'POST',
+      path: 'cupi_orders',
+      // merge-duplicates makes a re-run an update instead of a duplicate insert.
+      prefer: 'resolution=merge-duplicates,return=representation',
+      body: {
+        id: order.id,
+        gateway_order_id: order.gateway_order_id,
+        gateway_payment_id: order.gateway_payment_id ?? null,
+        template_id: order.template_id,
+        amount: order.amount,
+        currency: order.currency || 'INR',
+        status: order.status || 'PENDING',
+        customization_payload: order.customization_payload,
+        experience_id: order.experience_id ?? null,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+      },
+    })
+    const saved = Array.isArray(data) ? data[0] : undefined
+    if (saved && saved.id === order.id && saved.gateway_order_id === order.gateway_order_id) {
+      ordersWritten += 1
+    } else {
+      console.log(`  ! order ${order.id} did not read back correctly`)
+    }
+  }
+  console.log(`orders migrated    : ${ordersWritten}/${validOrders.length}`)
+
+  heading('4. Migrate generated websites (ids preserved exactly)')
+  let experiencesWritten = 0
+  const seenIds = new Set<string>()
+  for (const experience of validExperiences) {
+    if (seenIds.has(experience.id)) {
+      console.log(`  ! duplicate website id in source: ${experience.id} — skipped`)
+      continue
+    }
+    seenIds.add(experience.id)
+    // An orphan (its order row no longer exists) is stored with a NULL order_id
+    // rather than a dangling id: cupi_experiences.order_id is a foreign key, so
+    // inserting the stale id would abort the whole migration. The website itself
+    // — the thing the link resolves to — is preserved regardless.
+    const parentOrderId =
+      experience.order_id && knownOrderIds.has(experience.order_id) ? experience.order_id : null
+    const { data } = await rest.request<StoredExperience[]>({
+      method: 'POST',
+      path: 'cupi_experiences',
+      query: { on_conflict: 'id' },
+      prefer: 'resolution=merge-duplicates,return=representation',
+      body: {
+        id: experience.id,
+        order_id: parentOrderId,
+        template_id: experience.template_id,
+        config: experience.config,
+        status: experience.status || 'LOCKED',
+        locked_at: experience.locked_at ?? null,
+        view_count: Number(experience.view_count) || 0,
+        created_at: experience.created_at,
+      },
+    })
+    const saved = Array.isArray(data) ? data[0] : undefined
+    if (saved && saved.id === experience.id) {
+      experiencesWritten += 1
+    } else {
+      console.log(`  ! website ${experience.id} did not read back correctly`)
+    }
+  }
+  console.log(`websites migrated  : ${experiencesWritten}/${validExperiences.length}`)
+
+  // -------------------------------------------------------------- verify ---
+  heading('5. Verify what actually landed in the database')
+  console.log(`rows in cupi_orders      : ${await countRows(rest, 'cupi_orders')}`)
+  console.log(`rows in cupi_experiences : ${await countRows(rest, 'cupi_experiences')}`)
+
+  let missing = 0
+  for (const order of validOrders) {
+    const { data } = await rest.request<StoredOrder[]>({
+      method: 'GET',
+      path: 'cupi_orders',
+      query: { id: `eq.${escapePostgrestValue(order.id)}`, limit: 1 },
+    })
+    if (!data || data.length === 0) {
+      missing += 1
+      console.log(`  ! order ${order.id} is MISSING after migration`)
+    }
+  }
+
+  // The single most important check: an already-shared URL must still resolve.
+  const store = new PostgresStore(config)
+  let brokenLinks = 0
+  for (const experience of validExperiences) {
+    const { data } = await rest.request<StoredExperience[]>({
+      method: 'GET',
+      path: 'cupi_experiences',
+      query: { id: `eq.${escapePostgrestValue(experience.id)}`, limit: 1 },
+    })
+    if (!data || data.length === 0) {
+      missing += 1
+      console.log(`  ! website ${experience.id} is MISSING after migration`)
+      continue
+    }
+    const resolved = await store.getExperienceById(experience.id)
+    if (!resolved || resolved.id !== experience.id || resolved.config === null) {
+      brokenLinks += 1
+      console.log(`  ! share link /x/${experience.id} does NOT resolve to its stored website`)
+    }
+  }
+
+  const ok =
+    missing === 0 &&
+    brokenLinks === 0 &&
+    ordersWritten === validOrders.length &&
+    experiencesWritten === validExperiences.length
+
+  heading('6. Summary')
+  console.log(`orders found / migrated     : ${validOrders.length} / ${ordersWritten}`)
+  console.log(`websites found / migrated   : ${validExperiences.length} / ${experiencesWritten}`)
+  console.log(`orders skipped (bad rows)   : ${orderErrors.length}`)
+  console.log(`websites skipped (bad rows) : ${experienceErrors.length}`)
+  console.log(`legacy fg_ slugs preserved  : ${legacySlugs}`)
+  console.log(`missing after verification  : ${missing}`)
+  console.log(`broken share links          : ${brokenLinks}`)
+  console.log(`db.json backup             : ${backupPath ?? 'n/a'}`)
+  for (const message of [...orderErrors, ...experienceErrors]) console.log(`  ! ${message}`)
+
+  if (!ok) {
+    console.error(
+      '\nMIGRATION INCOMPLETE — see the ! lines above.\n' +
+        'db.json is untouched and still the authoritative copy.',
+    )
+    process.exit(1)
+  }
+
+  console.log(
+    '\nMIGRATION VERIFIED.\n' +
+      'Next: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Render, redeploy, and confirm\n' +
+      'GET /api/health reports {"store":"supabase-postgres","durableData":true}.\n' +
+      'Keep db.json until you are satisfied — production no longer reads it.',
+  )
+}
+
+/** Exports an untouched, timestamped copy of the source before anything else. */
+function exportBackup(source: string): string {
+  mkdirSync(BACKUP_DIR, { recursive: true })
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const target = path.join(BACKUP_DIR, `db.json.${stamp}.backup`)
+  copyFileSync(source, target)
+  return target
+}
+
+void main().catch((error) => {
+  fail(error instanceof Error ? error.message : String(error))
+})

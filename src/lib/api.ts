@@ -19,13 +19,44 @@ interface RequestOptions {
   body?: unknown
 }
 
+/**
+ * Carries the HTTP status (and whether the request never reached the API at
+ * all) so a caller can tell a genuinely missing record apart from a temporary
+ * failure. The share page depends on this: a 404 means the website does not
+ * exist, while a network error / 502 usually means the host is merely waking
+ * up — treating the second as "expired" is what made live, permanent links
+ * look broken.
+ */
+export class ApiError extends Error {
+  readonly status: number
+  readonly isNetworkError: boolean
+
+  constructor(message: string, status: number, isNetworkError = false) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.isNetworkError = isNetworkError
+  }
+}
+
 export async function apiRequest<T>(path: string, options?: RequestOptions): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: options?.method ?? 'GET',
-    headers:
-      options?.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method: options?.method ?? 'GET',
+      headers:
+        options?.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
+    })
+  } catch (error) {
+    // fetch only rejects when the request never completed (offline, DNS, CORS,
+    // connection reset) — never a verdict about the record itself.
+    throw new ApiError(
+      error instanceof Error ? error.message : 'Network request failed.',
+      0,
+      true,
+    )
+  }
 
   let data: unknown = null
   try {
@@ -46,7 +77,7 @@ export async function apiRequest<T>(path: string, options?: RequestOptions): Pro
       errorData: errorBody,
       fullError: JSON.stringify(errorBody, null, 2),
     })
-    throw new Error(message || `Request failed (${response.status})`)
+    throw new ApiError(message || `Request failed (${response.status})`, response.status)
   }
 
   return data as T

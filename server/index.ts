@@ -12,25 +12,28 @@ import {
   verifyFamGatewayWebhookSignature,
 } from './famgateway.js'
 import {
-  DATA_DIR,
+  ALLOWED_TEMPLATES,
   DIST_DIR,
   FRONTEND_ORIGINS,
   HOST,
   PHOTO_LIMITS,
   PORT,
-  USING_EPHEMERAL_DATA_DIR,
 } from './config.js'
 import {
+  assertStoreReady,
+  activeStoreKind,
+  countExperiences,
   createOrder,
   finalizeOrderForPayment,
   getExperienceById,
   getOrderByGatewayOrderId,
   getOrderById,
   incrementViewCount,
-  isExperienceLocked,
+  isStoreDurable,
   systemId,
 } from './db.js'
 import { sanitizeCustomization } from './sanitize.js'
+import { SupabaseStoreError } from './supabase.js'
 
 // Public backend origin used to build the FamGateway webhook URL. Override
 // with BACKEND_URL when deploying the API somewhere other than Render.
@@ -128,10 +131,34 @@ function handleHealth(_req: Request, res: Response): void {
   res.status(200).json({
     status: 'ok',
     service: 'cupi-api',
-    // False in production means generated websites are on an ephemeral disk and
-    // their /x/:id links will break on the next restart. See config.ts.
-    durableData: !USING_EPHEMERAL_DATA_DIR,
+    // Which backend is live, and whether it survives a redeploy. Orders and
+    // generated-website share links live in `store`.
+    store: activeStoreKind(),
+    durableData: isStoreDurable(),
   })
+}
+
+/**
+ * Readiness detail, kept off /api/health so the public health probe stays cheap.
+ * Never exposes credentials — only the backend name and a row count.
+ */
+async function handleStoreStatus(_req: Request, res: Response): Promise<void> {
+  try {
+    const count = await countExperiences()
+    res.status(200).json({
+      store: activeStoreKind(),
+      durable: isStoreDurable(),
+      reachable: true,
+      generatedWebsites: count,
+    })
+  } catch (error) {
+    res.status(503).json({
+      store: activeStoreKind(),
+      durable: isStoreDurable(),
+      reachable: false,
+      error: (error as Error).message,
+    })
+  }
 }
 
 /**
@@ -153,12 +180,23 @@ async function handleCreateOrder(
     if (!templateId || typeof templateId !== 'string' || !/^[a-z]+-\d+$/.test(templateId)) {
       console.error('[ORDER CREATE REJECTED] Invalid templateId format:', templateId)
       res.status(400).json({
-        error: `Invalid template ID: "${templateId}". Expected format like "birthday-03" or "birthday-04".`
+        error: `Invalid template ID: "${templateId}". Expected format like "birthday-03" or "birthday-04".`,
       })
       return
     }
 
+    // The shape regex above is not enough: any `word-99` matches it, which let a
+    // request create a paid order for a template that does not exist (and fall
+    // through to the ₹29 catch-all price). The server, not the client, decides
+    // which templates exist.
+    if (!ALLOWED_TEMPLATES.includes(templateId)) {
+      console.error('[ORDER CREATE REJECTED] Unknown templateId:', templateId)
+      res.status(400).json({ error: `Unknown template ID: "${templateId}".` })
+      return
+    }
+
     const rawData = req.body.customization || req.body.draftData || req.body.config || req.body
+
 
     const sanitizedCustomization = {
       recipientName: rawData.recipientName || rawData.recipient?.name || 'Someone Special',
@@ -200,14 +238,27 @@ async function handleCreateOrder(
       customerName: sanitizedCustomization.senderName,
     })
 
-    createOrder({
-      id: cupiOrderId,
-      gatewayOrderId: famOrder.orderId,
-      templateId,
-      amount,
-      currency: 'INR',
-      customizationPayload: sanitized,
-    })
+    // The order MUST be persisted before the customer is given a way to pay.
+    // If this write fails we abort here: the checkout URL is never returned, so
+    // a payment can never be taken for an order that does not exist (which the
+    // webhook would then silently ignore).
+    try {
+      await createOrder({
+        id: cupiOrderId,
+        gatewayOrderId: famOrder.orderId,
+        templateId,
+        amount,
+        currency: 'INR',
+        customizationPayload: sanitized,
+      })
+    } catch (error) {
+      console.error('[ORDER CREATE] could not persist the order:', cupiOrderId, error)
+      res.status(503).json({
+        error: 'We could not start your checkout right now. Please try again in a moment.',
+        detail: 'The order could not be saved, so payment was not started.',
+      })
+      return
+    }
 
     console.log('[FamGateway] Cupi order stored as PENDING:', cupiOrderId)
 
@@ -261,7 +312,7 @@ async function handleVerifyOrder(
       return
     }
 
-    const order = getOrderById(orderId) ?? getOrderByGatewayOrderId(orderId)
+    const order = (await getOrderById(orderId)) ?? (await getOrderByGatewayOrderId(orderId))
     if (!order) {
       res.status(404).json({ error: 'Order not found.' })
       return
@@ -270,7 +321,7 @@ async function handleVerifyOrder(
     // Already finalized (typically by the webhook): return the existing
     // experience/share URL without creating anything new.
     if (order.status === 'PAID' && order.experienceId) {
-      const existing = getExperienceById(order.experienceId)
+      const existing = await getExperienceById(order.experienceId)
       if (existing) {
         console.log('[FamGateway] Order already PAID:', order.id)
         sendExperiencePayload(res, existing)
@@ -319,10 +370,26 @@ async function handleVerifyOrder(
       return
     }
 
-    const experience = finalizeOrderForPayment({
-      orderId: order.gatewayOrderId,
-      gatewayPaymentId: statusData.utr || statusData.transactionId || null,
-    })
+    // Idempotent end to end: `finalizeOrderForPayment` is safe under duplicate
+    // and concurrent delivery (the database rejects a second website for the
+    // same order), so a replayed verify returns the one existing website.
+    let experience
+    try {
+      experience = await finalizeOrderForPayment({
+        orderId: order.gatewayOrderId,
+        gatewayPaymentId: statusData.utr || statusData.transactionId || null,
+      })
+    } catch (error) {
+      // The payment IS confirmed but the website could not be persisted. Report
+      // it as a failure so the customer retries rather than being handed a
+      // share link that does not exist.
+      console.error('[FamGateway] Payment confirmed but website not saved:', order.id, error)
+      res.status(503).json({
+        success: false,
+        error: 'Payment received. We are still saving your website — please check again in a moment.',
+      })
+      return
+    }
 
     console.log('[FamGateway] Payment confirmed via verify:', order.id)
     sendExperiencePayload(res, experience)
@@ -382,7 +449,18 @@ async function handleFamGatewayWebhook(
     return
   }
 
-  const order = getOrderByGatewayOrderId(gatewayOrderId)
+  let order
+  try {
+    order = await getOrderByGatewayOrderId(gatewayOrderId)
+  } catch (error) {
+    // The store is unreachable. Answer 503 so FamGateway RETRIES the delivery
+    // instead of treating it as handled — acknowledging a webhook we could not
+    // fulfil would lose the customer's paid-for website.
+    console.error('[FamGateway] Webhook could not read the store:', gatewayOrderId, error)
+    res.status(503).json({ status: 'retry', reason: 'store_unavailable' })
+    return
+  }
+
   if (!order) {
     // Unknown order — never create a Cupi order from a webhook.
     console.log('[FamGateway] Webhook for unknown order:', gatewayOrderId)
@@ -408,10 +486,19 @@ async function handleFamGatewayWebhook(
 
   // Idempotent: already-PAID orders return the existing experience, so a
   // replayed/delivered-again webhook never creates a second experience.
-  const experience = finalizeOrderForPayment({
-    orderId: order.gatewayOrderId,
-    gatewayPaymentId,
-  })
+  let experience
+  try {
+    experience = await finalizeOrderForPayment({
+      orderId: order.gatewayOrderId,
+      gatewayPaymentId,
+    })
+  } catch (error) {
+    // 503 makes the gateway retry, which is what we want: the payment is real and
+    // the website must exist. Never acknowledge a fulfilment we could not store.
+    console.error('[FamGateway] Webhook fulfilment failed:', order.id, error)
+    res.status(503).json({ status: 'retry', reason: 'fulfilment_failed' })
+    return
+  }
 
   console.log('[FamGateway] Payment confirmed:', order.id, 'experience:', experience.id)
   res.status(200).json({ status: 'ok' })
@@ -437,7 +524,10 @@ async function handleFamGatewayWebhook(
  * indefinitely, so 404 only ever means "never existed / already removed".
  */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
-const EXPERIENCE_ID_PATTERN = /^[A-Za-z0-9_-]{6,32}$/
+// Must stay in sync with the SPA router's /x/:id matcher in src/App.tsx. Any id
+// the share page accepts has to be accepted here too, otherwise a link that was
+// already handed to a customer could 404 forever on an over-strict pattern.
+const EXPERIENCE_ID_PATTERN = /^[A-Za-z0-9_-]{4,64}$/
 
 /**
  * `app.use('/api/experiences', …)` does not populate `req.params`, so the id is
@@ -448,11 +538,11 @@ function experienceIdFromRequest(req: Request): string | undefined {
   return req.path.split('/').filter(Boolean)[0]
 }
 
-function rejectExperienceMutation(
+async function rejectExperienceMutation(
   req: Request,
   res: Response,
   next: () => void,
-): void {
+): Promise<void> {
   // Safe methods fall through to handleGetExperience. Returning without
   // calling next() here would stall the request until the client times out.
   if (SAFE_METHODS.has(req.method)) {
@@ -471,7 +561,21 @@ function rejectExperienceMutation(
     return
   }
 
-  if (!EXPERIENCE_ID_PATTERN.test(id) || !getExperienceById(id)) {
+  // Unreachable store: fail closed. An unknown answer must never be mistaken
+  // for "not locked", so this returns 503 instead of trying to serve or modify.
+  let exists = false
+  try {
+    exists = EXPERIENCE_ID_PATTERN.test(id) && (await getExperienceById(id)) !== null
+  } catch (error) {
+    console.error('[experiences] read-only guard could not reach the store:', error)
+    res.status(503).json({
+      error: 'Temporarily unavailable.',
+      detail: 'Generated websites are read-only and are only served over GET.',
+    })
+    return
+  }
+
+  if (!exists) {
     res.status(404).json({ error: 'Surprise not found.' })
     return
   }
@@ -490,9 +594,13 @@ function rejectExperienceMutation(
 
 /**
  * GET /experiences/:id
- * Public read of a locked experience (viewed/shared unlimited times).
+ *
+ * The permanent share link. Read-only by contract and served straight from the
+ * durable record — there is no TTL, no session, no cookie and no per-request
+ * state involved, so the same URL resolves identically forever, from any device
+ * or browser, for anyone holding it.
  */
-function handleGetExperience(req: Request, res: Response): void {
+async function handleGetExperience(req: Request, res: Response): Promise<void> {
   const { id } = req.params as { id: string }
 
   if (!EXPERIENCE_ID_PATTERN.test(id)) {
@@ -500,20 +608,41 @@ function handleGetExperience(req: Request, res: Response): void {
     return
   }
 
-  const experience = getExperienceById(id)
+  // A store outage must be reported as temporary, never as "this website does
+  // not exist" — that is exactly what used to make a permanent link look dead.
+  let experience
+  try {
+    experience = await getExperienceById(id)
+  } catch (error) {
+    console.error('[experiences] could not reach the store:', error)
+    res.status(503).json({
+      error: 'Temporarily unavailable.',
+      detail: 'This website is permanent. Please try again in a moment.',
+      retryable: true,
+    })
+    return
+  }
+
   if (!experience) {
     res.status(404).json({ error: 'Surprise not found.' })
     return
   }
 
   // Only a finalized website is ever served publicly. An unlocked record is
-  // not readable through the share link at all.
-  if (!isExperienceLocked(id)) {
+  // not readable through the share link at all. The record itself is the source
+  // of truth here: a second lookup by id would disagree for the legacy
+  // order-id form of the URL, where the row is keyed by the slug but the
+  // request carries the order id.
+  if (experience.status !== 'LOCKED') {
     res.status(423).json({ error: 'This website is not available yet.' })
     return
   }
 
-  incrementViewCount(experience.id)
+  // A completed website is immutable, so it is safe to let browsers and proxies
+  // hold on to it briefly. This also keeps a cold-starting API from being hit
+  // again for the same recipient on every refresh.
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=600')
+  res.setHeader('X-Cupi-Link', 'permanent')
 
   res.json({
     id: experience.id,
@@ -525,31 +654,36 @@ function handleGetExperience(req: Request, res: Response): void {
     createdAt: experience.createdAt,
     lockedAt: experience.lockedAt,
   })
+
+  // Counted AFTER the website has been delivered, and never awaited: a view
+  // counter must not be able to break a share link.
+  void incrementViewCount(experience.id)
 }
 
 // 4. API routes — mounted both with and without the /api prefix so a client
 // base-URL mismatch can never fall through to a 404 / SPA catch-all.
 const orderRoutes = express.Router()
 
-orderRoutes.post('/create', handleCreateOrder)
-orderRoutes.post('/verify', handleVerifyOrder)
+orderRoutes.post('/create', wrap(handleCreateOrder))
+orderRoutes.post('/verify', wrap(handleVerifyOrder))
 
 app.use('/api/orders', orderRoutes)
 app.use('/orders', orderRoutes)
 
-app.post('/api/famgateway/webhook', handleFamGatewayWebhook)
+app.post('/api/famgateway/webhook', wrap(handleFamGatewayWebhook))
 
 // The share-link surface is GET-only. The guard is mounted on the prefix (not
 // per-route) so every current and future /experiences sub-path — /:id/config,
 // /:id/regenerate, /:id/photos — is covered automatically.
-app.use('/api/experiences', rejectExperienceMutation)
-app.use('/experiences', rejectExperienceMutation)
+app.use('/api/experiences', wrap(rejectExperienceMutation))
+app.use('/experiences', wrap(rejectExperienceMutation))
 
-app.get('/api/experiences/:id', handleGetExperience)
-app.get('/experiences/:id', handleGetExperience)
+app.get('/api/experiences/:id', wrap(handleGetExperience))
+app.get('/experiences/:id', wrap(handleGetExperience))
 
 app.get('/api/health', handleHealth)
 app.get('/health', handleHealth)
+app.get('/api/store-status', wrap(handleStoreStatus))
 
 // 5. Static frontend + SPA catch-all (never intercepts /api routes).
 const indexHtml = path.join(DIST_DIR, 'index.html')
@@ -569,26 +703,52 @@ app.use((req: Request, res: Response, next) => {
   next()
 })
 
+/**
+ * Express 4 does not catch rejections from async handlers, so every async route
+ * is wrapped. Without this a rejected promise (a database timeout, for example)
+ * would hang the request until the client gave up.
+ */
+function wrap(
+  handler: (req: Request, res: Response, next: (error?: unknown) => void) => Promise<void>,
+): (req: Request, res: Response, next: (error?: unknown) => void) => void {
+  return (req, res, next) => {
+    handler(req, res, next).catch(next)
+  }
+}
+
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  // Log the real cause server-side; return something safe to the client so a
+  // database message (which can carry row contents) never leaks out.
   console.error('[cupi-api]', err)
+  if (err instanceof SupabaseStoreError && err.status === 0) {
+    res.status(503).json({
+      error: 'We could not reach our database. Nothing was saved — please try again.',
+      retryable: true,
+    })
+    return
+  }
   res.status(500).json({ error: 'Internal server error.' })
 }
 app.use(errorHandler)
 
-app.listen(PORT, HOST, () => {
-  console.log(`[cupi-api] listening on http://${HOST}:${PORT}`)
-  if (!process.env.FAMGATEWAY_API_KEY) {
-    console.warn(
-      '[cupi-api] FAMGATEWAY_API_KEY not set — checkout will be unavailable until configured in .env',
-    )
+// 6. Boot. The store is verified BEFORE the server accepts traffic, so a
+//    misconfigured or unreachable database can never accept an order or hand
+//    out a share link that will not resolve.
+void (async () => {
+  try {
+    await assertStoreReady()
+  } catch (error) {
+    console.error('[cupi-api] refusing to start:', (error as Error).message)
+    process.exit(1)
   }
-  if (USING_EPHEMERAL_DATA_DIR) {
-    console.warn(
-      '[cupi-api] CUPI_DATA_DIR is not set — orders and generated websites are stored on this instance\'s local disk. ' +
-        'On an ephemeral host every deploy/restart deletes them and all share links break. ' +
-        'Mount a persistent volume and set CUPI_DATA_DIR to make /x/:id links permanent.',
-    )
-  } else {
-    console.log(`[cupi-api] durable data directory: ${DATA_DIR}`)
-  }
-})
+
+  app.listen(PORT, HOST, () => {
+    console.log(`[cupi-api] listening on http://${HOST}:${PORT}`)
+    console.log(`[cupi-api] store: ${activeStoreKind()} (durable: ${isStoreDurable()})`)
+    if (!process.env.FAMGATEWAY_API_KEY) {
+      console.warn(
+        '[cupi-api] FAMGATEWAY_API_KEY not set — checkout will be unavailable until configured in .env',
+      )
+    }
+  })
+})()

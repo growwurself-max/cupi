@@ -10,6 +10,8 @@
     "build": "tsc -b && vite build",
     "start": "tsx server/index.ts",
     "check:server": "tsc -p tsconfig.server.json",
+    "test:server": "tsx test/supabase-store.test.mts && tsx test/migrate.test.mts && tsx test/server.test.mts",
+    "migrate-data": "tsx server/migrate.ts",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -27,6 +29,7 @@
     "tsx": "^4.19.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/vite": "^4.3.3",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",

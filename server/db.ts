@@ -1,272 +1,140 @@
-import { randomInt, randomUUID } from 'node:crypto'
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from 'node:fs'
-import path from 'node:path'
-import { DATA_DIR } from './config.js'
+/**
+ * Cupi's data facade.
+ *
+ * Every route imports from here, and nothing above this file knows or cares
+ * where the records physically live. Production is backed by a free, persistent
+ * cloud Postgres (see `postgresStore.ts`); local development falls back to
+ * `db.json` (`jsonStore.ts`) so the project still runs with no cloud account.
+ *
+ * IMPORTANT: in production the JSON file store is refused outright. Falling back
+ * to a container filesystem silently is what made already-shared /x/:id links
+ * stop resolving after a Render restart.
+ */
 
-const DB_FILE = path.join(DATA_DIR, 'db.json')
+import { createPostgresStoreFromEnv } from './postgresStore.js'
+import { JsonFileStore } from './jsonStore.js'
+import { readSupabaseConfig } from './supabase.js'
+import type {
+  CreateOrderInput,
+  ExperienceRecord,
+  ExperienceStatus,
+  OrderRecord,
+  OrderStatus,
+  Store,
+} from './store.js'
 
-// Render's filesystem is ephemeral and may start blank — make sure the data
-// directory always exists so saveDb() never crashes on a missing folder.
-if (!existsSync(DATA_DIR)) {
-  mkdirSync(DATA_DIR, { recursive: true })
-}
-
-export type OrderStatus = 'PENDING' | 'PAID' | 'FAILED'
-
-export interface OrderRecord {
-  id: string
-  gatewayOrderId: string
-  gatewayPaymentId: string | null
-  templateId: string
-  amount: number
-  currency: string
-  status: OrderStatus
-  customizationPayload: unknown
-  experienceId: string | null
-  createdAt: string
-  updatedAt: string
-}
+export type { ExperienceRecord, ExperienceStatus, OrderRecord, OrderStatus }
+export type { Store }
 
 /**
- * Lifecycle of a generated website.
- *
- *   DRAFT  → built but not yet paid/finalized. Never served publicly, never
- *            reachable through a share link, never mutable via the API.
- *   LOCKED → paid + generated + COMPLETED. This is the terminal state: the
- *            record is write-once and its /x/:id link never expires.
- *
- * `LOCKED` mirrors the COMPLETED stage of the order lifecycle
- * (PENDING → PAID → experience LOCKED).
+ * Resolved lazily-but-eagerly: at import time, so every route sees the same
+ * store. A configuration problem is CAPTURED rather than thrown here, because a
+ * throw at module scope surfaces as a bare stack trace before the boot handler
+ * can explain it. `assertStoreReady()` re-throws it at boot, where it is logged
+ * as one actionable line.
  */
-export type ExperienceStatus = 'DRAFT' | 'LOCKED'
+let store: Store | null = null
+let storeError: Error | null = null
 
-export interface ExperienceRecord {
-  id: string
-  orderId: string
-  templateId: string
-  config: unknown
-  status: ExperienceStatus
-  /** When the website became final/read-only. Set once, at payment time. */
-  lockedAt: string | null
-  viewCount: number
-  createdAt: string
-  /**
-   * PERMANENT BY DESIGN — do not add `expiresAt`/`expires`/`ttl` here.
-   * A completed Cupi website is viewable forever; the record is only ever
-   * removed by an explicit manual deletion, never by age, cron or TTL sweep.
-   */
-}
-
-interface DatabaseShape {
-  orders: OrderRecord[]
-  experiences: ExperienceRecord[]
-}
-
-function emptyDb(): DatabaseShape {
-  return { orders: [], experiences: [] }
-}
-
-/**
- * Backward/forward-compatible read of a stored experience.
- *
- * Records written before the lock model existed have no `lockedAt` and always
- * carried `status: 'LOCKED'`; they are backfilled in place so links that were
- * already handed to customers keep working untouched. Any record that is not
- * explicitly final is treated as LOCKED rather than silently dropped — a
- * missing/!JSON status must never resurrect an editable public record.
- */
-function normalizeExperience(raw: unknown): ExperienceRecord | null {
-  if (!raw || typeof raw !== 'object') return null
-  const record = raw as Partial<ExperienceRecord>
-  if (typeof record.id !== 'string' || record.id.length === 0) return null
-  return {
-    id: record.id,
-    orderId: typeof record.orderId === 'string' ? record.orderId : '',
-    templateId: typeof record.templateId === 'string' ? record.templateId : '',
-    config: record.config ?? null,
-    status: 'LOCKED',
-    lockedAt: typeof record.lockedAt === 'string' ? record.lockedAt : null,
-    viewCount:
-      typeof record.viewCount === 'number' && Number.isFinite(record.viewCount)
-        ? record.viewCount
-        : 0,
-    createdAt: typeof record.createdAt === 'string' ? record.createdAt : new Date(0).toISOString(),
+function resolveStore(): void {
+  if (readSupabaseConfig() !== null) {
+    console.log('[db] using Supabase PostgreSQL (persistent cloud storage)')
+    store = createPostgresStoreFromEnv()
+    return
   }
-}
 
-function loadDb(): DatabaseShape {
-  if (!existsSync(DB_FILE)) return emptyDb()
-  try {
-    // A UTF-8 BOM (left by an editor, a manual edit, or a Windows tool)
-    // makes JSON.parse throw. Swallowing that would silently turn the whole
-    // database into "not found" and 404 every share link, so strip it.
-    const raw = readFileSync(DB_FILE, 'utf8').replace(/^\uFEFF/, '')
-    const parsed = JSON.parse(raw) as Partial<DatabaseShape>
-    return {
-      orders: Array.isArray(parsed.orders) ? (parsed.orders as OrderRecord[]) : [],
-      experiences: Array.isArray(parsed.experiences)
-        ? (parsed.experiences as unknown[])
-            .map(normalizeExperience)
-            .filter((record): record is ExperienceRecord => record !== null)
-        : [],
-    }
-  } catch (error) {
-    // NEVER do this quietly. An unreadable db.json means every order and every
-    // generated website is unreachable, so make it loud and keep the file
-    // untouched — an empty read must never be written back over the data.
-    console.error(
-      `[db] CRITICAL: could not parse ${DB_FILE}. Every order and generated website is currently unreachable. Refusing to overwrite the file.`,
-      error,
+  if (process.env.NODE_ENV === 'production') {
+    storeError = new Error(
+      'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in production. ' +
+        'Refusing to run on the local db.json file store, because a container filesystem is wiped on ' +
+        'every deploy and free-tier spin-down, which breaks every generated-website share link. ' +
+        'Set both variables in the Render dashboard (see supabase/README.md).',
     )
-    return emptyDb()
+    return
   }
+
+  console.warn(
+    '[db] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set — using the local db.json file store. ' +
+      'This is fine for development only: data here does not survive a redeploy.',
+  )
+  store = new JsonFileStore()
 }
 
-function saveDb(db: DatabaseShape): void {
-  mkdirSync(DATA_DIR, { recursive: true })
-  const tmpFile = `${DB_FILE}.tmp`
-  writeFileSync(tmpFile, JSON.stringify(db, null, 2), 'utf8')
-  renameSync(tmpFile, DB_FILE)
-}
+resolveStore()
 
-const ALPHABET =
-  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-
-export function shortId(length = 8): string {
-  let out = ''
-  for (let i = 0; i < length; i += 1) {
-    out += ALPHABET[randomInt(ALPHABET.length)]
+/** The live store. Throws rather than silently doing nothing if unconfigured. */
+function activeStore(): Store {
+  if (!store) {
+    throw storeError ?? new Error('No data store is configured.')
   }
-  return out
+  return store
 }
 
-export function systemId(): string {
-  return randomUUID()
+/** Which backend is live. Reported by /api/health so it can never be a surprise. */
+export function activeStoreKind(): string {
+  return store?.kind ?? 'unconfigured'
 }
 
-export function createOrder(input: {
-  // Optional internal Cupi order id, generated in the route handler when the
-  // id must be known before the gateway order is created (redirect URLs).
-  id?: string
-  gatewayOrderId: string
-  templateId: string
-  amount: number
-  currency: string
-  customizationPayload: unknown
-}): OrderRecord {
-  const db = loadDb()
-  const now = new Date().toISOString()
-  const record: OrderRecord = {
-    id: input.id ?? systemId(),
-    gatewayOrderId: input.gatewayOrderId,
-    gatewayPaymentId: null,
-    templateId: input.templateId,
-    amount: input.amount,
-    currency: input.currency,
-    status: 'PENDING',
-    customizationPayload: input.customizationPayload,
-    experienceId: null,
-    createdAt: now,
-    updatedAt: now,
+/** False when records live on an ephemeral disk (local dev only). */
+export function isStoreDurable(): boolean {
+  return store?.durable ?? false
+}
+
+/** Called at boot so a misconfigured or unreachable database fails loudly. */
+export async function assertStoreReady(): Promise<void> {
+  const active = activeStore()
+  const health = await active.healthCheck()
+  if (!health.ok) {
+    throw new Error(
+      `Cupi cannot reach its persistent store (${active.kind}): ${health.detail}. ` +
+        'Orders and generated websites cannot be saved safely, so the API refuses to start.',
+    )
   }
-  db.orders.push(record)
-  saveDb(db)
-  return record
+  console.log(`[db] ${active.kind} ready: ${health.detail}`)
+}
+
+export function createOrder(input: CreateOrderInput): Promise<OrderRecord> {
+  return activeStore().createOrder(input)
+}
+
+export function getOrderById(id: string): Promise<OrderRecord | null> {
+  return activeStore().getOrderById(id)
 }
 
 export function getOrderByGatewayOrderId(
   gatewayOrderId: string,
-): OrderRecord | null {
-  const db = loadDb()
-  return (
-    db.orders.find((order) => order.gatewayOrderId === gatewayOrderId) ?? null
-  )
-}
-
-export function getOrderById(id: string): OrderRecord | null {
-  const db = loadDb()
-  return db.orders.find((order) => order.id === id) ?? null
+): Promise<OrderRecord | null> {
+  return activeStore().getOrderByGatewayOrderId(gatewayOrderId)
 }
 
 /**
- * Finalizes a verified payment by creating the LOCKED experience record and
- * flipping the order to PAID. Runs synchronously (single-threaded, no awaits)
- * so concurrent verify replay is impossible — the second request finds a PAID
- * order with an attached experience and returns the existing instance.
- *
- * Write-once by contract: a generated website is never re-created, overwritten
- * or regenerated. There is no code path in this module that mutates an existing
- * experience's `config`, so the public /x/:id link is permanently read-only
- * once this returns.
+ * Creates the single LOCKED website for a verified payment. Safe to call again
+ * for the same order — a duplicate webhook or a replayed verify returns the one
+ * existing website and never produces a second one.
  */
 export function finalizeOrderForPayment(input: {
   orderId: string
   gatewayPaymentId?: string | null
-}): ExperienceRecord {
-  const db = loadDb()
-  const order = db.orders.find(
-    (record) => record.id === input.orderId || record.gatewayOrderId === input.orderId,
-  )
-
-  if (!order) {
-    throw new Error('Order not found.')
-  }
-
-  if (order.status === 'PAID' && order.experienceId) {
-    const existing = db.experiences.find(
-      (experience) => experience.id === order.experienceId,
-    )
-    if (existing) return existing
-  }
-
-  const now = new Date().toISOString()
-  const experience: ExperienceRecord = {
-    id: order.gatewayOrderId,
-    orderId: order.id,
-    templateId: order.templateId,
-    config: order.customizationPayload,
-    status: 'LOCKED',
-    lockedAt: now,
-    viewCount: 0,
-    createdAt: now,
-  }
-
-  order.status = 'PAID'
-  order.gatewayPaymentId = input.gatewayPaymentId ?? null
-  order.experienceId = experience.id
-  order.updatedAt = now
-
-  db.experiences.push(experience)
-  saveDb(db)
-  return experience
+}): Promise<ExperienceRecord> {
+  return activeStore().finalizeOrderForPayment(input)
 }
 
-export function getExperienceById(id: string): ExperienceRecord | null {
-  const db = loadDb()
-  return db.experiences.find((experience) => experience.id === id) ?? null
+export function getExperienceById(id: string): Promise<ExperienceRecord | null> {
+  return activeStore().getExperienceById(id)
 }
 
-/**
- * True when the website is final (paid + generated). Every mutation path in
- * the API consults this before touching a record, so a share token can never
- * edit, regenerate or overwrite a completed website.
- */
-export function isExperienceLocked(id: string): boolean {
-  return getExperienceById(id)?.status === 'LOCKED'
+export function isExperienceLocked(id: string): Promise<boolean> {
+  return activeStore().isExperienceLocked(id)
 }
 
-export function incrementViewCount(id: string): void {
-  const db = loadDb()
-  const experience = db.experiences.find((record) => record.id === id)
-  if (!experience) return
-  // View counting is the ONLY permitted write against a locked record. It never
-  // touches config/templateId/status, so the website stays read-only.
-  experience.viewCount += 1
-  saveDb(db)
+/** Best-effort; never throws and never affects website content. */
+export function incrementViewCount(id: string): Promise<void> {
+  return activeStore().incrementViewCount(id)
 }
+
+export function countExperiences(): Promise<number> {
+  return activeStore().countExperiences()
+}
+
+export { shortId } from './jsonStore.js'
+export { systemId } from './systemId.js'
