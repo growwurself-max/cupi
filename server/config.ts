@@ -66,5 +66,36 @@ export const PHOTO_LIMITS: Record<string, number> = {
   'parent-02': 6,
 }
 
-export const DATA_DIR = path.resolve(PROJECT_ROOT, 'server', 'data')
+/**
+ * Directory holding db.json (orders + generated experiences).
+ *
+ * PERMANENT LINKS: the public /x/:id link resolves against a record in this
+ * file, so this directory MUST live on durable storage in production. A
+ * container filesystem (Render free/standard instances, any ephemeral host) is
+ * wiped on every deploy, config change, crash-restart and free-tier spin-down,
+ * which silently deleted every order and generated website — the reason
+ * previously-issued share links used to "expire" a while after being created.
+ *
+ * Point CUPI_DATA_DIR at a mounted persistent volume (e.g. a Render persistent
+ * disk mounted at /var/data → CUPI_DATA_DIR=/var/data) to make generated
+ * websites permanent. Unset, it falls back to the in-repo path for local dev.
+ */
+function resolveDataDir(): string {
+  const configured = (process.env.CUPI_DATA_DIR ?? '').trim()
+  if (!configured) return path.resolve(PROJECT_ROOT, 'server', 'data')
+  return path.isAbsolute(configured)
+    ? path.normalize(configured)
+    : path.resolve(PROJECT_ROOT, configured)
+}
+
+export const DATA_DIR = resolveDataDir()
 export const DIST_DIR = path.resolve(PROJECT_ROOT, 'dist')
+
+/**
+ * True when the data directory has NOT been pointed at a durable volume. Only
+ * ever a warning signal — local dev is fine — but in production it means every
+ * generated website lives on an ephemeral disk and its share link will break on
+ * the next restart. Surfaced on /api/health so it is impossible to miss.
+ */
+export const USING_EPHEMERAL_DATA_DIR =
+  !process.env.CUPI_DATA_DIR || process.env.CUPI_DATA_DIR.trim() === ''

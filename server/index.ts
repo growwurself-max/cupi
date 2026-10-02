@@ -12,11 +12,13 @@ import {
   verifyFamGatewayWebhookSignature,
 } from './famgateway.js'
 import {
+  DATA_DIR,
   DIST_DIR,
   FRONTEND_ORIGINS,
   HOST,
   PHOTO_LIMITS,
   PORT,
+  USING_EPHEMERAL_DATA_DIR,
 } from './config.js'
 import {
   createOrder,
@@ -25,6 +27,7 @@ import {
   getOrderByGatewayOrderId,
   getOrderById,
   incrementViewCount,
+  isExperienceLocked,
   systemId,
 } from './db.js'
 import { sanitizeCustomization } from './sanitize.js'
@@ -122,7 +125,13 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function handleHealth(_req: Request, res: Response): void {
-  res.status(200).json({ status: 'ok', service: 'cupi-api' })
+  res.status(200).json({
+    status: 'ok',
+    service: 'cupi-api',
+    // False in production means generated websites are on an ephemeral disk and
+    // their /x/:id links will break on the next restart. See config.ts.
+    durableData: !USING_EPHEMERAL_DATA_DIR,
+  })
 }
 
 /**
@@ -409,13 +418,84 @@ async function handleFamGatewayWebhook(
 }
 
 /**
+ * READ-ONLY ENFORCEMENT for generated websites.
+ *
+ * A completed experience (status LOCKED) is a permanent, view-only artifact.
+ * The public share link is read-only at the API level, not merely in the UI:
+ * any non-safe HTTP method aimed at an experience id — or at any path
+ * underneath it — is rejected here before a handler ever runs, so hiding the
+ * Edit button is never the only protection.
+ *
+ * Rejection contract:
+ *   423 Locked  — the target website exists and is finalized. This is the
+ *                 answer to "edit / customize / regenerate / overwrite".
+ *   404         — no such website (so probing cannot confirm existence).
+ *   405         — a mutation verb on the collection with no id.
+ * GET/HEAD/OPTIONS pass straight through to handleGetExperience.
+ *
+ * There is no expiry dimension anywhere in this guard: the link is valid
+ * indefinitely, so 404 only ever means "never existed / already removed".
+ */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+const EXPERIENCE_ID_PATTERN = /^[A-Za-z0-9_-]{6,32}$/
+
+/**
+ * `app.use('/api/experiences', …)` does not populate `req.params`, so the id is
+ * the first path segment relative to the mount — e.g. `/FGK3PZ9A/config` → the
+ * first segment identifies the website, the rest is the attempted action.
+ */
+function experienceIdFromRequest(req: Request): string | undefined {
+  return req.path.split('/').filter(Boolean)[0]
+}
+
+function rejectExperienceMutation(
+  req: Request,
+  res: Response,
+  next: () => void,
+): void {
+  // Safe methods fall through to handleGetExperience. Returning without
+  // calling next() here would stall the request until the client times out.
+  if (SAFE_METHODS.has(req.method)) {
+    next()
+    return
+  }
+
+  const id = experienceIdFromRequest(req)
+
+  if (!id) {
+    res.setHeader('Allow', 'GET, HEAD, OPTIONS')
+    res.status(405).json({
+      error: 'Method not allowed.',
+      detail: 'Generated websites are read-only and are only served over GET.',
+    })
+    return
+  }
+
+  if (!EXPERIENCE_ID_PATTERN.test(id) || !getExperienceById(id)) {
+    res.status(404).json({ error: 'Surprise not found.' })
+    return
+  }
+
+  // The website exists. Whether or not it is already LOCKED, the answer is the
+  // same: a finalized Cupi website can never be modified through the API.
+  res.setHeader('Allow', 'GET, HEAD, OPTIONS')
+  res.status(423).json({
+    error: 'This website is locked and read-only.',
+    status: 'LOCKED',
+    locked: true,
+    detail:
+      'Completed websites are permanent and view-only. They cannot be edited, customized, regenerated or overwritten.',
+  })
+}
+
+/**
  * GET /experiences/:id
  * Public read of a locked experience (viewed/shared unlimited times).
  */
 function handleGetExperience(req: Request, res: Response): void {
   const { id } = req.params as { id: string }
 
-  if (!/^[A-Za-z0-9_-]{6,32}$/.test(id)) {
+  if (!EXPERIENCE_ID_PATTERN.test(id)) {
     res.status(404).json({ error: 'Surprise not found.' })
     return
   }
@@ -426,6 +506,13 @@ function handleGetExperience(req: Request, res: Response): void {
     return
   }
 
+  // Only a finalized website is ever served publicly. An unlocked record is
+  // not readable through the share link at all.
+  if (!isExperienceLocked(id)) {
+    res.status(423).json({ error: 'This website is not available yet.' })
+    return
+  }
+
   incrementViewCount(experience.id)
 
   res.json({
@@ -433,7 +520,10 @@ function handleGetExperience(req: Request, res: Response): void {
     templateId: experience.templateId,
     config: experience.config,
     status: experience.status,
+    readOnly: true,
+    // No `expiresAt` is returned or stored: this link never expires.
     createdAt: experience.createdAt,
+    lockedAt: experience.lockedAt,
   })
 }
 
@@ -448,6 +538,12 @@ app.use('/api/orders', orderRoutes)
 app.use('/orders', orderRoutes)
 
 app.post('/api/famgateway/webhook', handleFamGatewayWebhook)
+
+// The share-link surface is GET-only. The guard is mounted on the prefix (not
+// per-route) so every current and future /experiences sub-path — /:id/config,
+// /:id/regenerate, /:id/photos — is covered automatically.
+app.use('/api/experiences', rejectExperienceMutation)
+app.use('/experiences', rejectExperienceMutation)
 
 app.get('/api/experiences/:id', handleGetExperience)
 app.get('/experiences/:id', handleGetExperience)
@@ -485,5 +581,14 @@ app.listen(PORT, HOST, () => {
     console.warn(
       '[cupi-api] FAMGATEWAY_API_KEY not set — checkout will be unavailable until configured in .env',
     )
+  }
+  if (USING_EPHEMERAL_DATA_DIR) {
+    console.warn(
+      '[cupi-api] CUPI_DATA_DIR is not set — orders and generated websites are stored on this instance\'s local disk. ' +
+        'On an ephemeral host every deploy/restart deletes them and all share links break. ' +
+        'Mount a persistent volume and set CUPI_DATA_DIR to make /x/:id links permanent.',
+    )
+  } else {
+    console.log(`[cupi-api] durable data directory: ${DATA_DIR}`)
   }
 })

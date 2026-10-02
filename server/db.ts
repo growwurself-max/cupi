@@ -33,14 +33,34 @@ export interface OrderRecord {
   updatedAt: string
 }
 
+/**
+ * Lifecycle of a generated website.
+ *
+ *   DRAFT  → built but not yet paid/finalized. Never served publicly, never
+ *            reachable through a share link, never mutable via the API.
+ *   LOCKED → paid + generated + COMPLETED. This is the terminal state: the
+ *            record is write-once and its /x/:id link never expires.
+ *
+ * `LOCKED` mirrors the COMPLETED stage of the order lifecycle
+ * (PENDING → PAID → experience LOCKED).
+ */
+export type ExperienceStatus = 'DRAFT' | 'LOCKED'
+
 export interface ExperienceRecord {
   id: string
   orderId: string
   templateId: string
   config: unknown
-  status: 'LOCKED'
+  status: ExperienceStatus
+  /** When the website became final/read-only. Set once, at payment time. */
+  lockedAt: string | null
   viewCount: number
   createdAt: string
+  /**
+   * PERMANENT BY DESIGN — do not add `expiresAt`/`expires`/`ttl` here.
+   * A completed Cupi website is viewable forever; the record is only ever
+   * removed by an explicit manual deletion, never by age, cron or TTL sweep.
+   */
 }
 
 interface DatabaseShape {
@@ -52,19 +72,58 @@ function emptyDb(): DatabaseShape {
   return { orders: [], experiences: [] }
 }
 
+/**
+ * Backward/forward-compatible read of a stored experience.
+ *
+ * Records written before the lock model existed have no `lockedAt` and always
+ * carried `status: 'LOCKED'`; they are backfilled in place so links that were
+ * already handed to customers keep working untouched. Any record that is not
+ * explicitly final is treated as LOCKED rather than silently dropped — a
+ * missing/!JSON status must never resurrect an editable public record.
+ */
+function normalizeExperience(raw: unknown): ExperienceRecord | null {
+  if (!raw || typeof raw !== 'object') return null
+  const record = raw as Partial<ExperienceRecord>
+  if (typeof record.id !== 'string' || record.id.length === 0) return null
+  return {
+    id: record.id,
+    orderId: typeof record.orderId === 'string' ? record.orderId : '',
+    templateId: typeof record.templateId === 'string' ? record.templateId : '',
+    config: record.config ?? null,
+    status: 'LOCKED',
+    lockedAt: typeof record.lockedAt === 'string' ? record.lockedAt : null,
+    viewCount:
+      typeof record.viewCount === 'number' && Number.isFinite(record.viewCount)
+        ? record.viewCount
+        : 0,
+    createdAt: typeof record.createdAt === 'string' ? record.createdAt : new Date(0).toISOString(),
+  }
+}
+
 function loadDb(): DatabaseShape {
   if (!existsSync(DB_FILE)) return emptyDb()
   try {
-    const parsed = JSON.parse(readFileSync(DB_FILE, 'utf8')) as Partial<
-      DatabaseShape
-    >
+    // A UTF-8 BOM (left by an editor, a manual edit, or a Windows tool)
+    // makes JSON.parse throw. Swallowing that would silently turn the whole
+    // database into "not found" and 404 every share link, so strip it.
+    const raw = readFileSync(DB_FILE, 'utf8').replace(/^\uFEFF/, '')
+    const parsed = JSON.parse(raw) as Partial<DatabaseShape>
     return {
       orders: Array.isArray(parsed.orders) ? (parsed.orders as OrderRecord[]) : [],
       experiences: Array.isArray(parsed.experiences)
-        ? (parsed.experiences as ExperienceRecord[])
+        ? (parsed.experiences as unknown[])
+            .map(normalizeExperience)
+            .filter((record): record is ExperienceRecord => record !== null)
         : [],
     }
-  } catch {
+  } catch (error) {
+    // NEVER do this quietly. An unreadable db.json means every order and every
+    // generated website is unreachable, so make it loud and keep the file
+    // untouched — an empty read must never be written back over the data.
+    console.error(
+      `[db] CRITICAL: could not parse ${DB_FILE}. Every order and generated website is currently unreachable. Refusing to overwrite the file.`,
+      error,
+    )
     return emptyDb()
   }
 }
@@ -140,6 +199,11 @@ export function getOrderById(id: string): OrderRecord | null {
  * flipping the order to PAID. Runs synchronously (single-threaded, no awaits)
  * so concurrent verify replay is impossible — the second request finds a PAID
  * order with an attached experience and returns the existing instance.
+ *
+ * Write-once by contract: a generated website is never re-created, overwritten
+ * or regenerated. There is no code path in this module that mutates an existing
+ * experience's `config`, so the public /x/:id link is permanently read-only
+ * once this returns.
  */
 export function finalizeOrderForPayment(input: {
   orderId: string
@@ -168,6 +232,7 @@ export function finalizeOrderForPayment(input: {
     templateId: order.templateId,
     config: order.customizationPayload,
     status: 'LOCKED',
+    lockedAt: now,
     viewCount: 0,
     createdAt: now,
   }
@@ -187,10 +252,21 @@ export function getExperienceById(id: string): ExperienceRecord | null {
   return db.experiences.find((experience) => experience.id === id) ?? null
 }
 
+/**
+ * True when the website is final (paid + generated). Every mutation path in
+ * the API consults this before touching a record, so a share token can never
+ * edit, regenerate or overwrite a completed website.
+ */
+export function isExperienceLocked(id: string): boolean {
+  return getExperienceById(id)?.status === 'LOCKED'
+}
+
 export function incrementViewCount(id: string): void {
   const db = loadDb()
   const experience = db.experiences.find((record) => record.id === id)
   if (!experience) return
+  // View counting is the ONLY permitted write against a locked record. It never
+  // touches config/templateId/status, so the website stays read-only.
   experience.viewCount += 1
   saveDb(db)
 }
