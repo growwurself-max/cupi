@@ -149,14 +149,27 @@ export async function createFamGatewayOrder({
 export async function getFamGatewayOrderStatus(
   orderId: string,
 ): Promise<FamGatewayOrderStatus> {
-  const url = `${FAMGATEWAY_VERIFY_ORDER_URL}?order_id=${encodeURIComponent(orderId)}`
-  const { json, ok } = await famGatewayRequest(url)
+  // NOTE: unlike /api/create-order, /api/verify-order.php only authenticates
+  // through the `api_key` query parameter — it answers 401 {"status":
+  // "unauthorized"} to the X-Api-Key / Authorization headers. Without the key
+  // in the query string every status check fails, the order can never be
+  // confirmed, and the paid experience (and its shareable /x/:id link) is
+  // never created. Same merchant key, still server-to-server.
+  const params = new URLSearchParams({ order_id: orderId })
+  const apiKey = getApiKey()
+  if (apiKey) params.set('api_key', apiKey)
+
+  const { json, ok, status } = await famGatewayRequest(
+    `${FAMGATEWAY_VERIFY_ORDER_URL}?${params.toString()}`,
+  )
 
   const data = json?.data
   const gatewayStatus =
     typeof json?.status === 'string' ? json.status : ok ? 'error' : 'error'
 
-  console.log('[FamGateway] Status check:', orderId, '->', gatewayStatus)
+  console.log(
+    `[FamGateway] Status check: ${orderId} -> ${gatewayStatus} (HTTP ${status})`,
+  )
 
   return {
     orderId: typeof data?.order_id === 'string' ? data.order_id : orderId,

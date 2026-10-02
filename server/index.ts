@@ -54,6 +54,12 @@ const app = express()
  * Convention: `-03` tiers cost ₹49, `-04` cost ₹69, `-02` tiers cost ₹9,
  * and `-01` tiers cost ₹29. Special templates carry their own pricing:
  * special-01 ₹9, special-02 ₹49, special-03 ₹69, special-04 ₹2.
+ *
+ * IMPORTANT: the trailing `return 29.0` is a catch-all for every remaining
+ * `-01` id, so any new template MUST get its own branch above it or it will
+ * silently be charged ₹29. The Parents Birthday templates are pinned to ₹1
+ * below as a TEMPORARY end-to-end testing price — this is the authoritative
+ * amount that is stored on the order and sent to FamGateway.
  */
 export function resolvePriceInRupees(templateId: string): number {
   if (templateId === 'birthday-04') return 69.0
@@ -62,6 +68,9 @@ export function resolvePriceInRupees(templateId: string): number {
   if (templateId === 'special-02') return 49.0
   if (templateId === 'special-04') return 2.0
   if (templateId === 'special-01') return 9.0
+  // TEMPORARY ₹1 test price — revert to the real tier price before launch.
+  if (templateId === 'parent-01') return 1.0
+  if (templateId === 'parent-02') return 1.0
   if (templateId.endsWith('-02') || templateId === 'birthday-02') return 9.0
   return 29.0 // All -01 themes
 }
