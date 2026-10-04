@@ -12,6 +12,8 @@
     "check:server": "tsc -p tsconfig.server.json",
     "test:server": "tsx test/supabase-store.test.mts && tsx test/migrate.test.mts && tsx test/server.test.mts",
     "migrate-data": "tsx server/migrate.ts",
+    "update-prices": "tsx server/updatePrices.ts",
+    "setup-price-table": "tsx server/setupPriceTable.ts",
     "lint": "oxlint",
     "preview": "vite preview"
   },

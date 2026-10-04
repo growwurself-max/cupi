@@ -65,9 +65,7 @@ const app = express()
  *
  * IMPORTANT: the trailing `return 29.0` is a catch-all for every remaining
  * `-01` id, so any new template MUST get its own branch above it or it will
- * silently be charged ₹29. The Parents Birthday templates are pinned to ₹1
- * below as a TEMPORARY end-to-end testing price — this is the authoritative
- * amount that is stored on the order and sent to FamGateway.
+ * silently be charged ₹29. The Parents Birthday templates are priced at ₹99.
  *
  * NOTE: This function returns the DEFAULT price. For the actual price used in
  * checkout, use resolvePriceInRupees() which checks for custom prices first.
@@ -79,9 +77,9 @@ function getDefaultPriceInRupees(templateId: string): number {
   if (templateId === 'special-02') return 49.0
   if (templateId === 'special-04') return 2.0
   if (templateId === 'special-01') return 9.0
-  // TEMPORARY ₹1 test price — revert to the real tier price before launch.
-  if (templateId === 'parent-01') return 1.0
-  if (templateId === 'parent-02') return 1.0
+  // Parents Birthday templates
+  if (templateId === 'parent-01') return 99.0
+  if (templateId === 'parent-02') return 99.0
   if (templateId.endsWith('-02') || templateId === 'birthday-02') return 9.0
   return 29.0 // All -01 themes
 }

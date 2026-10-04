@@ -614,8 +614,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: "A Birthday Surprise for Dad",
     description:
       'A heartfelt birthday experience for the man who has always been your strength, guide and hero.',
-    price: '₹1',
-    amountInPaise: 100,
+    price: '₹99',
+    amountInPaise: 9900,
     badge: 'NEW',
     tierLabel: 'BASIC',
     tierNote: 'For Dad',
@@ -645,8 +645,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'A Birthday Surprise for Mom',
     description:
       'A heartfelt birthday experience for the woman who made everything feel like home.',
-    price: '₹1',
-    amountInPaise: 100,
+    price: '₹99',
+    amountInPaise: 9900,
     badge: 'NEW',
     tierLabel: 'BASIC',
     tierNote: 'For Mom',
