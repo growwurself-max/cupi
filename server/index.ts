@@ -59,29 +59,29 @@ const app = express()
 
 /**
  * Resolves the default checkout amount in rupees (INR) for an experience template.
- * Convention: `-03` tiers cost ₹49, `-04` cost ₹69, `-02` tiers cost ₹9,
- * and `-01` tiers cost ₹29. Special templates carry their own pricing:
- * special-01 ₹9, special-02 ₹49, special-03 ₹69, special-04 ₹2.
+ * Convention: `-03` tiers cost ₹147, `-04` cost ₹207, `-02` tiers cost ₹27,
+ * and `-01` tiers cost ₹87. Special templates carry their own pricing:
+ * special-01 ₹27, special-02 ₹147, special-03 ₹207, special-04 ₹6.
  *
- * IMPORTANT: the trailing `return 29.0` is a catch-all for every remaining
+ * IMPORTANT: the trailing `return 87.0` is a catch-all for every remaining
  * `-01` id, so any new template MUST get its own branch above it or it will
- * silently be charged ₹29. The Parents Birthday templates are priced at ₹99.
+ * silently be charged ₹87. The Parents Birthday templates are priced at ₹297.
  *
  * NOTE: This function returns the DEFAULT price. For the actual price used in
  * checkout, use resolvePriceInRupees() which checks for custom prices first.
  */
 function getDefaultPriceInRupees(templateId: string): number {
-  if (templateId === 'birthday-04') return 69.0
-  if (templateId === 'birthday-03') return 49.0
-  if (templateId === 'special-03') return 69.0
-  if (templateId === 'special-02') return 49.0
-  if (templateId === 'special-04') return 2.0
-  if (templateId === 'special-01') return 9.0
+  if (templateId === 'birthday-04') return 207.0
+  if (templateId === 'birthday-03') return 147.0
+  if (templateId === 'special-03') return 207.0
+  if (templateId === 'special-02') return 147.0
+  if (templateId === 'special-04') return 6.0
+  if (templateId === 'special-01') return 27.0
   // Parents Birthday templates
-  if (templateId === 'parent-01') return 99.0
-  if (templateId === 'parent-02') return 99.0
-  if (templateId.endsWith('-02') || templateId === 'birthday-02') return 9.0
-  return 29.0 // All -01 themes
+  if (templateId === 'parent-01') return 297.0
+  if (templateId === 'parent-02') return 297.0
+  if (templateId.endsWith('-02') || templateId === 'birthday-02') return 27.0
+  return 87.0 // All -01 themes
 }
 
 /**
@@ -102,6 +102,52 @@ export async function resolvePriceInRupees(templateId: string): Promise<number> 
 
   // Fall back to default pricing
   return getDefaultPriceInRupees(templateId)
+}
+
+/**
+ * Validates an influencer coupon code.
+ * Returns the discount multiplier (e.g., 0.6667 for 1/3 off).
+ * Returns null if the coupon is invalid.
+ */
+export function validateCouponCode(code: string): number | null {
+  // Normalize the coupon code
+  const normalized = code.trim().toUpperCase()
+
+  // List of valid influencer coupon codes
+  // You can add more codes here as needed
+  const validCoupons = new Set([
+    'INFLUENCER33',
+    'CUPI33',
+    'SPECIAL33',
+  ])
+
+  if (validCoupons.has(normalized)) {
+    // Return 2/3 multiplier (33.33% discount)
+    return 2 / 3
+  }
+
+  return null
+}
+
+/**
+ * GET /api/validate-coupon
+ * Validates a coupon code and returns the discount multiplier.
+ */
+async function handleValidateCoupon(req: Request, res: Response): Promise<void> {
+  const { code } = req.query
+
+  if (!code || typeof code !== 'string') {
+    res.status(400).json({ valid: false, error: 'Coupon code is required' })
+    return
+  }
+
+  const discountMultiplier = validateCouponCode(code)
+
+  if (discountMultiplier !== null) {
+    res.json({ valid: true, discountMultiplier })
+  } else {
+    res.json({ valid: false, error: 'Invalid coupon code' })
+  }
 }
 
 // 1. CORS
@@ -239,7 +285,23 @@ async function handleCreateOrder(
       return
     }
 
-    const amount = await resolvePriceInRupees(templateId)
+    // Resolve base price
+    const basePrice = await resolvePriceInRupees(templateId)
+
+    // Apply coupon discount if provided
+    let finalAmount = basePrice
+    const couponCode = req.body.couponCode
+    if (couponCode && typeof couponCode === 'string') {
+      const discountMultiplier = validateCouponCode(couponCode)
+      if (discountMultiplier !== null) {
+        finalAmount = Math.round(basePrice * discountMultiplier)
+        console.log(`[COUPON APPLIED] ${couponCode}: ₹${basePrice} → ₹${finalAmount}`)
+      } else {
+        console.log(`[COUPON INVALID] ${couponCode}`)
+      }
+    }
+
+    const amount = finalAmount
 
     if (!process.env.FAMGATEWAY_API_KEY) {
       res.status(500).json({
@@ -717,6 +779,7 @@ async function handleGetProductPrices(_req: Request, res: Response): Promise<voi
   res.status(200).json({ prices })
 }
 app.get('/api/products/prices', wrap(handleGetProductPrices))
+app.get('/api/validate-coupon', wrap(handleValidateCoupon))
 
 // Super Admin routes - protected by authentication
 const adminRouter = createAdminRouter()

@@ -96,6 +96,12 @@ export interface CreateOrderResponse {
   currency: string
 }
 
+export interface ValidateCouponResponse {
+  valid: boolean
+  discountMultiplier?: number
+  error?: string
+}
+
 export interface VerifyOrderResponse {
   success: boolean
   experienceId?: string
@@ -122,14 +128,19 @@ export interface ExperienceData {
 export function createOrder(
   templateId: string,
   customization: unknown,
+  couponCode?: string,
 ): Promise<CreateOrderResponse> {
-  const payload = { templateId, customization }
+  const payload = { templateId, customization, ...(couponCode && { couponCode }) }
   console.log('[API CALL] Sending createOrder payload:', payload)
 
   return apiRequest<CreateOrderResponse>('/orders/create', {
     method: 'POST',
     body: payload,
   })
+}
+
+export function validateCoupon(code: string): Promise<ValidateCouponResponse> {
+  return apiRequest<ValidateCouponResponse>(`/validate-coupon?code=${encodeURIComponent(code)}`)
 }
 
 export function verifyOrder(

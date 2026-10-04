@@ -110,8 +110,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Simple, sweet & joyful.',
     description:
       'A quick, joyful animated birthday card — teaser, countdown, confetti reveal, and an interactive candle moment to close the show.',
-    price: '₹29',
-    amountInPaise: 2900,
+    price: '₹87',
+    amountInPaise: 8700,
     badge: 'POPULAR',
     isAvailable: true,
     features: [
@@ -136,8 +136,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Cinematic, multi-stage celebration.',
     description:
       'A premium extended birthday show — kinetic countdown, an interactive rose bouquet with floating note pills, confetti cannons, and a grand finale with fireworks.',
-    price: '₹9',
-    amountInPaise: 900,
+    price: '₹27',
+    amountInPaise: 2700,
     badge: 'BESTSELLER',
     isAvailable: true,
     features: [
@@ -163,8 +163,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Your photos, their heart.',
     description:
       'The flagship birthday experience — drop in your own photos and watch them become part of a premium, blush-pink celebration: an interactive memory reel, a cinematic countdown, an over-the-top reveal, and a grand finale sealed with your final photo.',
-    price: '₹49',
-    amountInPaise: 4900,
+    price: '₹147',
+    amountInPaise: 14700,
     badge: 'PREMIUM',
     promoLabel: 'PHOTOS + ADVANCED ANIMATION',
     isAvailable: true,
@@ -193,8 +193,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'An animated 6-act journey with our cute blushing teddy.',
     description:
       'Our most delightful birthday surprise yet! Features an animated blushing teddy bear, custom soundscapes, interactive gift unboxing, and a blow-out candle celebration.',
-    price: '₹69',
-    amountInPaise: 6900,
+    price: '₹207',
+    amountInPaise: 20700,
     badge: 'MOST LOVED',
     isAvailable: true,
     features: [
@@ -221,8 +221,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Say it loudly, softly.',
     description:
       'A quick, heartfelt love letter — a glowing teaser, a heartbeat to tap, memory polaroids, and a starry confession just for them.',
-    price: '₹29',
-    amountInPaise: 2900,
+    price: '₹87',
+    amountInPaise: 8700,
     badge: 'POPULAR',
     isAvailable: true,
     features: [
@@ -247,8 +247,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'A confession written in stars.',
     description:
       'A premium extended romance — a romantic score, a constellation you draw with your fingertips, a wax seal split open, and a deep confession that says the words you never could.',
-    price: '₹9',
-    amountInPaise: 900,
+    price: '₹27',
+    amountInPaise: 2700,
     badge: 'BESTSELLER',
     isAvailable: true,
     features: [
@@ -273,8 +273,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'A love letter through time.',
     description:
       'A quick golden keepsake — a time counter, a chapter flip, a clinking toast, and a milestone note sealed with love.',
-    price: '₹29',
-    amountInPaise: 2900,
+    price: '₹87',
+    amountInPaise: 8700,
     badge: 'POPULAR',
     isAvailable: true,
     features: [
@@ -299,8 +299,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Spin the years. Feel them all.',
     description:
       'A premium extended anniversary — a spinning odometer that rolls your years, a nostalgia reel of moments, a champagne pop ritual, and a forever letter signed for the ages.',
-    price: '₹9',
-    amountInPaise: 900,
+    price: '₹27',
+    amountInPaise: 2700,
     badge: 'BESTSELLER',
     isAvailable: true,
     features: [
@@ -325,8 +325,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'One question. One yes.',
     description:
       'A quick build-the-courage moment — memories, a suspense hush, the ring box, and a shower of hearts the second they say yes.',
-    price: '₹29',
-    amountInPaise: 2900,
+    price: '₹87',
+    amountInPaise: 8700,
     badge: 'POPULAR',
     isAvailable: true,
     features: [
@@ -351,8 +351,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Every promise, one spotlight.',
     description:
       'A premium extended proposal — cinematic buildup, a spotlight reveal on the ring, three forever promises lit one by one, and golden fireworks the moment they say yes.',
-    price: '₹9',
-    amountInPaise: 900,
+    price: '₹27',
+    amountInPaise: 2700,
     badge: 'BESTSELLER',
     isAvailable: true,
     features: [
@@ -377,8 +377,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'For the ones who feel like home.',
     description:
       'A quick bestie drop — an alert, an inside-joke quiz, chaos polaroids, and an official high-five to seal the squad pledge.',
-    price: '₹29',
-    amountInPaise: 2900,
+    price: '₹87',
+    amountInPaise: 8700,
     badge: 'POPULAR',
     isAvailable: true,
     features: [
@@ -403,8 +403,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Incoming chaos. Max volume.',
     description:
       'A premium extended friendship drop — a loud broadcast intro, a sticker explosion on tap, a super high-five counter, and a bestie letter that speaks the realest truths.',
-    price: '₹9',
-    amountInPaise: 900,
+    price: '₹27',
+    amountInPaise: 2700,
     badge: 'BESTSELLER',
     isAvailable: true,
     features: [
@@ -429,8 +429,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Celebrate the climb.',
     description:
       'A quick highlight reel — milestones, a grind meter, a golden glory moment, and an official cap toss to celebrate the climb.',
-    price: '₹29',
-    amountInPaise: 2900,
+    price: '₹87',
+    amountInPaise: 8700,
     badge: 'POPULAR',
     isAvailable: true,
     features: [
@@ -455,8 +455,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Stats. Toss. Golden sky.',
     description:
       'A premium extended graduation — honor-roll stats that roll in one by one, a high-flying cap toss with a golden trail, a golden confetti rain, and a mentor/family note that hits home.',
-    price: '₹9',
-    amountInPaise: 900,
+    price: '₹27',
+    amountInPaise: 2700,
     badge: 'BESTSELLER',
     isAvailable: true,
     features: [
@@ -481,8 +481,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'One bow. One floating heart. One bloom.',
     description:
       'A gentle arrow-pull surprise — launch a floating 3D heart, watch a heart-tree bloom to life, and seal it all with a custom wish made just for them.',
-    price: '₹9',
-    amountInPaise: 900,
+    price: '₹27',
+    amountInPaise: 2700,
     badge: 'POPULAR',
     tierLabel: 'BASIC',
     tierNote: 'Aesthetic & Minimal',
@@ -510,8 +510,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'A secret code, tiny games, big smiles.',
     description:
       'A gamified celebration — unlock a heart-keypad passcode, blow out the candle, pop balloons, pick a mystery gift, and flip through a photo memory frame.',
-    price: '₹49',
-    amountInPaise: 4900,
+    price: '₹147',
+    amountInPaise: 14700,
     badge: 'TRENDING',
     tierLabel: 'INTERACTIVE',
     tierNote: 'Gamified Celebration',
@@ -547,8 +547,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'Open the book. Read your forever.',
     description:
       'A cinematic storybook finale — an animated couple intro, a balloon-popped sentence, swipeable polaroids, a 3D rose bouquet, an interactive wax-sealed letter, and a confetti gift box.',
-    price: '₹69',
-    amountInPaise: 6900,
+    price: '₹207',
+    amountInPaise: 20700,
     badge: 'BESTSELLER',
     tierLabel: 'PREMIUM',
     tierNote: 'Ultimate Story Experience',
@@ -585,8 +585,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'A golden sunrise, made just for them.',
     description:
       'A single beautiful Good Morning page — soft sunrise light, gentle floating sparkle, elegant typography, and a warm greeting written around their name.',
-    price: '₹2',
-    amountInPaise: 200,
+    price: '₹6',
+    amountInPaise: 600,
     badge: 'NEW',
     tierLabel: 'SUNRISE',
     tierNote: 'One Beautiful Page',
@@ -614,8 +614,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: "A Birthday Surprise for Dad",
     description:
       'A heartfelt birthday experience for the man who has always been your strength, guide and hero.',
-    price: '₹99',
-    amountInPaise: 9900,
+    price: '₹297',
+    amountInPaise: 29700,
     badge: 'NEW',
     tierLabel: 'BASIC',
     tierNote: 'For Dad',
@@ -645,8 +645,8 @@ export const experiences: ExperienceMetadata[] = [
     tagline: 'A Birthday Surprise for Mom',
     description:
       'A heartfelt birthday experience for the woman who made everything feel like home.',
-    price: '₹99',
-    amountInPaise: 9900,
+    price: '₹297',
+    amountInPaise: 29700,
     badge: 'NEW',
     tierLabel: 'BASIC',
     tierNote: 'For Mom',

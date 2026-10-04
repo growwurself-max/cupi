@@ -17,8 +17,8 @@ interface PriceUpdate {
 }
 
 const PRICE_UPDATES: PriceUpdate[] = [
-  { templateId: 'parent-01', price: 99 },
-  { templateId: 'parent-02', price: 99 },
+  { templateId: 'parent-01', price: 297 },
+  { templateId: 'parent-02', price: 297 },
 ]
 
 async function main(): Promise<void> {
@@ -59,23 +59,42 @@ async function main(): Promise<void> {
   // Update each price
   const now = new Date().toISOString()
   for (const { templateId, price } of PRICE_UPDATES) {
-    const { data } = await rest.request<{ price: number }[]>({
-      method: 'POST',
+    // First try to update existing record
+    const { data: updateData } = await rest.request<{ price: number }[]>({
+      method: 'PATCH',
       path: 'cupi_product_prices',
-      query: { on_conflict: 'template_id' },
+      query: { template_id: `eq.${escapePostgrestValue(templateId)}` },
       prefer: 'return=representation',
       body: {
-        template_id: templateId,
         price,
         updated_at: now,
       },
     })
 
-    const saved = Array.isArray(data) && data.length > 0 ? data[0] : null
-    if (saved && Number(saved.price) === price) {
+    const updated = Array.isArray(updateData) && updateData.length > 0 ? updateData[0] : null
+
+    if (updated && Number(updated.price) === price) {
       console.log(`✓ ${templateId} updated to ₹${price}`)
     } else {
-      console.error(`✗ ${templateId} failed to update`)
+      // If no existing record, insert new one
+      const { data: insertData } = await rest.request<{ price: number }[]>({
+        method: 'POST',
+        path: 'cupi_product_prices',
+        query: { on_conflict: 'template_id' },
+        prefer: 'return=representation',
+        body: {
+          template_id: templateId,
+          price,
+          updated_at: now,
+        },
+      })
+
+      const saved = Array.isArray(insertData) && insertData.length > 0 ? insertData[0] : null
+      if (saved && Number(saved.price) === price) {
+        console.log(`✓ ${templateId} inserted at ₹${price}`)
+      } else {
+        console.error(`✗ ${templateId} failed to update`)
+      }
     }
   }
 

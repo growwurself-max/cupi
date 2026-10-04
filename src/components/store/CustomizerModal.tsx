@@ -18,10 +18,12 @@ import {
   RefreshCw,
   Trash2,
   X,
+  Tag,
+  Check,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFamGateway } from '../../hooks/useFamGateway'
-import { createOrder } from '../../lib/api'
+import { createOrder, validateCoupon } from '../../lib/api'
 import {
   getCustomizerStepIds,
   type CustomizerStepId,
@@ -125,6 +127,8 @@ export function CustomizerModal({
   const [processingIndex, setProcessingIndex] = useState<number | null>(null)
   const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
   const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponValid, setCouponValid] = useState<boolean | null>(null)
 
   const maxPhotos = theme?.maxPhotos ?? 3
   const canReorderPhotos = maxPhotos > 3
@@ -276,7 +280,7 @@ export function CustomizerModal({
     if (!theme || !previewConfig || checking) return
     setChecking(true)
     try {
-      const orderRes = await createOrder(theme.id, previewConfig)
+      const orderRes = await createOrder(theme.id, previewConfig, couponCode || undefined)
 
       if (!orderRes.checkoutUrl) {
         throw new Error('Failed to arrange payment. Please try again.')
@@ -313,7 +317,21 @@ export function CustomizerModal({
     } finally {
       setChecking(false)
     }
-  }, [theme, previewConfig, checking, openCheckout])
+  }, [theme, previewConfig, checking, openCheckout, couponCode])
+
+  const handleCouponChange = useCallback(async (value: string) => {
+    setCouponCode(value)
+    if (!value.trim()) {
+      setCouponValid(null)
+      return
+    }
+    try {
+      const result = await validateCoupon(value)
+      setCouponValid(result.valid)
+    } catch {
+      setCouponValid(false)
+    }
+  }, [])
 
   const handleClose = useCallback(() => {
     if (checking) return
@@ -852,7 +870,7 @@ export function CustomizerModal({
                       ) : (
                         <>
                           <Lock className="h-4 w-4" />
-                          Pay {theme.price}
+                          Pay {couponValid === true ? `₹${Math.round(parseInt(theme.price.replace('₹', '')) * (2/3))}` : theme.price}
                         </>
                       )}
                     </button>
@@ -860,6 +878,48 @@ export function CustomizerModal({
                 )}
               </div>
             </div>
+            )}
+
+            {/* Coupon Section */}
+            {step === lastStepIndex && (
+              <div className="mt-4 rounded-2xl border border-rose-100 bg-white/70 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag className="h-4 w-4 text-rose-500" />
+                  <span className="text-sm font-semibold text-stone-700">Have a coupon?</span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter coupon code"
+                    value={couponCode}
+                    onChange={(e) => handleCouponChange(e.target.value)}
+                    className="flex-1 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm text-stone-800 placeholder-stone-400 outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+                    disabled={checking}
+                  />
+                  {couponValid === true && (
+                    <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600">
+                      <Check className="h-3.5 w-3.5" />
+                      Applied
+                    </div>
+                  )}
+                  {couponValid === false && couponCode && (
+                    <div className="flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600">
+                      Invalid
+                    </div>
+                  )}
+                </div>
+                {couponValid === true && (
+                  <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-2">
+                    <span className="text-xs font-medium text-stone-600">Discounted price:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-stone-400 line-through">{theme.price}</span>
+                      <span className="text-sm font-bold text-emerald-600">
+                        ₹{Math.round(parseInt(theme.price.replace('₹', '')) * (2/3))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             <p className="mt-4 text-center text-[11px] font-medium text-stone-400">
