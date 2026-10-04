@@ -41,6 +41,7 @@ const DB_BACKUP_TMP_FILE = `${DB_BACKUP_FILE}.tmp`
 export interface JsonDatabase {
   orders: StoredOrder[]
   experiences: StoredExperience[]
+  product_prices: Record<string, number>
 }
 
 if (!existsSync(DATA_DIR)) {
@@ -48,7 +49,7 @@ if (!existsSync(DATA_DIR)) {
 }
 
 export function emptyJsonDb(): JsonDatabase {
-  return { orders: [], experiences: [] }
+  return { orders: [], experiences: [], product_prices: {} }
 }
 
 type Row = Record<string, unknown>
@@ -140,6 +141,10 @@ export function readJsonDbFile(file: string = DB_FILE): JsonDatabase {
           .map(normalizeStoredExperience)
           .filter((row): row is StoredExperience => row !== null)
       : [],
+    product_prices:
+      typeof parsed.product_prices === 'object' && parsed.product_prices !== null
+        ? (parsed.product_prices as Record<string, number>)
+        : {},
   }
 }
 
@@ -423,5 +428,21 @@ export class JsonFileStore implements Store {
     } catch (error) {
       return { ok: false, detail: (error as Error).message }
     }
+  }
+
+  async getProductPrice(templateId: string): Promise<number | null> {
+    const db = loadJsonDb()
+    const price = db.product_prices[templateId]
+    return typeof price === 'number' && price > 0 ? price : null
+  }
+
+  async updateProductPrice(templateId: string, price: number): Promise<number> {
+    if (price < 0) {
+      throw new Error('Price cannot be negative')
+    }
+    const db = loadJsonDb()
+    db.product_prices[templateId] = price
+    saveJsonDb(db)
+    return price
   }
 }

@@ -28,6 +28,10 @@ export function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editingProduct, setEditingProduct] = useState<string | null>(null)
+  const [newPrice, setNewPrice] = useState<string>('')
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [pendingProduct, setPendingProduct] = useState<{ id: string; price: number } | null>(null)
 
   const apiUrl = import.meta.env.VITE_API_URL || '/api'
 
@@ -98,6 +102,62 @@ export function AdminDashboard() {
     sessionStorage.removeItem('adminToken')
     setProducts([])
     setStats(null)
+  }
+
+  const startEditing = (productId: string, currentPrice: number) => {
+    setEditingProduct(productId)
+    setNewPrice(currentPrice.toString())
+  }
+
+  const cancelEditing = () => {
+    setEditingProduct(null)
+    setNewPrice('')
+    setShowConfirm(false)
+    setPendingProduct(null)
+  }
+
+  const initiatePriceChange = () => {
+    if (!editingProduct) return
+
+    const priceNum = parseFloat(newPrice)
+    if (isNaN(priceNum) || priceNum < 0) {
+      setError('Price must be a valid non-negative number')
+      return
+    }
+
+    setPendingProduct({ id: editingProduct, price: priceNum })
+    setShowConfirm(true)
+  }
+
+  const confirmPriceChange = async () => {
+    if (!pendingProduct) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`${apiUrl}/admin/products/${pendingProduct.id}/price`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ price: pendingProduct.price }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update price')
+      }
+
+      // Refresh products to show updated price
+      await loadData(token)
+      cancelEditing()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update price')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -205,6 +265,9 @@ export function AdminDashboard() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Photo Limit
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -214,10 +277,47 @@ export function AdminDashboard() {
                           {product.id}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          ₹{product.price.toFixed(2)}
+                          {editingProduct === product.id ? (
+                            <input
+                              type="number"
+                              value={newPrice}
+                              onChange={(e) => setNewPrice(e.target.value)}
+                              className="w-24 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-rose-500"
+                              step="0.01"
+                              min="0"
+                            />
+                          ) : (
+                            `₹${product.price.toFixed(2)}`
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {product.photoLimit}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {editingProduct === product.id ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={initiatePriceChange}
+                                disabled={loading}
+                                className="px-3 py-1 bg-rose-600 text-white text-xs rounded hover:bg-rose-700 disabled:bg-gray-400"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={cancelEditing}
+                                className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEditing(product.id, product.price)}
+                              className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                            >
+                              Edit
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -228,6 +328,38 @@ export function AdminDashboard() {
           </>
         )}
       </main>
+
+      {/* Confirmation Modal */}
+      {showConfirm && pendingProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm Price Change</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Are you sure you want to change the price of <strong>{pendingProduct.id}</strong> to{' '}
+              <strong>₹{pendingProduct.price.toFixed(2)}</strong>?
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              This change will apply to all new orders. Existing orders will retain their original
+              price.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelEditing}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPriceChange}
+                disabled={loading}
+                className="px-4 py-2 bg-rose-600 text-white rounded hover:bg-rose-700 disabled:bg-gray-400"
+              >
+                {loading ? 'Saving...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -34,6 +34,7 @@ import type {
 
 const ORDERS_TABLE = 'cupi_orders'
 const EXPERIENCES_TABLE = 'cupi_experiences'
+const PRODUCT_PRICES_TABLE = 'cupi_product_prices'
 
 function toNumber(value: number | string | null | undefined, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -376,6 +377,37 @@ export class PostgresStore implements Store {
     } catch (error) {
       return { ok: false, detail: (error as Error).message }
     }
+  }
+
+  async getProductPrice(templateId: string): Promise<number | null> {
+    const { data } = await this.rest.request<{ price: number }[]>({
+      method: 'GET',
+      path: PRODUCT_PRICES_TABLE,
+      query: { template_id: `eq.${escapePostgrestValue(templateId)}`, select: 'price', limit: 1 },
+    })
+    if (!data || data.length === 0) return null
+    const price = toNumber(data[0].price)
+    return price > 0 ? price : null
+  }
+
+  async updateProductPrice(templateId: string, price: number): Promise<number> {
+    if (price < 0) {
+      throw new Error('Price cannot be negative')
+    }
+    const now = new Date().toISOString()
+    const { data } = await this.rest.request<{ price: number }[]>({
+      method: 'POST',
+      path: PRODUCT_PRICES_TABLE,
+      query: { on_conflict: 'template_id' },
+      prefer: 'return=representation',
+      body: {
+        template_id: templateId,
+        price,
+        updated_at: now,
+      },
+    })
+    const saved = Array.isArray(data) && data.length > 0 ? data[0] : { price }
+    return toNumber(saved.price)
   }
 }
 

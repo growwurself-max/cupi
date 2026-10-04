@@ -136,5 +136,13 @@ export function countExperiences(): Promise<number> {
   return activeStore().countExperiences()
 }
 
+export function getProductPrice(templateId: string): Promise<number | null> {
+  return activeStore().getProductPrice(templateId)
+}
+
+export function updateProductPrice(templateId: string, price: number): Promise<number> {
+  return activeStore().updateProductPrice(templateId, price)
+}
+
 export { shortId } from './jsonStore.js'
 export { systemId } from './systemId.js'

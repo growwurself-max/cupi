@@ -28,6 +28,7 @@ import {
   getExperienceById,
   getOrderByGatewayOrderId,
   getOrderById,
+  getProductPrice,
   incrementViewCount,
   isStoreDurable,
   systemId,
@@ -57,7 +58,7 @@ export function buildPaymentResultUrl(cupiOrderId: string): string {
 const app = express()
 
 /**
- * Resolves the checkout amount in rupees (INR) for an experience template.
+ * Resolves the default checkout amount in rupees (INR) for an experience template.
  * Convention: `-03` tiers cost ₹49, `-04` cost ₹69, `-02` tiers cost ₹9,
  * and `-01` tiers cost ₹29. Special templates carry their own pricing:
  * special-01 ₹9, special-02 ₹49, special-03 ₹69, special-04 ₹2.
@@ -67,8 +68,11 @@ const app = express()
  * silently be charged ₹29. The Parents Birthday templates are pinned to ₹1
  * below as a TEMPORARY end-to-end testing price — this is the authoritative
  * amount that is stored on the order and sent to FamGateway.
+ *
+ * NOTE: This function returns the DEFAULT price. For the actual price used in
+ * checkout, use resolvePriceInRupees() which checks for custom prices first.
  */
-export function resolvePriceInRupees(templateId: string): number {
+function getDefaultPriceInRupees(templateId: string): number {
   if (templateId === 'birthday-04') return 69.0
   if (templateId === 'birthday-03') return 49.0
   if (templateId === 'special-03') return 69.0
@@ -80,6 +84,26 @@ export function resolvePriceInRupees(templateId: string): number {
   if (templateId === 'parent-02') return 1.0
   if (templateId.endsWith('-02') || templateId === 'birthday-02') return 9.0
   return 29.0 // All -01 themes
+}
+
+/**
+ * Resolves the checkout amount in rupees (INR) for an experience template.
+ * This function first checks the database for a custom price set by Super Admin,
+ * then falls back to the default hardcoded pricing.
+ *
+ * The server always calculates the final price - the browser is never trusted.
+ * This ensures that when a Super Admin changes a price, all new orders use the
+ * new price, while existing orders retain their original recorded price.
+ */
+export async function resolvePriceInRupees(templateId: string): Promise<number> {
+  // First check if there's a custom price in the database
+  const customPrice = await getProductPrice(templateId)
+  if (customPrice !== null && customPrice > 0) {
+    return customPrice
+  }
+
+  // Fall back to default pricing
+  return getDefaultPriceInRupees(templateId)
 }
 
 // 1. CORS
@@ -217,7 +241,7 @@ async function handleCreateOrder(
       return
     }
 
-    const amount = resolvePriceInRupees(templateId)
+    const amount = await resolvePriceInRupees(templateId)
 
     if (!process.env.FAMGATEWAY_API_KEY) {
       res.status(500).json({
@@ -685,6 +709,16 @@ app.get('/experiences/:id', wrap(handleGetExperience))
 app.get('/api/health', handleHealth)
 app.get('/health', handleHealth)
 app.get('/api/store-status', wrap(handleStoreStatus))
+
+// Public product prices endpoint (read-only for customer-facing website)
+async function handleGetProductPrices(_req: Request, res: Response): Promise<void> {
+  const prices: Record<string, number> = {}
+  for (const templateId of ALLOWED_TEMPLATES) {
+    prices[templateId] = await resolvePriceInRupees(templateId)
+  }
+  res.status(200).json({ prices })
+}
+app.get('/api/products/prices', wrap(handleGetProductPrices))
 
 // Super Admin routes - protected by authentication
 const adminRouter = createAdminRouter()

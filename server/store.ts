@@ -132,4 +132,16 @@ export interface Store {
 
   /** Fails fast at boot when the backing store is unreachable or misconfigured. */
   healthCheck(): Promise<{ ok: boolean; detail: string }>
+
+  /**
+   * Product price management.
+   * Returns the current price for a template, or null if not set (falls back to default).
+   */
+  getProductPrice(templateId: string): Promise<number | null>
+
+  /**
+   * Updates the price for a template.
+   * Returns the updated price.
+   */
+  updateProductPrice(templateId: string, price: number): Promise<number>
 }

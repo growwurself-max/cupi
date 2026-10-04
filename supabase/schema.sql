@@ -71,6 +71,13 @@ create table if not exists public.cupi_experiences (
   created_at  timestamptz not null default now()
 );
 
+-- Product prices: custom pricing for templates managed by Super Admin.
+create table if not exists public.cupi_product_prices (
+  template_id text primary key,
+  price       numeric(12, 2) not null check (price >= 0),
+  updated_at  timestamptz not null default now()
+);
+
 -- Operational indexes. Every lookup Cupi performs is already covered by a
 -- primary key or unique constraint; these two only help admin/ops queries.
 create index if not exists cupi_orders_created_at_idx
@@ -81,15 +88,17 @@ create index if not exists cupi_experiences_status_idx
 -- Lock the database down. The service_role key bypasses RLS (that is how the
 -- backend talks to it); every other role is denied, so a leaked anon key or a
 -- direct browser call cannot read a customer's personalized wish.
-alter table public.cupi_orders      enable row level security;
-alter table public.cupi_experiences enable row level security;
+alter table public.cupi_orders          enable row level security;
+alter table public.cupi_experiences    enable row level security;
+alter table public.cupi_product_prices enable row level security;
 
 -- Deliberately NOT granted:
 --   grant usage on schema public to anon, authenticated;   <- would expose data
 -- The tables are reachable only through the service_role key held by the
 -- Cupi API. Revoke defensively in case an older project had grants.
-revoke all on public.cupi_orders      from anon, authenticated;
-revoke all on public.cupi_experiences from anon, authenticated;
+revoke all on public.cupi_orders          from anon, authenticated;
+revoke all on public.cupi_experiences    from anon, authenticated;
+revoke all on public.cupi_product_prices from anon, authenticated;
 
 -- Keep `updated_at` honest for any future code path that forgets to set it.
 create or replace function public.touch_cupi_order_updated_at()
