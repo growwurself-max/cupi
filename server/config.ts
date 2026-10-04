@@ -95,3 +95,12 @@ function resolveDataDir(): string {
 
 export const DATA_DIR = resolveDataDir()
 export const DIST_DIR = path.resolve(PROJECT_ROOT, 'dist')
+
+/**
+ * Super Admin authentication token.
+ *
+ * This token is required to access the admin dashboard and API endpoints.
+ * Set a strong, random secret in production. Never commit this to version control.
+ * The token is validated server-side on all admin routes.
+ */
+export const SUPER_ADMIN_TOKEN = process.env.SUPER_ADMIN_TOKEN || ''

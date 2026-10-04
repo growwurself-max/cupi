@@ -34,6 +34,7 @@ import {
 } from './db.js'
 import { sanitizeCustomization } from './sanitize.js'
 import { SupabaseStoreError } from './supabase.js'
+import { createAdminRouter } from './adminRoutes.js'
 
 // Public backend origin used to build the FamGateway webhook URL. Override
 // with BACKEND_URL when deploying the API somewhere other than Render.
@@ -685,6 +686,10 @@ app.get('/api/health', handleHealth)
 app.get('/health', handleHealth)
 app.get('/api/store-status', wrap(handleStoreStatus))
 
+// Super Admin routes - protected by authentication
+const adminRouter = createAdminRouter()
+app.use('/api/admin', adminRouter)
+
 // 5. Static frontend + SPA catch-all (never intercepts /api routes).
 const indexHtml = path.join(DIST_DIR, 'index.html')
 if (existsSync(indexHtml)) {
@@ -708,7 +713,7 @@ app.use((req: Request, res: Response, next) => {
  * is wrapped. Without this a rejected promise (a database timeout, for example)
  * would hang the request until the client gave up.
  */
-function wrap(
+export function wrap(
   handler: (req: Request, res: Response, next: (error?: unknown) => void) => Promise<void>,
 ): (req: Request, res: Response, next: (error?: unknown) => void) => void {
   return (req, res, next) => {

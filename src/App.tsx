@@ -5,6 +5,7 @@ import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
 import { RefundPolicy } from './pages/legal/RefundPolicy'
 import { TermsConditions } from './pages/legal/TermsConditions'
 import { PaymentResult } from './pages/PaymentResult'
+import { AdminDashboard } from './pages/admin/AdminDashboard'
 import type { CategorySelection } from './components/store/CategoryFilter'
 import { CustomizerModal } from './components/store/CustomizerModal'
 import { ExperienceView } from './components/store/ExperienceView'
@@ -21,7 +22,7 @@ type View = 'store' | 'demo'
 type LegalPage = 'privacy' | 'terms' | 'refund' | 'contact'
 
 interface Route {
-  view: View | 'share' | 'payment-result' | 'legal'
+  view: View | 'share' | 'payment-result' | 'legal' | 'admin'
   shareId: string | null
   legalPage: LegalPage | null
 }
@@ -48,6 +49,10 @@ function parsePath(pathname: string): Route {
   const legalPage = LEGAL_ROUTES[pathname]
   if (legalPage) {
     return { view: 'legal', shareId: null, legalPage }
+  }
+  // Secret admin route - not linked anywhere publicly
+  if (pathname === '/admin/dashboard') {
+    return { view: 'admin', shareId: null, legalPage: null }
   }
   return { view: 'store', shareId: null, legalPage: null }
 }
@@ -126,6 +131,10 @@ export default function App() {
             ? RefundPolicy
             : ContactUs
     return <LegalPage onExit={goToStore} />
+  }
+
+  if (route.view === 'admin') {
+    return <AdminDashboard />
   }
 
   return (
