@@ -103,6 +103,8 @@ function mapExperience(row: StoredExperience): ExperienceRecord {
   }
 }
 
+const AUDIO_TABLE = 'cupi_template_audio'
+
 export class PostgresStore implements Store {
   readonly kind = 'supabase-postgres'
   readonly durable = true
@@ -395,19 +397,49 @@ export class PostgresStore implements Store {
       throw new Error('Price cannot be negative')
     }
     const now = new Date().toISOString()
-    const { data } = await this.rest.request<{ price: number }[]>({
+    await this.rest.request<{ price: number }[]>({
       method: 'POST',
       path: PRODUCT_PRICES_TABLE,
       query: { on_conflict: 'template_id' },
-      prefer: 'return=representation',
+      prefer: 'resolution=merge-duplicates',
       body: {
         template_id: templateId,
         price,
         updated_at: now,
       },
     })
-    const saved = Array.isArray(data) && data.length > 0 ? data[0] : { price }
-    return toNumber(saved.price)
+    return price
+  }
+
+  async getTemplateAudio(templateId: string): Promise<{ audioData?: string; audioUrl?: string } | null> {
+    const { data } = await this.rest.request<Array<{ template_id: string; audio_data: string | null; audio_url: string | null }>>({
+      method: 'GET',
+      path: AUDIO_TABLE,
+      query: { template_id: `eq.${escapePostgrestValue(templateId)}`, limit: 1 },
+    })
+    if (!data || data.length === 0) return null
+    const row = data[0]
+    if (!row.audio_data && !row.audio_url) return null
+    return {
+      audioData: row.audio_data ?? undefined,
+      audioUrl: row.audio_url ?? undefined,
+    }
+  }
+
+  async setTemplateAudio(templateId: string, audioData: string | null, audioUrl: string | null): Promise<void> {
+    const now = new Date().toISOString()
+    await this.rest.request<Array<{ template_id: string }>>({
+      method: 'POST',
+      path: AUDIO_TABLE,
+      query: { on_conflict: 'template_id' },
+      prefer: 'resolution=merge-duplicates',
+      body: {
+        template_id: templateId,
+        audio_data: audioData,
+        audio_url: audioUrl,
+        updated_at: now,
+      },
+    })
   }
 }
 

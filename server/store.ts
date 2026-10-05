@@ -144,4 +144,15 @@ export interface Store {
    * Returns the updated price.
    */
   updateProductPrice(templateId: string, price: number): Promise<number>
+
+  /**
+   * Gets the audio settings for a template.
+   * Returns an object with audioData or audioUrl, or null if neither exists.
+   */
+  getTemplateAudio(templateId: string): Promise<{ audioData?: string; audioUrl?: string } | null>
+
+  /**
+   * Sets the audio settings for a template.
+   */
+  setTemplateAudio(templateId: string, audioData: string | null, audioUrl: string | null): Promise<void>
 }

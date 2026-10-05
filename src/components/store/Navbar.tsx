@@ -5,15 +5,17 @@ const TAGLINE = 'Interactive Digital Surprises'
 
 const NAV_LINKS = [
   { label: 'Explore', href: '#experiences' },
+  { label: 'Pricing', href: '/pricing' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Special', href: '#special-01' },
 ]
 
 interface NavbarProps {
   onLaunchDemo: () => void
+  onNavigate?: (path: string) => void
 }
 
-export function Navbar({ onLaunchDemo }: NavbarProps) {
+export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -22,6 +24,13 @@ export function Navbar({ onLaunchDemo }: NavbarProps) {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href.startsWith('/') && onNavigate) {
+      e.preventDefault()
+      onNavigate(href)
+    }
+  }
 
   return (
     <header
@@ -32,7 +41,7 @@ export function Navbar({ onLaunchDemo }: NavbarProps) {
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <a href="#top" className="group flex items-center gap-2.5" aria-label="Cupi home">
+        <a href="/" onClick={(e) => handleNavClick(e, '/')} className="group flex items-center gap-2.5" aria-label="Cupi home">
           <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-pink-500 shadow-lg shadow-rose-200">
             <Heart
               className="h-5 w-5 text-white transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
@@ -55,6 +64,7 @@ export function Navbar({ onLaunchDemo }: NavbarProps) {
             <a
               key={link.label}
               href={link.href}
+              onClick={(e) => handleNavClick(e, link.href)}
               className="text-sm font-medium text-stone-600 transition-colors hover:text-rose-500"
             >
               {link.label}

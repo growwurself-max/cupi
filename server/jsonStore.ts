@@ -42,6 +42,7 @@ export interface JsonDatabase {
   orders: StoredOrder[]
   experiences: StoredExperience[]
   product_prices: Record<string, number>
+  template_audio?: Record<string, { audio_data?: string; audio_url?: string }>
 }
 
 if (!existsSync(DATA_DIR)) {
@@ -49,7 +50,7 @@ if (!existsSync(DATA_DIR)) {
 }
 
 export function emptyJsonDb(): JsonDatabase {
-  return { orders: [], experiences: [], product_prices: {} }
+  return { orders: [], experiences: [], product_prices: {}, template_audio: {} }
 }
 
 type Row = Record<string, unknown>
@@ -144,6 +145,10 @@ export function readJsonDbFile(file: string = DB_FILE): JsonDatabase {
     product_prices:
       typeof parsed.product_prices === 'object' && parsed.product_prices !== null
         ? (parsed.product_prices as Record<string, number>)
+        : {},
+    template_audio:
+      typeof parsed.template_audio === 'object' && parsed.template_audio !== null
+        ? (parsed.template_audio as Record<string, { audio_data?: string; audio_url?: string }>)
         : {},
   }
 }
@@ -444,5 +449,27 @@ export class JsonFileStore implements Store {
     db.product_prices[templateId] = price
     saveJsonDb(db)
     return price
+  }
+
+  async getTemplateAudio(templateId: string): Promise<{ audioData?: string; audioUrl?: string } | null> {
+    const db = loadJsonDb()
+    const audio = db.template_audio?.[templateId]
+    if (!audio) return null
+    return {
+      audioData: audio.audio_data,
+      audioUrl: audio.audio_url,
+    }
+  }
+
+  async setTemplateAudio(templateId: string, audioData: string | null, audioUrl: string | null): Promise<void> {
+    const db = loadJsonDb()
+    if (!db.template_audio) {
+      db.template_audio = {}
+    }
+    db.template_audio[templateId] = {
+      audio_data: audioData ?? undefined,
+      audio_url: audioUrl ?? undefined,
+    }
+    saveJsonDb(db)
   }
 }

@@ -174,18 +174,18 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 )
-// 2. JSON body parser — 10mb so a full customization with compressed
-// (base64) photos always fits through. The verify() hook preserves the raw
+// 2. JSON body parser — 50mb so a full customization with compressed
+// (base64) photos and audio always fits through. The verify() hook preserves the raw
 // request body so the FamGateway webhook can be HMAC-verified verbatim.
 app.use(
   express.json({
-    limit: '10mb',
+    limit: '50mb',
     verify: (req: RawBodyRequest, _res, buf) => {
       req.rawBody = buf
     },
   }),
 )
-app.use(express.urlencoded({ extended: true, limit: '10mb', verify: (req: RawBodyRequest, _res, buf) => { req.rawBody = buf } }))
+app.use(express.urlencoded({ extended: true, limit: '50mb', verify: (req: RawBodyRequest, _res, buf) => { req.rawBody = buf } }))
 // 3. Request logger (visibility in Render logs)
 app.use((req: Request, _res: Response, next) => {
   console.log(`[HTTP] ${req.method} ${req.originalUrl}`)
@@ -780,6 +780,27 @@ async function handleGetProductPrices(_req: Request, res: Response): Promise<voi
 }
 app.get('/api/products/prices', wrap(handleGetProductPrices))
 app.get('/api/validate-coupon', wrap(handleValidateCoupon))
+
+// Public audio endpoint
+async function handleGetTemplateAudio(req: Request, res: Response): Promise<void> {
+  const { templateId } = req.params
+  
+  if (!ALLOWED_TEMPLATES.includes(templateId)) {
+    res.status(404).json({ error: 'Template not found' })
+    return
+  }
+
+  const audio = await import('./db.js').then(m => m.getTemplateAudio(templateId))
+  
+  if (!audio || (!audio.audioData && !audio.audioUrl)) {
+    res.status(404).json({ error: 'No audio configured for this template' })
+    return
+  }
+
+  res.status(200).json(audio)
+}
+app.get('/api/templates/:templateId/audio', wrap(handleGetTemplateAudio))
+app.get('/api/audio/:templateId', wrap(handleGetTemplateAudio))
 
 // Super Admin routes - protected by authentication
 const adminRouter = createAdminRouter()

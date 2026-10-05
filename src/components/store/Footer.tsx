@@ -9,6 +9,7 @@ interface FooterProps {
 }
 
 const LEGAL_LINKS = [
+  { label: 'Pricing & Plans', path: '/pricing' },
   { label: 'Privacy Policy', path: '/privacy' },
   { label: 'Terms of Service', path: '/terms' },
   { label: 'Refund Policy', path: '/refund' },

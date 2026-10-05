@@ -6,6 +6,8 @@ import { ApiError, fetchExperienceApi, type ExperienceData } from '../../lib/api
 import { themeRegistry } from '../../themes/registry'
 import type { ExperienceConfig } from '../../types/experience'
 import { deepMergeExperienceConfig } from '../../utils/configMerge'
+import { AudioPlayer } from './AudioPlayer'
+import { BackgroundAnimation } from './BackgroundAnimation'
 
 interface ExperienceViewProps {
   experienceId: string
@@ -101,11 +103,15 @@ export function ExperienceView({ experienceId, onExit }: ExperienceViewProps) {
           )
         : (state.data.config as ExperienceConfig)
       return (
-        <ThemeComponent
-          config={resolvedConfig}
-          onExit={handleExit}
-          isSharedLink
-        />
+        <>
+          <BackgroundAnimation templateId={state.data.templateId} />
+          <AudioPlayer templateId={state.data.templateId} />
+          <ThemeComponent
+            config={resolvedConfig}
+            onExit={handleExit}
+            isSharedLink
+          />
+        </>
       )
     }
   }

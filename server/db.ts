@@ -144,5 +144,13 @@ export function updateProductPrice(templateId: string, price: number): Promise<n
   return activeStore().updateProductPrice(templateId, price)
 }
 
+export function getTemplateAudio(templateId: string): Promise<{ audioData?: string; audioUrl?: string } | null> {
+  return activeStore().getTemplateAudio(templateId)
+}
+
+export function setTemplateAudio(templateId: string, audioData: string | null, audioUrl: string | null): Promise<void> {
+  return activeStore().setTemplateAudio(templateId, audioData, audioUrl)
+}
+
 export { shortId } from './jsonStore.js'
 export { systemId } from './systemId.js'

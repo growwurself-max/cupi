@@ -6,7 +6,10 @@ import { RefundPolicy } from './pages/legal/RefundPolicy'
 import { TermsConditions } from './pages/legal/TermsConditions'
 import { PaymentResult } from './pages/PaymentResult'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
+import { Pricing } from './pages/Pricing'
 import type { CategorySelection } from './components/store/CategoryFilter'
+import { AudioPlayer } from './components/store/AudioPlayer'
+import { BackgroundAnimation } from './components/store/BackgroundAnimation'
 import { CustomizerModal } from './components/store/CustomizerModal'
 import { ExperienceView } from './components/store/ExperienceView'
 import { Footer } from './components/store/Footer'
@@ -22,7 +25,7 @@ type View = 'store' | 'demo'
 type LegalPage = 'privacy' | 'terms' | 'refund' | 'contact'
 
 interface Route {
-  view: View | 'share' | 'payment-result' | 'legal' | 'admin'
+  view: View | 'share' | 'payment-result' | 'legal' | 'admin' | 'pricing'
   shareId: string | null
   legalPage: LegalPage | null
 }
@@ -53,6 +56,9 @@ function parsePath(pathname: string): Route {
   // Secret admin route - not linked anywhere publicly
   if (pathname === '/admin/dashboard') {
     return { view: 'admin', shareId: null, legalPage: null }
+  }
+  if (pathname === '/pricing') {
+    return { view: 'pricing', shareId: null, legalPage: null }
   }
   return { view: 'store', shareId: null, legalPage: null }
 }
@@ -137,6 +143,10 @@ export default function App() {
     return <AdminDashboard />
   }
 
+  if (route.view === 'pricing') {
+    return <Pricing onExit={goToStore} />
+  }
+
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FEFAF4] bg-gradient-to-b from-[#FDF3EC] via-[#FEF9F4] to-[#FBE9EC]">
       <div
@@ -156,7 +166,7 @@ export default function App() {
         className="pointer-events-none absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-rose-100/30 blur-3xl"
       />
 
-      <Navbar onLaunchDemo={() => enterDemo('birthday-01')} />
+      <Navbar onLaunchDemo={() => enterDemo('birthday-01')} onNavigate={navigate} />
 
       <main className="relative z-[1]">
         <HeroSection onLaunchDemo={() => enterDemo('birthday-01')} />
@@ -188,6 +198,8 @@ export default function App() {
             role="dialog"
             aria-label={`${activeRegistration?.metadata.name ?? 'Surprise'} live demo preview`}
           >
+            <BackgroundAnimation templateId={activeThemeId} />
+            <AudioPlayer templateId={activeThemeId} />
             <DemoExperience onExit={exitDemo} />
           </motion.div>
         )}

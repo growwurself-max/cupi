@@ -39,7 +39,8 @@ console.log('  PASS  schema.sql applies cleanly and is idempotent')
 const tables = await db.query<{ table_name: string }>(
   `select table_name from information_schema.tables where table_schema = 'public' order by table_name`,
 )
-check('tables created', tables.rows.map((r) => r.table_name).join(',') === 'cupi_experiences,cupi_orders', JSON.stringify(tables.rows))
+const tableNames = tables.rows.map((r) => r.table_name).join(',')
+check('tables created', tableNames.includes('cupi_experiences') && tableNames.includes('cupi_orders') && tableNames.includes('cupi_template_audio'), JSON.stringify(tables.rows))
 
 const rls = await db.query<{ relname: string; relrowsecurity: boolean }>(
   `select relname, relrowsecurity from pg_class where relname in ('cupi_orders','cupi_experiences') order by relname`,

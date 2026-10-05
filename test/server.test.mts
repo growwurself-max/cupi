@@ -34,11 +34,15 @@ function check(label: string, condition: boolean, extra = ''): void {
 type Row = Record<string, unknown>
 const orders: Row[] = []
 const experiences: Row[] = []
+const productPrices: Row[] = []
+const templateAudio: Row[] = []
 let simDown = false
 
 function tableOf(t: string): Row[] | null {
   if (t === 'cupi_orders') return orders
   if (t === 'cupi_experiences') return experiences
+  if (t === 'cupi_product_prices') return productPrices
+  if (t === 'cupi_template_audio') return templateAudio
   return null
 }
 function project(rows: Row[], select: string | null): Row[] {
@@ -245,7 +249,13 @@ check('rejected checkout stored nothing', orders.length === 1)
 
 // ----------------------------------------------------------------- payment ---
 console.log('\n=== 3. Payment confirmation (webhook) ===')
-const webhookBody = JSON.stringify({ order_id: created.gatewayOrderId, status: 'success', amount: 49 })
+const paidAmount = Number(orders[0].amount)
+check('order recorded the amount actually charged', Number.isFinite(paidAmount) && paidAmount > 0, String(paidAmount))
+const webhookBody = JSON.stringify({
+  order_id: created.gatewayOrderId,
+  status: 'success',
+  amount: paidAmount,
+})
 const signature = createHmac('sha256', GW_KEY).update(webhookBody).digest('hex')
 const hookRes = await realFetch(`${API}/api/famgateway/webhook`, {
   method: 'POST',

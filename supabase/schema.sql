@@ -78,6 +78,14 @@ create table if not exists public.cupi_product_prices (
   updated_at  timestamptz not null default now()
 );
 
+-- Template Audio: stores base64 audio data or external URLs for background music
+create table if not exists public.cupi_template_audio (
+  template_id text primary key,
+  audio_data  text,
+  audio_url   text,
+  updated_at  timestamptz not null default now()
+);
+
 -- Operational indexes. Every lookup Cupi performs is already covered by a
 -- primary key or unique constraint; these two only help admin/ops queries.
 create index if not exists cupi_orders_created_at_idx
@@ -91,6 +99,7 @@ create index if not exists cupi_experiences_status_idx
 alter table public.cupi_orders          enable row level security;
 alter table public.cupi_experiences    enable row level security;
 alter table public.cupi_product_prices enable row level security;
+alter table public.cupi_template_audio enable row level security;
 
 -- Deliberately NOT granted:
 --   grant usage on schema public to anon, authenticated;   <- would expose data
@@ -99,6 +108,7 @@ alter table public.cupi_product_prices enable row level security;
 revoke all on public.cupi_orders          from anon, authenticated;
 revoke all on public.cupi_experiences    from anon, authenticated;
 revoke all on public.cupi_product_prices from anon, authenticated;
+revoke all on public.cupi_template_audio from anon, authenticated;
 
 -- Keep `updated_at` honest for any future code path that forgets to set it.
 create or replace function public.touch_cupi_order_updated_at()

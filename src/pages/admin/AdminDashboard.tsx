@@ -4,6 +4,8 @@ interface Product {
   id: string
   price: number
   photoLimit: number
+  hasAudioData?: boolean
+  audioUrl?: string | null
 }
 
 interface Stats {
@@ -157,6 +159,50 @@ export function AdminDashboard() {
       setError(err instanceof Error ? err.message : 'Failed to update price')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const [editingAudio, setEditingAudio] = useState<string | null>(null)
+  const [audioUrlInput, setAudioUrlInput] = useState<string>('')
+  const [audioFileInput, setAudioFileInput] = useState<File | null>(null)
+  const [uploadingAudio, setUploadingAudio] = useState(false)
+
+  const handleAudioSubmit = async (productId: string) => {
+    setUploadingAudio(true)
+    setError(null)
+    try {
+      let audioData = null
+      if (audioFileInput) {
+        const reader = new FileReader()
+        audioData = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(audioFileInput)
+        })
+      }
+
+      const response = await fetch(`${apiUrl}/admin/audio/${productId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ audioData, audioUrl: audioUrlInput }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update audio')
+      }
+
+      await loadData(token)
+      setEditingAudio(null)
+      setAudioFileInput(null)
+      setAudioUrlInput('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update audio')
+    } finally {
+      setUploadingAudio(false)
     }
   }
 
@@ -316,6 +362,100 @@ export function AdminDashboard() {
                               className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                             >
                               Edit
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Music Manager Section */}
+            <div className="bg-white rounded-lg shadow mt-8">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Music Manager</h2>
+                <p className="text-sm text-gray-500">Upload MP3 files or set external audio URLs for templates.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Template ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Current Audio
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {products.map((product) => (
+                      <tr key={product.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {product.id}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                          {editingAudio === product.id ? (
+                            <div className="flex flex-col gap-2">
+                              <input
+                                type="url"
+                                placeholder="External URL (optional)"
+                                value={audioUrlInput}
+                                onChange={(e) => setAudioUrlInput(e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                              />
+                              <span className="text-xs text-gray-400">OR</span>
+                              <input
+                                type="file"
+                                accept="audio/*"
+                                onChange={(e) => setAudioFileInput(e.target.files?.[0] || null)}
+                                className="w-full text-xs"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {product.hasAudioData && <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">File Uploaded</span>}
+                              {product.audioUrl && <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full truncate" title={product.audioUrl}>URL: {product.audioUrl}</span>}
+                              {!product.hasAudioData && !product.audioUrl && <span className="text-gray-400 italic">No audio set</span>}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {editingAudio === product.id ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleAudioSubmit(product.id)}
+                                disabled={uploadingAudio}
+                                className="px-3 py-1 bg-rose-600 text-white text-xs rounded hover:bg-rose-700 disabled:bg-gray-400"
+                              >
+                                {uploadingAudio ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingAudio(null)
+                                  setAudioFileInput(null)
+                                  setAudioUrlInput('')
+                                }}
+                                className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingAudio(product.id)
+                                setAudioUrlInput(product.audioUrl || '')
+                                setAudioFileInput(null)
+                              }}
+                              className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                            >
+                              Edit Audio
                             </button>
                           )}
                         </td>
