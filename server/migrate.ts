@@ -30,7 +30,7 @@ import { DB_FILE, readJsonDbFile, type JsonDatabase } from './jsonStore.js'
 import { PostgresStore } from './postgresStore.js'
 import { normalizeCode } from './influencers.js'
 import { escapePostgrestValue, readSupabaseConfig, SupabaseRest } from './supabase.js'
-import type { StoredExperience, StoredInfluencer, StoredOrder } from './store.js'
+import type { StoredCoupon, StoredExperience, StoredInfluencer, StoredOrder } from './store.js'
 
 const argv = process.argv.slice(2)
 const DRY_RUN = argv.includes('--dry-run')
@@ -94,6 +94,7 @@ async function main(): Promise<void> {
   console.log(`orders found      : ${source.orders.length}`)
   console.log(`experiences found : ${source.experiences.length}`)
   console.log(`influencers found : ${source.influencers?.length ?? 0}`)
+  console.log(`coupons found     : ${source.coupons?.length ?? 0}`)
 
   // Partners migrate first: cupi_orders.influencer_id is a foreign key onto
   // them, so an order attributed to a partner cannot be inserted before that
@@ -224,6 +225,66 @@ async function main(): Promise<void> {
     }
   }
   console.log(`influencers migrated: ${influencersWritten}/${validInfluencers.length}`)
+
+  // Campaign coupons have no dependents (orders reference codes by text, never
+  // by foreign key), so they migrate on their own after the partners. The
+  // cupi_coupons table is the newest addition to the schema: if an operator has
+  // not re-run supabase/schema.sql yet, coupons are skipped with one warning
+  // rather than failing a migration of orders and websites that would succeed.
+  heading('3b. Migrate campaign coupons (upsert on code — idempotent)')
+  const sourceCoupons = source.coupons ?? []
+  let couponsWritten = 0
+  let couponsFailed = 0
+  let couponsTableMissing = false
+  for (const coupon of sourceCoupons) {
+    if (!coupon.code) {
+      couponsFailed += 1
+      console.log('  ! coupon without a code — skipped')
+      continue
+    }
+    try {
+      const { data } = await rest.request<StoredCoupon[]>({
+        method: 'POST',
+        path: 'cupi_coupons',
+        query: { on_conflict: 'code' },
+        prefer: 'resolution=merge-duplicates,return=representation',
+        body: {
+          code: coupon.code,
+          kind: coupon.kind === 'flat' ? 'flat' : 'percent',
+          value: Number(coupon.value) || 0,
+          applies_to: coupon.applies_to ?? [],
+          min_amount: Number(coupon.min_amount) || 0,
+          max_redemptions: coupon.max_redemptions ?? null,
+          starts_at: coupon.starts_at ?? null,
+          expires_at: coupon.expires_at ?? null,
+          status: coupon.status ?? 'active',
+          created_at: coupon.created_at,
+          updated_at: coupon.updated_at,
+        },
+      })
+      const saved = Array.isArray(data) ? data[0] : undefined
+      if (saved && saved.code === coupon.code) {
+        couponsWritten += 1
+      } else {
+        couponsFailed += 1
+        console.log(`  ! coupon ${coupon.code} did not read back correctly`)
+      }
+    } catch (error) {
+      if ((error as { status?: number }).status === 404) {
+        couponsTableMissing = true
+        break
+      }
+      couponsFailed += 1
+      console.log(`  ! coupon ${coupon.code} rejected: ${(error as Error).message}`)
+    }
+  }
+  if (couponsTableMissing) {
+    console.log(
+      '  ! the cupi_coupons table does not exist yet — run supabase/schema.sql and re-run ' +
+        'to migrate coupons. Orders and websites were not affected.',
+    )
+  }
+  console.log(`coupons migrated   : ${couponsWritten}/${sourceCoupons.length}`)
 
   // Orders next: cupi_experiences.order_id is a foreign key onto cupi_orders.
   heading('4. Migrate orders (upsert on the existing id — idempotent)')
@@ -357,8 +418,10 @@ async function main(): Promise<void> {
   heading('6. Summary')
   console.log(`orders found / migrated     : ${validOrders.length} / ${ordersWritten}`)
   console.log(`websites found / migrated   : ${validExperiences.length} / ${experiencesWritten}`)
+  console.log(`coupons found / migrated    : ${sourceCoupons.length} / ${couponsWritten}`)
   console.log(`orders skipped (bad rows)   : ${orderErrors.length}`)
   console.log(`websites skipped (bad rows) : ${experienceErrors.length}`)
+  console.log(`coupons skipped (bad rows)  : ${couponsFailed + (couponsTableMissing ? sourceCoupons.length - couponsWritten - couponsFailed : 0)}`)
   console.log(`legacy fg_ slugs preserved  : ${legacySlugs}`)
   console.log(`missing after verification  : ${missing}`)
   console.log(`broken share links          : ${brokenLinks}`)

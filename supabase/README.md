@@ -32,6 +32,7 @@ That script is idempotent — running it twice is safe — and it creates:
 | ------------------ | --------------------------------------------------------- |
 | `cupi_orders`      | FamGateway order ids, amount, payment state, customization payload |
 | `cupi_experiences` | the generated website, its public `id`, config and view count |
+| `cupi_coupons`     | campaign coupon codes: discount, schedule, redemption cap  |
 
 It also creates the two constraints that protect the product:
 

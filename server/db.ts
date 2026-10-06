@@ -15,6 +15,8 @@ import { createPostgresStoreFromEnv } from './postgresStore.js'
 import { JsonFileStore } from './jsonStore.js'
 import { readSupabaseConfig } from './supabase.js'
 import type {
+  CouponRecord,
+  CreateCouponInput,
   CreateInfluencerInput,
   CreateOrderInput,
   ExperienceRecord,
@@ -26,10 +28,13 @@ import type {
   OrderRecord,
   OrderStatus,
   Store,
+  UpdateCouponInput,
   UpdateInfluencerInput,
 } from './store.js'
 
 export type {
+  CouponRecord,
+  CreateCouponInput,
   CreateInfluencerInput,
   CreateOrderInput,
   ExperienceRecord,
@@ -41,6 +46,7 @@ export type {
   OrderRecord,
   OrderStatus,
   Store,
+  UpdateCouponInput,
   UpdateInfluencerInput,
 }
 
@@ -199,6 +205,46 @@ export function deleteInfluencer(id: string): Promise<boolean> {
 
 export function getInfluencerMetrics(): Promise<Map<string, InfluencerMetrics>> {
   return activeStore().getInfluencerMetrics()
+}
+
+// ---------------------------------------------------------------- coupons --
+
+export type { CouponKind, CouponStatus } from './store.js'
+
+export function listCoupons(): Promise<CouponRecord[]> {
+  return activeStore().listCoupons()
+}
+
+export function getCouponByCode(code: string): Promise<CouponRecord | null> {
+  return activeStore().getCouponByCode(code)
+}
+
+export function createCoupon(input: CreateCouponInput): Promise<CouponRecord> {
+  return activeStore().createCoupon(input)
+}
+
+export function updateCoupon(
+  code: string,
+  input: UpdateCouponInput,
+): Promise<CouponRecord | null> {
+  return activeStore().updateCoupon(code, input)
+}
+
+export function deleteCoupon(code: string): Promise<boolean> {
+  return activeStore().deleteCoupon(code)
+}
+
+/**
+ * PAID orders only — the count `max_redemptions` is checked against. Derived
+ * from the orders table so it cannot drift from the orders it describes.
+ */
+export function countCouponRedemptions(code: string): Promise<number> {
+  return activeStore().countCouponRedemptions(code)
+}
+
+/** One grouped query for the admin list. */
+export function getCouponRedemptionCounts(): Promise<Map<string, number>> {
+  return activeStore().getCouponRedemptionCounts()
 }
 
 export { shortId } from './jsonStore.js'

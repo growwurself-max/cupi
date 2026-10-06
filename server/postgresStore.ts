@@ -23,7 +23,12 @@ import {
   type SupabaseConfig,
 } from './supabase.js'
 import { normalizeCode, round2 } from './influencers.js'
+import { normalizeCouponCode } from './coupons.js'
 import type {
+  CouponKind,
+  CouponRecord,
+  CouponStatus,
+  CreateCouponInput,
   CreateInfluencerInput,
   CreateOrderInput,
   ExperienceRecord,
@@ -33,9 +38,11 @@ import type {
   OrderRecord,
   OrderStatus,
   Store,
+  StoredCoupon,
   StoredExperience,
   StoredInfluencer,
   StoredOrder,
+  UpdateCouponInput,
   UpdateInfluencerInput,
 } from './store.js'
 
@@ -43,6 +50,10 @@ const ORDERS_TABLE = 'cupi_orders'
 const EXPERIENCES_TABLE = 'cupi_experiences'
 const PRODUCT_PRICES_TABLE = 'cupi_product_prices'
 const INFLUENCERS_TABLE = 'cupi_influencers'
+const COUPONS_TABLE = 'cupi_coupons'
+
+/** Warn exactly once if the (newest) coupons table has not been created yet. */
+let warnedMissingCouponsTable = false
 
 function toNumber(value: number | string | null | undefined, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -126,6 +137,37 @@ function mapInfluencer(row: StoredInfluencer): InfluencerRecord {
         ? row.expiry_date
         : null,
     status: normalizeInfluencerStatus(row.status),
+    createdAt: toIsoString(row.created_at, new Date(0).toISOString()),
+    updatedAt: toIsoString(row.updated_at, new Date(row.created_at).toISOString()),
+  }
+}
+
+/** Absent/unknown kind is treated as percent, matching the CHECK constraint. */
+function normalizeCouponKind(value: unknown): CouponKind {
+  return value === 'flat' ? 'flat' : 'percent'
+}
+
+/** Absent/unknown status is treated as active, matching the CHECK constraint. */
+function normalizeCouponStatus(value: unknown): CouponStatus {
+  return value === 'paused' || value === 'deleted' ? value : 'active'
+}
+
+function mapCoupon(row: StoredCoupon): CouponRecord {
+  return {
+    code: normalizeCouponCode(row.code),
+    kind: normalizeCouponKind(row.kind),
+    value: toNumber(row.value),
+    appliesTo: Array.isArray(row.applies_to)
+      ? row.applies_to.filter((entry): entry is string => typeof entry === 'string')
+      : [],
+    minAmount: toNumber(row.min_amount),
+    maxRedemptions:
+      row.max_redemptions === null || row.max_redemptions === undefined
+        ? null
+        : toNumber(row.max_redemptions),
+    startsAt: row.starts_at ? toIsoString(row.starts_at, row.starts_at) : null,
+    expiresAt: row.expires_at ? toIsoString(row.expires_at, row.expires_at) : null,
+    status: normalizeCouponStatus(row.status),
     createdAt: toIsoString(row.created_at, new Date(0).toISOString()),
     updatedAt: toIsoString(row.updated_at, new Date(row.created_at).toISOString()),
   }
@@ -651,6 +693,163 @@ export class PostgresStore implements Store {
       })
     }
     return metrics
+  }
+
+  // ---------------------------------------------------------------- coupons --
+
+  async listCoupons(): Promise<CouponRecord[]> {
+    const { data } = await this.rest.request<StoredCoupon[]>({
+      method: 'GET',
+      path: COUPONS_TABLE,
+      query: { order: 'created_at.desc' },
+    })
+    return (data ?? []).map(mapCoupon)
+  }
+
+  /**
+   * Primary-key lookup: `code` IS the primary key, stored normalized.
+   *
+   * A 404 from PostgREST means the cupi_coupons table itself does not exist
+   * yet (an operator who has not re-run supabase/schema.sql). Checkout must
+   * keep working through that deployment window — partner and legacy codes are
+   * unaffected — so a missing table is reported once and read as "no coupon"
+   * rather than failing every quote and every order create with a 500.
+   */
+  async getCouponByCode(code: string): Promise<CouponRecord | null> {
+    const normalized = normalizeCouponCode(code)
+    if (!normalized) return null
+    try {
+      const { data } = await this.rest.request<StoredCoupon[]>({
+        method: 'GET',
+        path: COUPONS_TABLE,
+        query: { code: `eq.${escapePostgrestValue(normalized)}`, limit: 1 },
+      })
+      return data && data.length > 0 ? mapCoupon(data[0]) : null
+    } catch (error) {
+      if (error instanceof SupabaseStoreError && error.status === 404) {
+        if (!warnedMissingCouponsTable) {
+          warnedMissingCouponsTable = true
+          console.warn(
+            '[db] cupi_coupons table is missing — campaign coupons are disabled until ' +
+              'supabase/schema.sql is run. Checkout continues with partner and legacy codes.',
+          )
+        }
+        return null
+      }
+      throw error
+    }
+  }
+
+  async createCoupon(input: CreateCouponInput): Promise<CouponRecord> {
+    const now = new Date().toISOString()
+    const row: StoredCoupon = {
+      code: normalizeCouponCode(input.code),
+      kind: input.kind,
+      value: input.value,
+      applies_to: input.appliesTo ?? [],
+      min_amount: input.minAmount ?? 0,
+      max_redemptions: input.maxRedemptions ?? null,
+      starts_at: input.startsAt ?? null,
+      expires_at: input.expiresAt ?? null,
+      status: input.status ?? 'active',
+      created_at: now,
+      updated_at: now,
+    }
+    const { data } = await this.rest.request<StoredCoupon[]>({
+      method: 'POST',
+      path: COUPONS_TABLE,
+      prefer: 'return=representation',
+      body: row,
+    })
+    return mapCoupon(Array.isArray(data) && data.length > 0 ? data[0] : row)
+  }
+
+  async updateCoupon(
+    code: string,
+    input: UpdateCouponInput,
+  ): Promise<CouponRecord | null> {
+    const existing = await this.getCouponByCode(code)
+    if (!existing) return null
+
+    const patch: Record<string, unknown> = {}
+    if (input.kind !== undefined) patch.kind = input.kind
+    if (input.value !== undefined) patch.value = input.value
+    if (input.appliesTo !== undefined) patch.applies_to = input.appliesTo
+    if (input.minAmount !== undefined) patch.min_amount = input.minAmount
+    if (input.maxRedemptions !== undefined) patch.max_redemptions = input.maxRedemptions
+    if (input.startsAt !== undefined) patch.starts_at = input.startsAt
+    if (input.expiresAt !== undefined) patch.expires_at = input.expiresAt
+    if (input.status !== undefined) patch.status = input.status
+
+    if (Object.keys(patch).length === 0) return existing
+
+    const { data } = await this.rest.request<StoredCoupon[]>({
+      method: 'PATCH',
+      path: COUPONS_TABLE,
+      query: { code: `eq.${escapePostgrestValue(existing.code)}` },
+      prefer: 'return=representation',
+      body: patch,
+    })
+    if (!data || data.length === 0) return null
+    return mapCoupon(data[0])
+  }
+
+  async deleteCoupon(code: string): Promise<boolean> {
+    const normalized = normalizeCouponCode(code)
+    if (!normalized) return false
+    const { data } = await this.rest.request<StoredCoupon[]>({
+      method: 'DELETE',
+      path: COUPONS_TABLE,
+      query: { code: `eq.${escapePostgrestValue(normalized)}` },
+      prefer: 'return=representation',
+    })
+    return Array.isArray(data) && data.length > 0
+  }
+
+  /**
+   * PAID orders only. An abandoned PENDING checkout must not burn a
+   * redemption, because nothing expires it (order lifecycle is out of scope).
+   * Uses the `cupi_orders(coupon_code)` index, not a counter column, so the
+   * number cannot drift from the orders it is supposed to describe.
+   */
+  async countCouponRedemptions(code: string): Promise<number> {
+    const normalized = normalizeCouponCode(code)
+    if (!normalized) return 0
+    const { headers } = await this.rest.request<unknown[]>({
+      method: 'GET',
+      path: ORDERS_TABLE,
+      query: {
+        select: 'id',
+        coupon_code: `eq.${escapePostgrestValue(normalized)}`,
+        status: 'eq.PAID',
+        limit: 1,
+      },
+      prefer: 'count=exact',
+    })
+    return SupabaseRest.parseExactCount(headers) ?? 0
+  }
+
+  /** One grouped query for the admin list, mirroring `getInfluencerMetrics`. */
+  async getCouponRedemptionCounts(): Promise<Map<string, number>> {
+    const { data } = await this.rest.request<
+      Array<{ coupon_code: string | null; redemptions: number | string }>
+    >({
+      method: 'GET',
+      path: ORDERS_TABLE,
+      query: {
+        select: ['coupon_code', 'count(*)::bigint as redemptions'].join(','),
+        status: 'eq.PAID',
+        coupon_code: 'not.is.null',
+        group_by: 'coupon_code',
+      },
+    })
+
+    const counts = new Map<string, number>()
+    for (const row of data ?? []) {
+      if (!row.coupon_code) continue
+      counts.set(normalizeCouponCode(row.coupon_code), toNumber(row.redemptions))
+    }
+    return counts
   }
 }
 

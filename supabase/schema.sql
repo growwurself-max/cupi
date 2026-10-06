@@ -134,6 +134,66 @@ create unique index if not exists cupi_influencers_code_unique
 create index if not exists cupi_influencers_status_idx
   on public.cupi_influencers (status);
 
+-- Coupons: operator-created campaign codes ("SAVE50"), a separate namespace
+-- from partner referral codes.
+--
+-- DESIGN NOTES
+-- * `code` IS the primary key and is stored normalized (upper-cased, trimmed),
+--   so checkout resolves a code with a single index hit and "save5" can never
+--   exist twice in different cases. The API refuses a code that collides with
+--   cupi_influencers.unique_code or a legacy campaign code rather than letting
+--   one namespace silently shadow another.
+-- * There is deliberately NO redeemed_count column. Redemptions are COUNTed
+--   from PAID cupi_orders rows through cupi_orders_coupon_code_idx, so the
+--   number cannot drift from the money it describes, and an abandoned PENDING
+--   checkout never consumes a redemption (nothing expires pending orders yet).
+-- * `value` means different things by kind: percent (0..100) or flat (rupees
+--   off, clamped to the price at quote time). The percent bound is enforced
+--   here as well as by the API, so a bad payload cannot make an order cost
+--   money Cupi never had.
+-- * Schedule columns are judged at read time, like influencer expiry: no cron
+--   can be relied on to flip a row at the right second.
+create table if not exists public.cupi_coupons (
+  code            text primary key,
+  kind            text not null default 'percent'
+                    check (kind in ('percent', 'flat')),
+  value           numeric(12, 2) not null check (value > 0),
+  -- Empty array = every template; otherwise the allow-list of template ids.
+  applies_to      jsonb not null default '[]'::jsonb,
+  min_amount      numeric(12, 2) not null default 0 check (min_amount >= 0),
+  -- NULL = unlimited; otherwise the cap on PAID orders made with this code.
+  max_redemptions integer check (max_redemptions is null or max_redemptions > 0),
+  -- NULL = unbounded.
+  starts_at       timestamptz,
+  expires_at      timestamptz,
+  status          text not null default 'active'
+                    check (status in ('active', 'paused', 'deleted')),
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  constraint cupi_coupons_percent_capped
+    check (kind <> 'percent' or value <= 100)
+);
+
+-- The admin list is sorted newest-first; checkout never ranges over this table.
+create index if not exists cupi_coupons_created_at_idx
+  on public.cupi_coupons (created_at desc);
+
+-- Keep `updated_at` honest on the coupon table too.
+create or replace function public.touch_cupi_coupon_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists cupi_coupons_touch_updated_at on public.cupi_coupons;
+create trigger cupi_coupons_touch_updated_at
+  before update on public.cupi_coupons
+  for each row execute function public.touch_cupi_coupon_updated_at();
+
 -- Order attribution: which partner referred this order, what it was worth, and
 -- how much of it is owed to them.
 --
@@ -198,6 +258,7 @@ alter table public.cupi_experiences    enable row level security;
 alter table public.cupi_product_prices enable row level security;
 alter table public.cupi_template_audio enable row level security;
 alter table public.cupi_influencers    enable row level security;
+alter table public.cupi_coupons        enable row level security;
 
 -- Deliberately NOT granted:
 --   grant usage on schema public to anon, authenticated;   <- would expose data
@@ -208,6 +269,7 @@ revoke all on public.cupi_experiences    from anon, authenticated;
 revoke all on public.cupi_product_prices from anon, authenticated;
 revoke all on public.cupi_template_audio from anon, authenticated;
 revoke all on public.cupi_influencers    from anon, authenticated;
+revoke all on public.cupi_coupons        from anon, authenticated;
 
 -- Keep `updated_at` honest for any future code path that forgets to set it.
 create or replace function public.touch_cupi_order_updated_at()

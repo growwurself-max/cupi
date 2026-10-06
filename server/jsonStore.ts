@@ -24,7 +24,10 @@ import {
 import path from 'node:path'
 import { DATA_DIR } from './config.js'
 import { normalizeCode, round2 } from './influencers.js'
+import { normalizeCouponCode } from './coupons.js'
 import type {
+  CouponRecord,
+  CreateCouponInput,
   CreateInfluencerInput,
   CreateOrderInput,
   ExperienceRecord,
@@ -33,9 +36,11 @@ import type {
   InfluencerStatus,
   OrderRecord,
   Store,
+  StoredCoupon,
   StoredExperience,
   StoredInfluencer,
   StoredOrder,
+  UpdateCouponInput,
   UpdateInfluencerInput,
 } from './store.js'
 
@@ -51,6 +56,8 @@ export interface JsonDatabase {
   product_prices: Record<string, number>
   template_audio?: Record<string, { audio_data?: string; audio_url?: string }>
   influencers?: StoredInfluencer[]
+  /** Generic campaign codes. Absent on pre-coupon files, hence optional. */
+  coupons?: StoredCoupon[]
 }
 
 if (!existsSync(DATA_DIR)) {
@@ -64,6 +71,7 @@ export function emptyJsonDb(): JsonDatabase {
     product_prices: {},
     template_audio: {},
     influencers: [],
+    coupons: [],
   }
 }
 
@@ -157,6 +165,47 @@ export function normalizeStoredInfluencer(raw: unknown): StoredInfluencer | null
 }
 
 /**
+ * Normalizes a raw generic-coupon row. Accepts both the snake_case shape the
+ * store writes and a camelCase one, so a hand-edited or migrated db.json loads
+ * the same way. A row without a code or a usable value is dropped rather than
+ * guessed at: a coupon that silently priced at ₹0 would be a free order.
+ */
+export function normalizeStoredCoupon(raw: unknown): StoredCoupon | null {
+  if (!raw || typeof raw !== 'object') return null
+  const row = raw as Row
+  const code = asText(pick(row, 'code'))
+  const value = Number(pick(row, 'value'))
+  if (!code || !Number.isFinite(value) || value <= 0) return null
+
+  const kind = asText(pick(row, 'kind'), 'percent') === 'flat' ? 'flat' : 'percent'
+  const statusRaw = asText(pick(row, 'status'), 'active')
+  const status = statusRaw === 'paused' || statusRaw === 'deleted' ? statusRaw : 'active'
+  const appliesTo = pick(row, 'applies_to', 'appliesTo')
+  const maxRaw = pick(row, 'max_redemptions', 'maxRedemptions')
+  const maxRedemptions = Number(maxRaw)
+  const createdAt = asText(pick(row, 'created_at', 'createdAt'))
+
+  return {
+    code: normalizeCouponCode(code),
+    kind,
+    value,
+    applies_to: Array.isArray(appliesTo)
+      ? appliesTo.filter((entry): entry is string => typeof entry === 'string')
+      : [],
+    min_amount: Math.max(0, Number(pick(row, 'min_amount', 'minAmount')) || 0),
+    max_redemptions:
+      maxRaw === null || maxRaw === undefined || !Number.isFinite(maxRedemptions) || maxRedemptions <= 0
+        ? null
+        : Math.floor(maxRedemptions),
+    starts_at: asNullableText(pick(row, 'starts_at', 'startsAt')),
+    expires_at: asNullableText(pick(row, 'expires_at', 'expiresAt')),
+    status,
+    created_at: createdAt,
+    updated_at: asText(pick(row, 'updated_at', 'updatedAt'), createdAt),
+  }
+}
+
+/**
  * Reads and parses db.json without touching or repairing anything. Shared by the
  * store and by the migration script so both see identical bytes.
  *
@@ -191,6 +240,11 @@ export function readJsonDbFile(file: string = DB_FILE): JsonDatabase {
       ? (parsed.influencers as unknown[])
           .map(normalizeStoredInfluencer)
           .filter((row): row is StoredInfluencer => row !== null)
+      : [],
+    coupons: Array.isArray(parsed.coupons)
+      ? (parsed.coupons as unknown[])
+          .map(normalizeStoredCoupon)
+          .filter((row): row is StoredCoupon => row !== null)
       : [],
   }
 }
@@ -357,6 +411,28 @@ export function mapInfluencer(row: StoredInfluencer): InfluencerRecord {
     commissionPercentage: Number(row.commission_percentage) || 0,
     expiryDate: row.expiry_date,
     status: row.status === 'paused' ? 'paused' : 'active',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+/** Inverts `StoredCoupon` into the app-facing shape. */
+export function mapCoupon(row: StoredCoupon): CouponRecord {
+  return {
+    code: row.code,
+    kind: row.kind === 'flat' ? 'flat' : 'percent',
+    value: Number(row.value) || 0,
+    appliesTo: Array.isArray(row.applies_to)
+      ? row.applies_to.filter((entry): entry is string => typeof entry === 'string')
+      : [],
+    minAmount: Number(row.min_amount) || 0,
+    maxRedemptions:
+      row.max_redemptions === null || row.max_redemptions === undefined
+        ? null
+        : Number(row.max_redemptions),
+    startsAt: row.starts_at ?? null,
+    expiresAt: row.expires_at ?? null,
+    status: row.status === 'paused' || row.status === 'deleted' ? row.status : 'active',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -663,5 +739,106 @@ export class JsonFileStore implements Store {
       metrics.set(order.influencer_id, current)
     }
     return metrics
+  }
+
+  // ---------------------------------------------------------------- coupons --
+
+  async listCoupons(): Promise<CouponRecord[]> {
+    const rows = loadJsonDb().coupons ?? []
+    return rows
+      .map(mapCoupon)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }
+
+  async getCouponByCode(code: string): Promise<CouponRecord | null> {
+    const normalized = normalizeCouponCode(code)
+    if (!normalized) return null
+    const row = (loadJsonDb().coupons ?? []).find((entry) => entry.code === normalized)
+    return row ? mapCoupon(row) : null
+  }
+
+  async createCoupon(input: CreateCouponInput): Promise<CouponRecord> {
+    const db = loadJsonDb()
+    const rows = (db.coupons ??= [])
+    const code = normalizeCouponCode(input.code)
+    if (rows.some((entry) => entry.code === code)) {
+      throw new Error(`coupon code already exists: ${code}`)
+    }
+    const now = new Date().toISOString()
+    const row: StoredCoupon = {
+      code,
+      kind: input.kind,
+      value: input.value,
+      applies_to: input.appliesTo ?? [],
+      min_amount: input.minAmount ?? 0,
+      max_redemptions: input.maxRedemptions ?? null,
+      starts_at: input.startsAt ?? null,
+      expires_at: input.expiresAt ?? null,
+      status: input.status ?? 'active',
+      created_at: now,
+      updated_at: now,
+    }
+    rows.push(row)
+    saveJsonDb(db)
+    return mapCoupon(row)
+  }
+
+  async updateCoupon(
+    code: string,
+    input: UpdateCouponInput,
+  ): Promise<CouponRecord | null> {
+    const db = loadJsonDb()
+    const normalized = normalizeCouponCode(code)
+    const row = (db.coupons ?? []).find((entry) => entry.code === normalized)
+    if (!row) return null
+
+    if (input.kind !== undefined) row.kind = input.kind
+    if (input.value !== undefined) row.value = input.value
+    if (input.appliesTo !== undefined) row.applies_to = input.appliesTo
+    if (input.minAmount !== undefined) row.min_amount = input.minAmount
+    if (input.maxRedemptions !== undefined) row.max_redemptions = input.maxRedemptions
+    if (input.startsAt !== undefined) row.starts_at = input.startsAt
+    if (input.expiresAt !== undefined) row.expires_at = input.expiresAt
+    if (input.status !== undefined) row.status = input.status
+    row.updated_at = new Date().toISOString()
+
+    saveJsonDb(db)
+    return mapCoupon(row)
+  }
+
+  async deleteCoupon(code: string): Promise<boolean> {
+    const db = loadJsonDb()
+    const normalized = normalizeCouponCode(code)
+    const rows = db.coupons ?? []
+    const index = rows.findIndex((entry) => entry.code === normalized)
+    if (index < 0) return false
+    rows.splice(index, 1)
+    saveJsonDb(db)
+    return true
+  }
+
+  /**
+   * PAID orders only: an abandoned PENDING checkout must not burn a
+   * redemption, since nothing expires pending orders yet.
+   */
+  async countCouponRedemptions(code: string): Promise<number> {
+    const normalized = normalizeCouponCode(code)
+    if (!normalized) return 0
+    return loadJsonDb().orders.filter(
+      (order) =>
+        order.status === 'PAID' &&
+        normalizeCouponCode(order.coupon_code ?? '') === normalized,
+    ).length
+  }
+
+  async getCouponRedemptionCounts(): Promise<Map<string, number>> {
+    const counts = new Map<string, number>()
+    for (const order of loadJsonDb().orders) {
+      if (order.status !== 'PAID') continue
+      const code = normalizeCouponCode(order.coupon_code ?? '')
+      if (!code) continue
+      counts.set(code, (counts.get(code) ?? 0) + 1)
+    }
+    return counts
   }
 }

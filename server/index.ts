@@ -22,9 +22,11 @@ import {
 import {
   assertStoreReady,
   activeStoreKind,
+  countCouponRedemptions,
   countExperiences,
   createOrder,
   finalizeOrderForPayment,
+  getCouponByCode,
   getExperienceById,
   getInfluencerByCode,
   getOrderByGatewayOrderId,
@@ -34,9 +36,8 @@ import {
   isStoreDurable,
   systemId,
 } from './db.js'
-import type { InfluencerRecord } from './store.js'
+import type { CouponRecord, InfluencerRecord } from './store.js'
 import {
-  isRedeemable,
   isValidCodeFormat,
   normalizeCode,
   normalizeIp,
@@ -44,7 +45,14 @@ import {
   priceOrder,
   REJECTION_MESSAGES,
   resolveCoupon,
+  type CouponRejection as PartnerCouponRejection,
 } from './influencers.js'
+import {
+  COUPON_REJECTION_MESSAGES,
+  couponDiscountPercentage,
+  isCouponUsable,
+  type GenericCouponRejection,
+} from './coupons.js'
 import { sanitizeCustomization } from './sanitize.js'
 import { SupabaseStoreError } from './supabase.js'
 import { createAdminRouter } from './adminRoutes.js'
@@ -134,25 +142,156 @@ export function legacyCouponDiscountPercentage(code: string): number | null {
 }
 
 /**
- * Resolves any coupon — partner code or legacy campaign code — to the discount
- * the BUYER receives, as a percentage.
- *
- * Returns null when the code is unusable. This is the single lookup used by both
- * the public validation endpoint and checkout, so the price a buyer is quoted can
- * never differ from the price they are charged.
+ * Why a submitted code was refused. The first four are the partner-code
+ * reasons that have always existed; the rest belong to generic campaign
+ * coupons (schedule, applicability, caps).
  */
-export async function resolveCouponDiscountPercentage(
-  code: string,
-): Promise<number | null> {
-  const normalized = normalizeCode(code)
-  if (!isValidCodeFormat(normalized)) return null
+export type CheckoutCouponReason = PartnerCouponRejection | GenericCouponRejection
 
-  const influencer = await getInfluencerByCode(normalized)
+export type CheckoutCouponSource = 'partner' | 'coupon' | 'legacy'
+
+export interface CheckoutCouponResolution {
+  applied: boolean
+  /** Normalized submitted code, whether or not it was accepted (for logs). */
+  code: string
+  source: CheckoutCouponSource | null
+  /** Null when the code was applied. */
+  reason: CheckoutCouponReason | null
+  /** Buyer-facing refusal copy. Null when the code was applied. */
+  error: string | null
+  /** Effective percentage handed to `priceOrder`. 0 when the code was refused. */
+  discountPercentage: number
+  /** Set only for partner codes; drives commission. */
+  influencer: InfluencerRecord | null
+  /** Set only for generic campaign coupons. */
+  coupon: CouponRecord | null
+}
+
+function bareRefusal(code: string, reason: CheckoutCouponReason): CheckoutCouponResolution {
+  return {
+    applied: false,
+    code,
+    source: null,
+    reason,
+    // The shared reasons read identically in both message maps, so a code with
+    // no source can still be described accurately.
+    error: COUPON_REJECTION_MESSAGES[reason as GenericCouponRejection],
+    discountPercentage: 0,
+    influencer: null,
+    coupon: null,
+  }
+}
+
+function refusal(
+  code: string,
+  source: CheckoutCouponSource,
+  reason: CheckoutCouponReason,
+  extra: { influencer?: InfluencerRecord | null; coupon?: CouponRecord | null } = {},
+): CheckoutCouponResolution {
+  return {
+    applied: false,
+    code,
+    source,
+    reason,
+    error:
+      source === 'partner'
+        ? REJECTION_MESSAGES[reason as PartnerCouponRejection]
+        : COUPON_REJECTION_MESSAGES[reason as GenericCouponRejection],
+    discountPercentage: 0,
+    influencer: extra.influencer ?? null,
+    coupon: extra.coupon ?? null,
+  }
+}
+
+function applied(
+  code: string,
+  source: CheckoutCouponSource,
+  discountPercentage: number,
+  extra: { influencer?: InfluencerRecord | null; coupon?: CouponRecord | null } = {},
+): CheckoutCouponResolution {
+  return {
+    applied: true,
+    code,
+    source,
+    reason: null,
+    error: null,
+    discountPercentage,
+    influencer: extra.influencer ?? null,
+    coupon: extra.coupon ?? null,
+  }
+}
+
+/**
+ * Resolves ANY submitted code — partner, generic coupon, or legacy campaign —
+ * to the discount the BUYER receives, as a percentage.
+ *
+ * Order of precedence is deliberate and fixed:
+ *
+ *   1. partner code   — an affiliate's attribution is never lost to an
+ *                       operator's campaign code. If the partner exists but is
+ *                       paused/expired, that verdict is final: no fallthrough
+ *                       to the other namespaces, which could silently credit
+ *                       someone else (or nobody) for the same code.
+ *   2. generic coupon — a row in `cupi_coupons`. Its verdict is also final.
+ *   3. legacy codes   — the hardcoded campaign codes kept for old links.
+ *
+ * This is the single lookup behind the public quote endpoints and checkout, so
+ * the price a buyer is quoted can never differ from the price they are charged.
+ *
+ * `ctx` carries whatever the caller already knows: with a template and a price,
+ * every eligibility rule is enforced (applicability, minimum spend, redemption
+ * cap); without them, a bare code is judged on its schedule and status only.
+ */
+export async function resolveCheckoutCoupon(
+  submittedCode: string,
+  ctx: { templateId?: string; baseAmount?: number; redemptionsUsed?: number } = {},
+): Promise<CheckoutCouponResolution> {
+  const code = normalizeCode(submittedCode)
+  if (!code) return bareRefusal(code, 'NOT_FOUND')
+  if (!isValidCodeFormat(code)) return bareRefusal(code, 'INVALID_FORMAT')
+
+  // ------------------------------------------------------------- 1. partner --
+  const influencer = await getInfluencerByCode(code)
   if (influencer) {
-    return isRedeemable(influencer) ? influencer.discountPercentage : null
+    const resolution = resolveCoupon(code, influencer)
+    if (resolution.valid && resolution.influencer) {
+      return applied(code, 'partner', resolution.influencer.discountPercentage, {
+        influencer: resolution.influencer,
+      })
+    }
+    return refusal(code, 'partner', resolution.reason ?? 'NOT_FOUND', { influencer })
   }
 
-  return legacyCouponDiscountPercentage(normalized)
+  // -------------------------------------------------- 2. generic coupon row --
+  const coupon = await getCouponByCode(code)
+  if (coupon) {
+    // The cap is checked against PAID orders, so an abandoned PENDING checkout
+    // never burns one. Counted lazily: codes without a cap cost no extra query.
+    const redemptionsUsed =
+      coupon.maxRedemptions !== null && ctx.redemptionsUsed === undefined
+        ? await countCouponRedemptions(code)
+        : ctx.redemptionsUsed
+
+    const verdict = isCouponUsable(coupon, {
+      templateId: ctx.templateId,
+      baseAmount: ctx.baseAmount,
+      redemptionsUsed,
+    })
+    if (!verdict.ok) return refusal(code, 'coupon', verdict.reason, { coupon })
+
+    return applied(
+      code,
+      'coupon',
+      couponDiscountPercentage(coupon, ctx.baseAmount ?? 0),
+      { coupon },
+    )
+  }
+
+  // ------------------------------------------------------- 3. legacy codes --
+  const legacyPercentage = legacyCouponDiscountPercentage(code)
+  if (legacyPercentage !== null) return applied(code, 'legacy', legacyPercentage)
+
+  return bareRefusal(code, 'NOT_FOUND')
 }
 
 /**
@@ -171,13 +310,24 @@ async function handleValidateCoupon(req: Request, res: Response): Promise<void> 
   }
 
   const templateId = typeof req.query.templateId === 'string' ? req.query.templateId : ''
-  const discountPercentage = await resolveCouponDiscountPercentage(code)
+  const quoted = ALLOWED_TEMPLATES.includes(templateId)
+  const baseAmount = quoted ? await resolvePriceInRupees(templateId) : undefined
 
-  if (discountPercentage === null) {
-    res.json({ valid: false, error: 'Invalid coupon code' })
+  const resolution = await resolveCheckoutCoupon(code, {
+    templateId: quoted ? templateId : undefined,
+    baseAmount,
+  })
+
+  if (!resolution.applied) {
+    res.json({
+      valid: false,
+      reason: resolution.reason ?? undefined,
+      error: resolution.error ?? 'Invalid coupon code',
+    })
     return
   }
 
+  const discountPercentage = resolution.discountPercentage
   const multiplier = 1 - discountPercentage / 100
   const response: Record<string, unknown> = {
     valid: true,
@@ -187,9 +337,9 @@ async function handleValidateCoupon(req: Request, res: Response): Promise<void> 
 
   // Quote the real price when a template is supplied, so the checkout button
   // never shows an amount the server would then refuse.
-  if (ALLOWED_TEMPLATES.includes(templateId)) {
+  if (quoted && baseAmount !== undefined) {
     const priced = priceOrder({
-      baseAmount: await resolvePriceInRupees(templateId),
+      baseAmount,
       discountPercentage,
       commissionPercentage: 0,
     })
@@ -222,68 +372,41 @@ async function handleApplyCoupon(req: Request, res: Response): Promise<void> {
     return
   }
 
-  const normalized = normalizeCode(code)
-  const influencer = await getInfluencerByCode(normalized)
+  const baseAmount = await resolvePriceInRupees(templateId)
+  const resolution = await resolveCheckoutCoupon(code, { templateId, baseAmount })
 
-  if (influencer) {
-    const resolution = resolveCoupon(normalized, influencer)
-    if (!resolution.valid) {
-      res.status(200).json({
-        valid: false,
-        reason: resolution.reason,
-        error: REJECTION_MESSAGES[resolution.reason ?? 'NOT_FOUND'],
-      })
-      return
-    }
-
-    const baseAmount = await resolvePriceInRupees(templateId)
-    const priced = priceOrder({
-      baseAmount,
-      discountPercentage: influencer.discountPercentage,
-      commissionPercentage: influencer.commissionPercentage,
-    })
-
-    res.json({
-      valid: true,
-      code: influencer.uniqueCode,
-      // The partner's name is not returned: this endpoint is public and the
-      // dashboard owns who a code belongs to.
-      discountPercentage: influencer.discountPercentage,
-      discountMultiplier: 1 - influencer.discountPercentage / 100,
-      originalAmount: priced.originalAmount,
-      amount: priced.amount,
-      discountGiven: priced.discountGiven,
-    })
-    return
-  }
-
-  const legacyPercentage = legacyCouponDiscountPercentage(normalized)
-  if (legacyPercentage === null) {
+  if (!resolution.applied) {
     res.json({
       valid: false,
-      reason: 'NOT_FOUND',
-      error: REJECTION_MESSAGES.NOT_FOUND,
+      reason: resolution.reason ?? undefined,
+      error: resolution.error ?? 'Invalid coupon code',
     })
     return
   }
 
-  const baseAmount = await resolvePriceInRupees(templateId)
   const priced = priceOrder({
     baseAmount,
-    discountPercentage: legacyPercentage,
-    commissionPercentage: 0,
+    discountPercentage: resolution.discountPercentage,
+    // Commission belongs to partner codes only: a campaign coupon and a legacy
+    // code pay nobody, so a buyer's discount never quietly costs Cupi extra.
+    commissionPercentage: resolution.influencer?.commissionPercentage ?? 0,
   })
 
-  res.json({
+  const response: Record<string, unknown> = {
     valid: true,
-    code: normalized,
-    legacy: true,
-    discountPercentage: legacyPercentage,
-    discountMultiplier: 1 - legacyPercentage / 100,
+    code: resolution.code,
+    // The partner's name is not returned: this endpoint is public and the
+    // dashboard owns who a code belongs to.
+    discountPercentage: resolution.discountPercentage,
+    discountMultiplier: 1 - resolution.discountPercentage / 100,
     originalAmount: priced.originalAmount,
     amount: priced.amount,
     discountGiven: priced.discountGiven,
-  })
+  }
+  // Legacy campaign codes are flagged so the checkout UI can keep its copy.
+  if (resolution.source === 'legacy') response.legacy = true
+
+  res.json(response)
 }
 
 // 1. CORS
@@ -306,7 +429,7 @@ app.use(
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }),
 )
@@ -439,32 +562,29 @@ async function handleCreateOrder(
     let couponCode: string | null = null
 
     if (submittedCode) {
-      const normalized = normalizeCode(submittedCode)
-      if (isValidCodeFormat(normalized)) {
-        const candidate = await getInfluencerByCode(normalized)
-        if (candidate && isRedeemable(candidate)) {
-          influencer = candidate
-          discountPercentage = candidate.discountPercentage
-          couponCode = candidate.uniqueCode
-          console.log(
-            `[COUPON APPLIED] ${candidate.uniqueCode} (${discountPercentage}% off) for ${templateId}`,
-          )
-        } else if (candidate) {
-          console.log(
-            `[COUPON REFUSED] ${normalized}: influencer exists but is not redeemable`,
-          )
-        } else {
-          const legacyPercentage = legacyCouponDiscountPercentage(normalized)
-          if (legacyPercentage !== null) {
-            discountPercentage = legacyPercentage
-            couponCode = normalized
-            console.log(`[LEGACY COUPON APPLIED] ${normalized} (${legacyPercentage}% off)`)
-          } else {
-            console.log(`[COUPON INVALID] ${normalized}`)
-          }
-        }
+      const resolution = await resolveCheckoutCoupon(submittedCode, {
+        templateId,
+        baseAmount: basePrice,
+      })
+
+      if (resolution.applied) {
+        influencer = resolution.influencer
+        discountPercentage = resolution.discountPercentage
+        couponCode = resolution.code
+        console.log(
+          `[COUPON APPLIED] ${resolution.code} via ${resolution.source} ` +
+            `(${discountPercentage}% off) for ${templateId}`,
+        )
+      } else if (resolution.reason === 'INVALID_FORMAT') {
+        console.log(`[COUPON MALFORMED] ${resolution.code}`)
+      } else if (resolution.source === 'partner') {
+        console.log(
+          `[COUPON REFUSED] ${resolution.code}: influencer exists but is not redeemable (${resolution.reason})`,
+        )
       } else {
-        console.log(`[COUPON MALFORMED] ${normalized}`)
+        // A refused code never blocks checkout: the buyer simply proceeds at
+        // the full price, exactly as an unknown code would.
+        console.log(`[COUPON INVALID] ${resolution.code}: ${resolution.reason}`)
       }
     }
 

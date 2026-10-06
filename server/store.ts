@@ -213,6 +213,92 @@ export interface UpdateInfluencerInput {
   status?: InfluencerStatus
 }
 
+/**
+ * How a generic coupon takes money off.
+ *
+ *   percent → `value` is a percentage of the price (100 = free).
+ *   flat    → `value` is a flat amount in rupees, capped at the price itself.
+ */
+export type CouponKind = 'percent' | 'flat'
+
+/**
+ * Operator intent for a generic coupon. Like influencers, there is no derived
+ * 'expired'/'exhausted' state stored: those are functions of time and of how
+ * many PAID orders already used the code, so they are computed at read time.
+ */
+export type CouponStatus = 'active' | 'paused' | 'deleted'
+
+/**
+ * A campaign code an operator creates directly, unrelated to any partner.
+ *
+ * `code` is BOTH the public handle and the primary key, stored normalized
+ * (trimmed, upper-cased) — so "diwali20" and "DIWALI20" can never both exist,
+ * and a checkout lookup is a single primary-key hit.
+ *
+ * Commission is deliberately absent: only partner codes earn commission
+ * (`influencer_id` on the order stays NULL), so a generic coupon is a pure
+ * discount against Cupi's own revenue.
+ */
+export interface CouponRecord {
+  /** Normalized (trimmed, upper-cased). Primary key. */
+  code: string
+  kind: CouponKind
+  /** Percentage (percent) or rupees (flat). Always > 0. */
+  value: number
+  /** Template ids this code applies to. Empty = every template. */
+  appliesTo: string[]
+  /** Minimum pre-discount price, in rupees, for the code to apply. 0 = none. */
+  minAmount: number
+  /** Total PAID orders the code may be used on. null = unlimited. */
+  maxRedemptions: number | null
+  /** ISO timestamp; null = starts immediately. */
+  startsAt: string | null
+  /** ISO timestamp; null = never expires. */
+  expiresAt: string | null
+  status: CouponStatus
+  createdAt: string
+  updatedAt: string
+}
+
+/** Row shape of `cupi_coupons`, before normalization. */
+export interface StoredCoupon {
+  code: string
+  kind: string
+  value: number | string
+  applies_to: string[] | null
+  min_amount: number | string
+  max_redemptions: number | null
+  starts_at: string | null
+  expires_at: string | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCouponInput {
+  /** Normalized before insert; the caller validates the format. */
+  code: string
+  kind: CouponKind
+  value: number
+  appliesTo?: string[]
+  minAmount?: number
+  maxRedemptions?: number | null
+  startsAt?: string | null
+  expiresAt?: string | null
+  status?: CouponStatus
+}
+
+export interface UpdateCouponInput {
+  kind?: CouponKind
+  value?: number
+  appliesTo?: string[]
+  minAmount?: number
+  maxRedemptions?: number | null
+  startsAt?: string | null
+  expiresAt?: string | null
+  status?: CouponStatus
+}
+
 export interface StoredExperience {
   id: string
   order_id: string
@@ -303,4 +389,38 @@ export interface Store {
    * an influencer with no paid orders is simply absent.
    */
   getInfluencerMetrics(): Promise<Map<string, InfluencerMetrics>>
+
+  // --------------------------------------------------------------- coupons --
+
+  /** Every generic coupon, newest first. */
+  listCoupons(): Promise<CouponRecord[]>
+  /** Primary-key lookup on the normalized code. The checkout hot path. */
+  getCouponByCode(code: string): Promise<CouponRecord | null>
+  /**
+   * Creates a coupon. Uniqueness on `code` is enforced by the primary key;
+   * a duplicate rejects rather than overwriting an existing code.
+   */
+  createCoupon(input: CreateCouponInput): Promise<CouponRecord>
+  /** Partial update by code. Returns null when the code does not exist. */
+  updateCoupon(code: string, input: UpdateCouponInput): Promise<CouponRecord | null>
+  /**
+   * Hard-deletes a coupon. Orders keep their `coupon_code` and money snapshots,
+   * exactly as they do when a partner is deleted — attribution is a text
+   * snapshot, never a live foreign key.
+   */
+  deleteCoupon(code: string): Promise<boolean>
+
+  /**
+   * How many PAID orders were placed with this code — the redemption count
+   * `max_redemptions` is checked against.
+   *
+   * Derived from the orders table rather than stored on the coupon, so the
+   * number can never drift from reality: there is no second write to forget,
+   * lose or race. PENDING (abandoned) checkouts are deliberately excluded —
+   * there is no order-expiry lifecycle yet, so counting them would let a
+   * half-finished checkout permanently burn a redemption.
+   */
+  countCouponRedemptions(code: string): Promise<number>
+  /** Redemption counts for every code that has at least one PAID order. */
+  getCouponRedemptionCounts(): Promise<Map<string, number>>
 }
