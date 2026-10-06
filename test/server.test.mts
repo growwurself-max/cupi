@@ -36,6 +36,7 @@ const orders: Row[] = []
 const experiences: Row[] = []
 const productPrices: Row[] = []
 const templateAudio: Row[] = []
+const influencers: Row[] = []
 let simDown = false
 
 function tableOf(t: string): Row[] | null {
@@ -43,6 +44,7 @@ function tableOf(t: string): Row[] | null {
   if (t === 'cupi_experiences') return experiences
   if (t === 'cupi_product_prices') return productPrices
   if (t === 'cupi_template_audio') return templateAudio
+  if (t === 'cupi_influencers') return influencers
   return null
 }
 function project(rows: Row[], select: string | null): Row[] {
@@ -53,14 +55,61 @@ function project(rows: Row[], select: string | null): Row[] {
 function applyFilters(rows: Row[], query: URLSearchParams): Row[] {
   let out = rows.slice()
   for (const key of [...query.keys()]) {
-    if (['select', 'limit', 'order', 'on_conflict', 'status', 'columns'].includes(key)) continue
+    // `status` is NOT skipped: the influencer metrics query filters on
+    // `status=eq.PAID`, and dropping it here would make pending checkouts look
+    // like collected revenue.
+    if (['select', 'limit', 'order', 'on_conflict', 'columns', 'group_by'].includes(key)) continue
     for (const v of query.getAll(key)) {
+      if (v.startsWith('not.')) {
+        if (v.slice(4) === 'is.null') {
+          out = out.filter((r) => r[key] !== null && r[key] !== undefined)
+        }
+        continue
+      }
       const op = v.slice(0, 3)
       const want = v.slice(3)
       out = out.filter((r) => (op === 'eq.' ? r[key] === want : true))
     }
   }
   return out
+}
+
+/**
+ * Minimal stand-in for PostgREST's aggregate selects.
+ *
+ * Only what the influencer metrics query needs: a grouping column, a count, and
+ * coalesce(sum(col)) aliases. Anything else falls through to plain projection,
+ * which is what every other endpoint uses.
+ */
+function aggregate(rows: Row[], query: URLSearchParams): Row[] | null {
+  const select = query.get('select')
+  if (!select || !select.includes('count(*)')) return null
+  const groupBy = query.get('group_by')
+  if (!groupBy) return null
+
+  const sums = [...select.matchAll(/coalesce\(sum\((\w+)\),\s*0\)\s+as\s+(\w+)/gi)].map(
+    (m) => [m[1], m[2]] as const,
+  )
+  const count = select.match(/count\(\*\)(?:::bigint)?\s+as\s+(\w+)/i)?.[1]
+  const buckets = new Map<string, Row[]>()
+  for (const row of rows) {
+    const key = String(row[groupBy])
+    const bucket = buckets.get(key)
+    if (bucket) bucket.push(row)
+    else buckets.set(key, [row])
+  }
+
+  return [...buckets.values()].map((bucket) => {
+    const out: Row = { [groupBy]: bucket[0][groupBy] }
+    if (count) out[count] = bucket.length
+    for (const [column, alias] of sums) {
+      out[alias] = bucket.reduce(
+        (total, r) => total + (typeof r[column] === 'number' ? (r[column] as number) : Number(r[column] ?? 0)),
+        0,
+      )
+    }
+    return out
+  })
 }
 
 const shim: Server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -79,7 +128,9 @@ const shim: Server = createServer((req: IncomingMessage, res: ServerResponse) =>
     return
   }
   if (req.method === 'GET') {
-    let m = project(applyFilters(rows, q), q.get('select'))
+    const filtered = applyFilters(rows, q)
+    const aggregated = aggregate(filtered, q)
+    let m = aggregated ?? project(filtered, q.get('select'))
     const limit = q.get('limit')
     if (limit) m = m.slice(0, Number(limit))
     const headers: Record<string, string> = { 'content-type': 'application/json' }
@@ -100,6 +151,29 @@ const shim: Server = createServer((req: IncomingMessage, res: ServerResponse) =>
         if (row.order_id != null && !orders.some((o) => o.id === row.order_id)) {
           res.writeHead(409, { 'content-type': 'application/json' })
           res.end(JSON.stringify({ code: '23503' }))
+          return
+        }
+      }
+    }
+    if (table === 'cupi_orders') {
+      for (const row of incoming) {
+        // influencer_id is a foreign key onto cupi_influencers.
+        if (row.influencer_id != null && !influencers.some((i) => i.id === row.influencer_id)) {
+          res.writeHead(409, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ code: '23503' }))
+          return
+        }
+      }
+    }
+    if (table === 'cupi_influencers') {
+      for (const row of incoming) {
+        // unique_code is UNIQUE; a duplicate is a 409 the admin route surfaces.
+        if (
+          row.unique_code != null &&
+          influencers.some((i) => i.unique_code === row.unique_code && i.id !== row.id)
+        ) {
+          res.writeHead(409, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ code: '23505' }))
           return
         }
       }
@@ -132,6 +206,24 @@ const shim: Server = createServer((req: IncomingMessage, res: ServerResponse) =>
       for (const r of matched) Object.assign(r, incoming[0])
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify(prefer.includes('return=representation') ? project(matched, q.get('select')) : []))
+      return
+    }
+    if (req.method === 'DELETE') {
+      const matched = applyFilters(rows, q)
+      const kept = rows.filter((r) => !matched.includes(r))
+      rows.length = 0
+      rows.push(...kept)
+      if (table === 'cupi_influencers') {
+        // ON DELETE SET NULL: orders outlive the partner, keeping their code and
+        // money snapshots, and only the link is dropped.
+        for (const order of orders) {
+          if (matched.some((m) => m.id === order.influencer_id)) order.influencer_id = null
+        }
+      }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(
+        JSON.stringify(prefer.includes('return=representation') ? project(matched, q.get('select')) : []),
+      )
       return
     }
     res.writeHead(405).end()
@@ -178,6 +270,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
 process.env.SUPABASE_URL = SHIM
 process.env.SUPABASE_SERVICE_ROLE_KEY = KEY
 process.env.FAMGATEWAY_API_KEY = GW_KEY
+process.env.SUPER_ADMIN_TOKEN = 'test-admin-token'
 process.env.PORT = String(API_PORT)
 process.env.NODE_ENV = 'production'
 process.env.CUPI_DATA_DIR = path.resolve(WORK_DIR)
@@ -338,8 +431,173 @@ const subPath = await realFetch(`${API}/api/experiences/${slug}/regenerate`, { m
 check('unknown sub-path cannot mutate either', subPath.status === 423 || subPath.status === 404, String(subPath.status))
 check('content was not modified by any attempt', JSON.stringify((await (await realFetch(`${API}/api/experiences/${slug}`)).json()).config).includes('QUJD'))
 
+// ------------------------------------------------------- influencers ---
+console.log('\n=== 6. Influencers, coupons and referral attribution ===')
+const ADMIN = { Authorization: 'Bearer test-admin-token' }
+
+const adminGet = (path: string, headers: Record<string, string> = ADMIN) =>
+  realFetch(`${API}${path}`, { headers })
+
+const noAuth = await realFetch(`${API}/api/admin/influencers`)
+check('influencer list requires auth', noAuth.status === 401, String(noAuth.status))
+
+const makeInfluencer = async (body: Record<string, unknown>) => {
+  const res = await realFetch(`${API}/api/admin/influencers`, {
+    method: 'POST',
+    headers: { ...ADMIN, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return { res, data: await res.json() }
+}
+
+const priya = await makeInfluencer({
+  name: 'Priya Sharma',
+  email: 'priya@example.com',
+  uniqueCode: 'PRIYA20',
+  discountPercentage: 20,
+  commissionPercentage: 10,
+})
+check('influencer created', priya.res.status === 201, JSON.stringify(priya.data))
+check('code stored normalized', priya.data?.influencer?.uniqueCode === 'PRIYA20')
+
+const generated = await makeInfluencer({ name: 'Rahul Verma', discountPercentage: 5, commissionPercentage: 8 })
+check('code auto-generated from name', typeof generated.data?.influencer?.uniqueCode === 'string' && generated.data.influencer.uniqueCode.length > 0, JSON.stringify(generated.data))
+
+const dupe = await makeInfluencer({ name: 'Copycat', uniqueCode: 'PRIYA20' })
+check('duplicate code is de-duplicated, not rejected', dupe.data?.influencer?.uniqueCode !== 'PRIYA20', JSON.stringify(dupe.data))
+
+const badRate = await makeInfluencer({ name: 'Too Greedy', discountPercentage: 500 })
+check('out-of-range discount rejected with 400', badRate.res.status === 400, String(badRate.res.status))
+
+const badCode = await makeInfluencer({ name: 'Bad Code', uniqueCode: 'no spaces allowed!' })
+check('malformed code rejected with 400', badCode.res.status === 400, String(badCode.res.status))
+
+// A code with no digits is still a legitimate code; only format is enforced.
+const alpha = await makeInfluencer({ name: 'Alpha Creator', uniqueCode: 'ALPHA', discountPercentage: 30, commissionPercentage: 10 })
+check('alphabetic-only code accepted', alpha.res.status === 201, JSON.stringify(alpha.data))
+
+// Public coupon quoting: the amount a buyer is shown must be the amount charged.
+const quote = await realFetch(`${API}/api/checkout/apply-coupon`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ code: 'priya20', templateId: 'birthday-03' }),
+})
+const quoteBody = await quote.json()
+check('public apply-coupon accepts lowercase codes', quoteBody.valid === true, JSON.stringify(quoteBody))
+check('apply-coupon quotes the discounted price', typeof quoteBody.amount === 'number' && quoteBody.amount < quoteBody.originalAmount, JSON.stringify(quoteBody))
+check('apply-coupon discount equals original minus amount', Math.abs(quoteBody.discountGiven - (quoteBody.originalAmount - quoteBody.amount)) < 0.01, JSON.stringify(quoteBody))
+
+const unknownCode = await realFetch(`${API}/api/checkout/apply-coupon`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ code: 'NOPE', templateId: 'birthday-03' }),
+})
+check('unknown code is not valid', (await unknownCode.json()).valid === false)
+
+const legacyQuote = await realFetch(`${API}/api/checkout/apply-coupon`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ code: 'INFLUENCER33', templateId: 'birthday-03' }),
+})
+const legacyBody = await legacyQuote.json()
+check('legacy campaign code still works', legacyBody.valid === true && legacyBody.legacy === true, JSON.stringify(legacyBody))
+
+// Checkout with a referral code: the order must record the partner and the money.
+const refOrderRes = await realFetch(`${API}/api/orders/create`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    templateId: 'birthday-03',
+    customization: CUSTOMIZATION,
+    couponCode: 'PRIYA20',
+    trafficSource: 'instagram',
+  }),
+})
+check('referral checkout accepted', refOrderRes.status === 201, String(refOrderRes.status))
+const refOrder = orders[orders.length - 1]
+check('order attributed to the influencer', refOrder.influencer_id === priya.data.influencer.id, String(refOrder.influencer_id))
+check('coupon code snapshotted on the order', refOrder.coupon_code === 'PRIYA20')
+check('original amount snapshotted', Number(refOrder.original_amount) > 0)
+check('commission snapshotted', Number(refOrder.influencer_commission_earned) > 0)
+check('commission equals rate on the discounted amount', Math.abs(Number(refOrder.influencer_commission_earned) - Math.round(Number(refOrder.amount) * 0.1 * 100) / 100) < 0.02, `${refOrder.influencer_commission_earned} vs ${refOrder.amount}`)
+check('net revenue is the remainder after commission', Math.abs(Number(refOrder.net_revenue) - (Number(refOrder.amount) - Number(refOrder.influencer_commission_earned))) < 0.02)
+check('gateway charge equals the discounted amount', Number(refOrder.amount) === quoteBody.amount, `${refOrder.amount} vs ${quoteBody.amount}`)
+check('traffic source recorded', refOrder.traffic_source === 'instagram', String(refOrder.traffic_source))
+
+// A paused partner earns nothing, even with a valid code.
+await realFetch(`${API}/api/admin/influencers/${priya.data.influencer.id}`, {
+  method: 'PUT',
+  headers: { ...ADMIN, 'content-type': 'application/json' },
+  body: JSON.stringify({ status: 'paused' }),
+})
+const pausedQuote = await realFetch(`${API}/api/checkout/apply-coupon`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ code: 'PRIYA20', templateId: 'birthday-03' }),
+})
+const pausedBody = await pausedQuote.json()
+check('paused code is refused', pausedBody.valid === false && pausedBody.reason === 'PAUSED', JSON.stringify(pausedBody))
+
+const pausedOrderRes = await realFetch(`${API}/api/orders/create`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ templateId: 'birthday-03', customization: CUSTOMIZATION, couponCode: 'PRIYA20' }),
+})
+check('paused code still allows checkout at full price', pausedOrderRes.status === 201)
+const pausedOrder = orders[orders.length - 1]
+check('paused code earns no commission', Number(pausedOrder.influencer_commission_earned) === 0)
+check('paused code attributes nobody', pausedOrder.influencer_id === null)
+
+// Metrics must count only PAID orders.
+const listed = await adminGet('/api/admin/influencers')
+const listedBody = await listed.json()
+check('influencer list returns rows and a summary', listed.status === 200 && Array.isArray(listedBody.influencers) && !!listedBody.summary, JSON.stringify(listedBody).slice(0, 200))
+const priyaRow = listedBody.influencers.find((i: { id: string }) => i.id === priya.data.influencer.id)
+check('created influencer appears in the list', priyaRow !== undefined, JSON.stringify(listedBody).slice(0, 300))
+check('unpaid orders are NOT counted as revenue', priyaRow.totalOrders === 0, JSON.stringify(priyaRow))
+
+// Pay the referred order, then the numbers must move.
+const refPaidBody = JSON.stringify({ order_id: refOrder.gateway_order_id, status: 'success', amount: refOrder.amount })
+const refSig = createHmac('sha256', GW_KEY).update(refPaidBody).digest('hex')
+await realFetch(`${API}/api/famgateway/webhook`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', 'X-FamGateway-Signature': refSig },
+  body: refPaidBody,
+})
+
+const afterPaid = await (await adminGet('/api/admin/influencers')).json()
+const priyaPaid = afterPaid.influencers.find((i: { id: string }) => i.id === priya.data.influencer.id)
+check('paid order counted', priyaPaid.totalOrders === 1, JSON.stringify(priyaPaid))
+check('revenue equals the amount charged', Math.abs(priyaPaid.totalRevenueGenerated - Number(refOrder.amount)) < 0.01, JSON.stringify(priyaPaid))
+check('commission owed equals the snapshot', Math.abs(priyaPaid.commissionOwed - Number(refOrder.influencer_commission_earned)) < 0.02, JSON.stringify(priyaPaid))
+check('summary totals exist', afterPaid.summary && afterPaid.summary.totalOrders >= 1, JSON.stringify(afterPaid.summary))
+
+// Editing the rate must not rewrite history.
+await realFetch(`${API}/api/admin/influencers/${priya.data.influencer.id}`, {
+  method: 'PUT',
+  headers: { ...ADMIN, 'content-type': 'application/json' },
+  body: JSON.stringify({ status: 'active', commissionPercentage: 50, discountPercentage: 5 }),
+})
+const afterRateChange = await (await adminGet('/api/admin/influencers')).json()
+const priyaRepriced = afterRateChange.influencers.find((i: { id: string }) => i.id === priya.data.influencer.id)
+check('past commission unchanged after a rate edit', Math.abs(priyaRepriced.commissionOwed - Number(refOrder.influencer_commission_earned)) < 0.02, JSON.stringify(priyaRepriced))
+
+// Deleting keeps the order's snapshots for the audit trail.
+const delRes = await realFetch(`${API}/api/admin/influencers/${priya.data.influencer.id}`, {
+  method: 'DELETE',
+  headers: ADMIN,
+})
+check('delete succeeds', delRes.status === 200, String(delRes.status))
+const delOrder = orders.find((o) => o.id === refOrder.id)
+check('deleted partner is unlinked from the order', delOrder.influencer_id === null)
+check('deleted partner leaves the coupon code on the order', delOrder.coupon_code === 'PRIYA20')
+check('deleted partner leaves the money snapshots', Number(delOrder.influencer_commission_earned) > 0)
+
+const deletedList = await (await adminGet('/api/admin/influencers')).json()
+check('deleted partner is gone from the list', !deletedList.influencers.some((i: { id: string }) => i.id === priya.data.influencer.id))
+
 // ------------------------------------------------------- store is down ---
-console.log('\n=== 6. A database outage is never shown as "link expired" ===')
+console.log('\n=== 7. A database outage is never shown as "link expired" ===')
 simDown = true
 const outage = await realFetch(`${API}/api/experiences/${slug}`)
 const outageBody = await outage.json()
@@ -371,7 +629,7 @@ simDown = false
 check('the link recovers once the database is back', (await realFetch(`${API}/api/experiences/${slug}`)).status === 200)
 
 // ----------------------------------------------- production guard rails ---
-console.log('\n=== 7. Production refuses to run on an ephemeral disk ===')
+console.log('\n=== 8. Production refuses to run on an ephemeral disk ===')
 function bootChild(env: Record<string, string>): Promise<{ code: number | null; out: string }> {
   return new Promise((resolve) => {
     const child = spawn('node', ['node_modules/tsx/dist/cli.mjs', 'server/index.ts'], {

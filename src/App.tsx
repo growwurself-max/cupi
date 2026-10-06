@@ -14,6 +14,7 @@ import { CustomizerModal } from './components/store/CustomizerModal'
 import { ExperienceView } from './components/store/ExperienceView'
 import { Footer } from './components/store/Footer'
 import { HeroSection } from './components/store/HeroSection'
+import { captureReferralFromUrl } from './lib/referral'
 import { HowItWorks } from './components/store/HowItWorks'
 import { Navbar } from './components/store/Navbar'
 import { ThemeGrid } from './components/store/ThemeGrid'
@@ -78,6 +79,12 @@ export default function App() {
     const onPopState = () => setRoute(parsePath(window.location.pathname))
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  // Read ?ref= once on load, before any checkout can happen. A returning buyer
+  // who was sent a link earlier keeps that partner's code even on this visit.
+  useEffect(() => {
+    captureReferralFromUrl()
   }, [])
 
   useEffect(() => {

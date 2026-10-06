@@ -15,16 +15,34 @@ import { createPostgresStoreFromEnv } from './postgresStore.js'
 import { JsonFileStore } from './jsonStore.js'
 import { readSupabaseConfig } from './supabase.js'
 import type {
+  CreateInfluencerInput,
   CreateOrderInput,
   ExperienceRecord,
   ExperienceStatus,
+  InfluencerMetrics,
+  InfluencerRecord,
+  InfluencerStatus,
+  OrderAttribution,
   OrderRecord,
   OrderStatus,
   Store,
+  UpdateInfluencerInput,
 } from './store.js'
 
-export type { ExperienceRecord, ExperienceStatus, OrderRecord, OrderStatus }
-export type { Store }
+export type {
+  CreateInfluencerInput,
+  CreateOrderInput,
+  ExperienceRecord,
+  ExperienceStatus,
+  InfluencerMetrics,
+  InfluencerRecord,
+  InfluencerStatus,
+  OrderAttribution,
+  OrderRecord,
+  OrderStatus,
+  Store,
+  UpdateInfluencerInput,
+}
 
 /**
  * Resolved lazily-but-eagerly: at import time, so every route sees the same
@@ -150,6 +168,37 @@ export function getTemplateAudio(templateId: string): Promise<{ audioData?: stri
 
 export function setTemplateAudio(templateId: string, audioData: string | null, audioUrl: string | null): Promise<void> {
   return activeStore().setTemplateAudio(templateId, audioData, audioUrl)
+}
+
+export function listInfluencers(): Promise<InfluencerRecord[]> {
+  return activeStore().listInfluencers()
+}
+
+export function getInfluencerById(id: string): Promise<InfluencerRecord | null> {
+  return activeStore().getInfluencerById(id)
+}
+
+export function getInfluencerByCode(code: string): Promise<InfluencerRecord | null> {
+  return activeStore().getInfluencerByCode(code)
+}
+
+export function createInfluencer(input: CreateInfluencerInput): Promise<InfluencerRecord> {
+  return activeStore().createInfluencer(input)
+}
+
+export function updateInfluencer(
+  id: string,
+  input: UpdateInfluencerInput,
+): Promise<InfluencerRecord | null> {
+  return activeStore().updateInfluencer(id, input)
+}
+
+export function deleteInfluencer(id: string): Promise<boolean> {
+  return activeStore().deleteInfluencer(id)
+}
+
+export function getInfluencerMetrics(): Promise<Map<string, InfluencerMetrics>> {
+  return activeStore().getInfluencerMetrics()
 }
 
 export { shortId } from './jsonStore.js'

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InfluencerManager } from './InfluencerManager'
 
 interface Product {
   id: string
@@ -465,6 +466,8 @@ export function AdminDashboard() {
                 </table>
               </div>
             </div>
+
+            <InfluencerManager token={token} />
           </>
         )}
       </main>

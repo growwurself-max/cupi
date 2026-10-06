@@ -99,6 +99,31 @@ export interface CreateOrderResponse {
 export interface ValidateCouponResponse {
   valid: boolean
   discountMultiplier?: number
+  /** Percentage taken off the buyer's price (0-100). Variable per influencer. */
+  discountPercentage?: number
+  /** Priced quote, present when a templateId was supplied. */
+  originalAmount?: number
+  amount?: number
+  discountGiven?: number
+  error?: string
+}
+
+/** Result of asking the server what a coupon actually costs. */
+export interface ApplyCouponResponse {
+  valid: boolean
+  code?: string
+  /** Set when a real partner code matched; legacy campaign codes are flagged. */
+  legacy?: boolean
+  discountPercentage?: number
+  discountMultiplier?: number
+  /** Price before the discount. */
+  originalAmount?: number
+  /** What the buyer is actually charged. */
+  amount?: number
+  /** originalAmount - amount. */
+  discountGiven?: number
+  /** Why a real code was refused, when valid is false. */
+  reason?: string
   error?: string
 }
 
@@ -129,13 +154,39 @@ export function createOrder(
   templateId: string,
   customization: unknown,
   couponCode?: string,
+  attribution?: { referralCode?: string; trafficSource?: string | null },
 ): Promise<CreateOrderResponse> {
-  const payload = { templateId, customization, ...(couponCode && { couponCode }) }
+  // referralCode is a captured link (?ref=CODE) rather than something the buyer
+  // typed; the server still re-validates both before crediting anyone.
+  const payload = {
+    templateId,
+    customization,
+    ...(couponCode && { couponCode }),
+    ...(attribution?.referralCode && { referralCode: attribution.referralCode }),
+    ...(attribution?.trafficSource && { trafficSource: attribution.trafficSource }),
+  }
   console.log('[API CALL] Sending createOrder payload:', payload)
 
   return apiRequest<CreateOrderResponse>('/orders/create', {
     method: 'POST',
     body: payload,
+  })
+}
+
+/**
+ * Quotes a coupon for a specific template.
+ *
+ * The amount returned here is what checkout will charge, so the button price can
+ * never disagree with the order. Falls back to the generic validation endpoint
+ * if the server has no dedicated apply-coupon route.
+ */
+export async function applyCoupon(
+  code: string,
+  templateId: string,
+): Promise<ApplyCouponResponse> {
+  return apiRequest<ApplyCouponResponse>('/checkout/apply-coupon', {
+    method: 'POST',
+    body: { code, templateId },
   })
 }
 

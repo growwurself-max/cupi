@@ -5,6 +5,7 @@ import { requireAdminAuth } from './adminAuth.js'
 import { wrap } from './index.js'
 import { resolvePriceInRupees } from './index.js'
 import { getTemplateAudio, setTemplateAudio, updateProductPrice } from './db.js'
+import { registerInfluencerRoutes } from './influencerRoutes.js'
 
 /**
  * GET /api/admin/products
@@ -163,6 +164,10 @@ export function createAdminRouter() {
   router.put('/products/:templateId/price', wrap(handleUpdateProductPrice))
   router.get('/audio', wrap(handleGetAudio))
   router.post('/audio/:templateId', wrap(handleUpdateAudio))
+
+  // Every influencer route is mounted under the same router, which already has
+  // requireAdminAuth applied, so none of them can be reached unauthenticated.
+  registerInfluencerRoutes(router)
 
   return router
 }

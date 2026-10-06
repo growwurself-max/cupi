@@ -23,7 +23,8 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFamGateway } from '../../hooks/useFamGateway'
-import { createOrder, validateCoupon } from '../../lib/api'
+import { applyCoupon, createOrder } from '../../lib/api'
+import { getStoredReferral } from '../../lib/referral'
 import {
   getCustomizerStepIds,
   type CustomizerStepId,
@@ -129,9 +130,31 @@ export function CustomizerModal({
   const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null)
   const [couponCode, setCouponCode] = useState('')
   const [couponValid, setCouponValid] = useState<boolean | null>(null)
+  const [couponError, setCouponError] = useState<string | null>(null)
+  const [couponChecking, setCouponChecking] = useState(false)
+  /**
+   * The server's quote for this coupon + template. Never derived from a
+   * hardcoded multiplier: each partner's discount is their own, and only the
+   * server knows what the current price actually is.
+   */
+  const [couponQuote, setCouponQuote] = useState<{
+    amount: number
+    originalAmount: number
+    discountGiven: number
+    discountPercentage: number
+  } | null>(null)
 
   const maxPhotos = theme?.maxPhotos ?? 3
   const canReorderPhotos = maxPhotos > 3
+
+  /**
+   * What the Pay button shows: the server's quoted amount when a coupon is
+   * applied, otherwise the theme's list price. Falls back to the list price if
+   * the quote has not arrived yet, which is only a transient state while the
+   * button is also disabled from being charged against an unknown price.
+   */
+  const payableLabel =
+    couponQuote && couponValid === true ? `₹${couponQuote.amount}` : (theme?.price ?? '')
 
   const steps = useMemo(() => {
     if (!theme) return []
@@ -146,6 +169,28 @@ export function CustomizerModal({
   useEffect(() => {
     setStep((prev) => Math.max(0, Math.min(prev, lastStepIndex)))
   }, [lastStepIndex])
+
+  // A quote is specific to one template: the same code against a ₹399 theme and
+  // a ₹149 theme must not reuse the previous amount.
+  useEffect(() => {
+    setCouponQuote(null)
+    setCouponValid(null)
+    setCouponError(null)
+  }, [theme?.id])
+
+  // Pre-apply a captured referral link (?ref=CODE) so a buyer who arrived via a
+  // partner sees the discount before reaching the pay button. A code typed by
+  // hand still wins, since that is the more recent, deliberate action.
+  useEffect(() => {
+    if (!theme || couponCode.trim()) return
+    const captured = getStoredReferral()
+    if (!captured) return
+    setCouponCode(captured.code)
+    void quoteCoupon(captured.code, theme.id)
+    // Intentionally runs only when the theme changes: re-running on every
+    // keystroke would fight the buyer typing their own code.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme?.id])
 
   useEffect(() => {
     if (!theme) return
@@ -280,7 +325,10 @@ export function CustomizerModal({
     if (!theme || !previewConfig || checking) return
     setChecking(true)
     try {
-      const orderRes = await createOrder(theme.id, previewConfig, couponCode || undefined)
+      const orderRes = await createOrder(theme.id, previewConfig, couponCode || undefined, {
+        referralCode: getStoredReferral()?.code,
+        trafficSource: getStoredReferral()?.trafficSource ?? null,
+      })
 
       if (!orderRes.checkoutUrl) {
         throw new Error('Failed to arrange payment. Please try again.')
@@ -319,19 +367,77 @@ export function CustomizerModal({
     }
   }, [theme, previewConfig, checking, openCheckout, couponCode])
 
-  const handleCouponChange = useCallback(async (value: string) => {
-    setCouponCode(value)
-    if (!value.trim()) {
-      setCouponValid(null)
-      return
-    }
-    try {
-      const result = await validateCoupon(value)
-      setCouponValid(result.valid)
-    } catch {
-      setCouponValid(false)
-    }
-  }, [])
+  /**
+   * Asks the server what a code costs on this template and stores the quote.
+   *
+   * The quote drives the price shown on the pay button. Because the order is
+   * re-priced server-side at checkout, a tampered or stale local price could
+   * never overcharge — but showing one amount and charging another is a support
+   * ticket, so the two are always the same source.
+   */
+  const quoteCoupon = useCallback(
+    async (rawCode: string, templateId: string) => {
+      const code = rawCode.trim()
+      if (!code) {
+        setCouponValid(null)
+        setCouponQuote(null)
+        setCouponError(null)
+        return
+      }
+
+      setCouponChecking(true)
+      try {
+        const result = await applyCoupon(code, templateId)
+        if (!result.valid) {
+          setCouponValid(false)
+          setCouponQuote(null)
+          setCouponError(result.error ?? 'That coupon code is not valid.')
+          return
+        }
+        if (
+          typeof result.amount !== 'number' ||
+          typeof result.originalAmount !== 'number' ||
+          typeof result.discountPercentage !== 'number'
+        ) {
+          setCouponValid(false)
+          setCouponQuote(null)
+          setCouponError('That coupon could not be priced. Please try again.')
+          return
+        }
+        setCouponValid(true)
+        setCouponError(null)
+        setCouponQuote({
+          amount: result.amount,
+          originalAmount: result.originalAmount,
+          discountGiven: result.discountGiven ?? result.originalAmount - result.amount,
+          discountPercentage: result.discountPercentage,
+        })
+      } catch {
+        // A network failure is not proof the code is bad, so it must not be
+        // reported as "invalid coupon" — the buyer would abandon a valid code.
+        setCouponValid(null)
+        setCouponQuote(null)
+        setCouponError('Could not check that code right now. Please try again.')
+      } finally {
+        setCouponChecking(false)
+      }
+    },
+    [],
+  )
+
+  const handleCouponChange = useCallback(
+    async (value: string) => {
+      setCouponCode(value)
+      setCouponQuote(null)
+      if (!theme || !value.trim()) {
+        setCouponValid(null)
+        setCouponError(null)
+        return
+      }
+      await quoteCoupon(value, theme.id)
+    },
+    [theme, quoteCoupon],
+  )
 
   const handleClose = useCallback(() => {
     if (checking) return
@@ -870,7 +976,7 @@ export function CustomizerModal({
                       ) : (
                         <>
                           <Lock className="h-4 w-4" />
-                          Pay {couponValid === true ? `₹${Math.round(parseInt(theme.price.replace('₹', '')) * (2/3))}` : theme.price}
+                          Pay {payableLabel}
                         </>
                       )}
                     </button>
@@ -902,21 +1008,41 @@ export function CustomizerModal({
                       Applied
                     </div>
                   )}
-                  {couponValid === false && couponCode && (
+                  {couponChecking && (
+                    <div className="flex items-center gap-1.5 rounded-full bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-500">
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                      Checking
+                    </div>
+                  )}
+                  {couponValid === false && couponCode && !couponChecking && (
                     <div className="flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600">
                       Invalid
                     </div>
                   )}
                 </div>
-                {couponValid === true && (
-                  <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-2">
-                    <span className="text-xs font-medium text-stone-600">Discounted price:</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-stone-400 line-through">{theme.price}</span>
-                      <span className="text-sm font-bold text-emerald-600">
-                        ₹{Math.round(parseInt(theme.price.replace('₹', '')) * (2/3))}
+                {couponError && couponCode.trim() && (
+                  <p className="mt-2 text-xs font-medium text-rose-500">{couponError}</p>
+                )}
+                {couponQuote && (
+                  <div className="mt-3 rounded-xl bg-emerald-50 px-4 py-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-stone-600">
+                        {couponQuote.discountPercentage % 1 === 0
+                          ? `${couponQuote.discountPercentage}% off`
+                          : `${couponQuote.discountPercentage.toFixed(2)}% off`}
                       </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-stone-400 line-through">
+                          ₹{couponQuote.originalAmount}
+                        </span>
+                        <span className="text-sm font-bold text-emerald-600">
+                          ₹{couponQuote.amount}
+                        </span>
+                      </div>
                     </div>
+                    <p className="mt-1 text-[11px] font-medium text-stone-400">
+                      You save ₹{couponQuote.discountGiven} on this order.
+                    </p>
                   </div>
                 )}
               </div>

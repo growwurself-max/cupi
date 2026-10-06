@@ -23,13 +23,20 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { DATA_DIR } from './config.js'
+import { normalizeCode, round2 } from './influencers.js'
 import type {
+  CreateInfluencerInput,
   CreateOrderInput,
   ExperienceRecord,
+  InfluencerMetrics,
+  InfluencerRecord,
+  InfluencerStatus,
   OrderRecord,
   Store,
   StoredExperience,
+  StoredInfluencer,
   StoredOrder,
+  UpdateInfluencerInput,
 } from './store.js'
 
 export const DB_FILE = path.join(DATA_DIR, 'db.json')
@@ -43,6 +50,7 @@ export interface JsonDatabase {
   experiences: StoredExperience[]
   product_prices: Record<string, number>
   template_audio?: Record<string, { audio_data?: string; audio_url?: string }>
+  influencers?: StoredInfluencer[]
 }
 
 if (!existsSync(DATA_DIR)) {
@@ -50,7 +58,13 @@ if (!existsSync(DATA_DIR)) {
 }
 
 export function emptyJsonDb(): JsonDatabase {
-  return { orders: [], experiences: [], product_prices: {}, template_audio: {} }
+  return {
+    orders: [],
+    experiences: [],
+    product_prices: {},
+    template_audio: {},
+    influencers: [],
+  }
 }
 
 type Row = Record<string, unknown>
@@ -119,6 +133,29 @@ export function normalizeStoredExperience(raw: unknown): StoredExperience | null
   }
 }
 
+/** Normalizes a raw influencer row; missing rates default to 0, never undefined. */
+export function normalizeStoredInfluencer(raw: unknown): StoredInfluencer | null {
+  if (!raw || typeof raw !== 'object') return null
+  const row = raw as Row
+  const id = asText(pick(row, 'id'))
+  const name = asText(pick(row, 'name'))
+  const uniqueCode = asText(pick(row, 'unique_code', 'uniqueCode'))
+  if (!id || !name || !uniqueCode) return null
+  return {
+    id,
+    name,
+    email: asNullableText(pick(row, 'email')),
+    phone: asNullableText(pick(row, 'phone')),
+    unique_code: normalizeCode(uniqueCode),
+    discount_percentage: Number(pick(row, 'discount_percentage', 'discountPercentage')) || 0,
+    commission_percentage: Number(pick(row, 'commission_percentage', 'commissionPercentage')) || 0,
+    expiry_date: asNullableText(pick(row, 'expiry_date', 'expiryDate')),
+    status: asText(pick(row, 'status'), 'active') === 'paused' ? 'paused' : 'active',
+    created_at: asText(pick(row, 'created_at', 'createdAt')),
+    updated_at: asText(pick(row, 'updated_at', 'updatedAt'), asText(pick(row, 'created_at', 'createdAt'))),
+  }
+}
+
 /**
  * Reads and parses db.json without touching or repairing anything. Shared by the
  * store and by the migration script so both see identical bytes.
@@ -150,6 +187,11 @@ export function readJsonDbFile(file: string = DB_FILE): JsonDatabase {
       typeof parsed.template_audio === 'object' && parsed.template_audio !== null
         ? (parsed.template_audio as Record<string, { audio_data?: string; audio_url?: string }>)
         : {},
+    influencers: Array.isArray(parsed.influencers)
+      ? (parsed.influencers as unknown[])
+          .map(normalizeStoredInfluencer)
+          .filter((row): row is StoredInfluencer => row !== null)
+      : [],
   }
 }
 
@@ -289,6 +331,34 @@ export function mapOrder(row: StoredOrder): OrderRecord {
     experienceId: row.experience_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    influencerId: row.influencer_id ?? null,
+    couponCode: row.coupon_code ?? null,
+    originalAmount:
+      row.original_amount === null || row.original_amount === undefined
+        ? null
+        : Number(row.original_amount),
+    discountGiven: Number(row.discount_given ?? 0) || 0,
+    netRevenue: Number(row.net_revenue ?? 0) || 0,
+    influencerCommissionEarned: Number(row.influencer_commission_earned ?? 0) || 0,
+    trafficSource: row.traffic_source ?? null,
+    customerIp: row.customer_ip ?? null,
+  }
+}
+
+/** Inverts `StoredInfluencer` into the app-facing shape. */
+export function mapInfluencer(row: StoredInfluencer): InfluencerRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    uniqueCode: row.unique_code,
+    discountPercentage: Number(row.discount_percentage) || 0,
+    commissionPercentage: Number(row.commission_percentage) || 0,
+    expiryDate: row.expiry_date,
+    status: row.status === 'paused' ? 'paused' : 'active',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }
 }
 
@@ -315,6 +385,7 @@ export class JsonFileStore implements Store {
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
     const db = loadJsonDb()
     const now = new Date().toISOString()
+    const attribution = input.attribution
     const row: StoredOrder = {
       id: input.id ?? crypto.randomUUID(),
       gateway_order_id: input.gatewayOrderId,
@@ -327,6 +398,14 @@ export class JsonFileStore implements Store {
       experience_id: null,
       created_at: now,
       updated_at: now,
+      influencer_id: attribution?.influencerId ?? null,
+      coupon_code: attribution?.couponCode ?? null,
+      original_amount: attribution?.originalAmount ?? null,
+      discount_given: attribution?.discountGiven ?? 0,
+      net_revenue: attribution?.netRevenue ?? input.amount,
+      influencer_commission_earned: attribution?.commissionEarned ?? 0,
+      traffic_source: attribution?.trafficSource ?? null,
+      customer_ip: attribution?.customerIp ?? null,
     }
     db.orders.push(row)
     saveJsonDb(db)
@@ -471,5 +550,118 @@ export class JsonFileStore implements Store {
       audio_url: audioUrl ?? undefined,
     }
     saveJsonDb(db)
+  }
+
+  // ------------------------------------------------------------- influencers --
+
+  async listInfluencers(): Promise<InfluencerRecord[]> {
+    const rows = loadJsonDb().influencers ?? []
+    // Newest first so a freshly created partner is visible at the top.
+    return [...rows]
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0))
+      .map(mapInfluencer)
+  }
+
+  async getInfluencerById(id: string): Promise<InfluencerRecord | null> {
+    const row = (loadJsonDb().influencers ?? []).find((entry) => entry.id === id)
+    return row ? mapInfluencer(row) : null
+  }
+
+  async getInfluencerByCode(code: string): Promise<InfluencerRecord | null> {
+    const normalized = normalizeCode(code)
+    const row = (loadJsonDb().influencers ?? []).find(
+      (entry) => normalizeCode(entry.unique_code) === normalized,
+    )
+    return row ? mapInfluencer(row) : null
+  }
+
+  async createInfluencer(input: CreateInfluencerInput): Promise<InfluencerRecord> {
+    const db = loadJsonDb()
+    if (!db.influencers) db.influencers = []
+    const now = new Date().toISOString()
+    const row: StoredInfluencer = {
+      id: crypto.randomUUID(),
+      name: input.name.trim(),
+      email: input.email?.trim() || null,
+      phone: input.phone?.trim() || null,
+      unique_code: normalizeCode(input.uniqueCode ?? ''),
+      discount_percentage: input.discountPercentage,
+      commission_percentage: input.commissionPercentage,
+      expiry_date: input.expiryDate ?? null,
+      status: input.status ?? 'active',
+      created_at: now,
+      updated_at: now,
+    }
+    db.influencers.push(row)
+    saveJsonDb(db)
+    return mapInfluencer(row)
+  }
+
+  async updateInfluencer(
+    id: string,
+    input: UpdateInfluencerInput,
+  ): Promise<InfluencerRecord | null> {
+    const db = loadJsonDb()
+    const row = (db.influencers ?? []).find((entry) => entry.id === id)
+    if (!row) return null
+
+    if (input.name !== undefined) row.name = input.name.trim()
+    if (input.email !== undefined) row.email = input.email?.trim() || null
+    if (input.phone !== undefined) row.phone = input.phone?.trim() || null
+    if (input.uniqueCode !== undefined) row.unique_code = normalizeCode(input.uniqueCode)
+    if (input.discountPercentage !== undefined) {
+      row.discount_percentage = input.discountPercentage
+    }
+    if (input.commissionPercentage !== undefined) {
+      row.commission_percentage = input.commissionPercentage
+    }
+    if (input.expiryDate !== undefined) row.expiry_date = input.expiryDate ?? null
+    if (input.status !== undefined) row.status = input.status
+    row.updated_at = new Date().toISOString()
+
+    saveJsonDb(db)
+    return mapInfluencer(row)
+  }
+
+  async deleteInfluencer(id: string): Promise<boolean> {
+    const db = loadJsonDb()
+    const rows = db.influencers ?? []
+    const index = rows.findIndex((entry) => entry.id === id)
+    if (index === -1) return false
+    rows.splice(index, 1)
+    // Mirrors the FK's ON DELETE SET NULL: the partner is gone, but the money
+    // snapshots on their past orders survive so payouts stay auditable.
+    for (const order of db.orders) {
+      if (order.influencer_id === id) order.influencer_id = null
+    }
+    saveJsonDb(db)
+    return true
+  }
+
+  async getInfluencerMetrics(): Promise<Map<string, InfluencerMetrics>> {
+    const metrics = new Map<string, InfluencerMetrics>()
+    // PENDING orders are deliberately excluded: an influencer has not earned
+    // anything until the buyer's payment is actually confirmed.
+    for (const order of loadJsonDb().orders) {
+      if (order.status !== 'PAID' || !order.influencer_id) continue
+      const current = metrics.get(order.influencer_id) ?? {
+        totalOrders: 0,
+        totalRevenueGenerated: 0,
+        totalDiscountGiven: 0,
+        commissionOwed: 0,
+      }
+      current.totalOrders += 1
+      current.totalRevenueGenerated = round2(
+        current.totalRevenueGenerated + (Number(order.amount) || 0),
+      )
+      current.totalDiscountGiven = round2(
+        current.totalDiscountGiven + (Number(order.discount_given) || 0),
+      )
+      current.commissionOwed = round2(
+        current.commissionOwed + (Number(order.influencer_commission_earned) || 0),
+      )
+      metrics.set(order.influencer_id, current)
+    }
+    return metrics
   }
 }

@@ -26,6 +26,7 @@ import {
   createOrder,
   finalizeOrderForPayment,
   getExperienceById,
+  getInfluencerByCode,
   getOrderByGatewayOrderId,
   getOrderById,
   getProductPrice,
@@ -33,6 +34,17 @@ import {
   isStoreDurable,
   systemId,
 } from './db.js'
+import type { InfluencerRecord } from './store.js'
+import {
+  isRedeemable,
+  isValidCodeFormat,
+  normalizeCode,
+  normalizeIp,
+  normalizeTrafficSource,
+  priceOrder,
+  REJECTION_MESSAGES,
+  resolveCoupon,
+} from './influencers.js'
 import { sanitizeCustomization } from './sanitize.js'
 import { SupabaseStoreError } from './supabase.js'
 import { createAdminRouter } from './adminRoutes.js'
@@ -105,49 +117,173 @@ export async function resolvePriceInRupees(templateId: string): Promise<number> 
 }
 
 /**
- * Validates an influencer coupon code.
- * Returns the discount multiplier (e.g., 0.6667 for 1/3 off).
- * Returns null if the coupon is invalid.
+ * The fixed campaign codes that predate the influencer system. They are kept so
+ * links already shared in the wild keep working; a real partner's code is looked
+ * up in the database and takes precedence.
  */
-export function validateCouponCode(code: string): number | null {
-  // Normalize the coupon code
-  const normalized = code.trim().toUpperCase()
+const LEGACY_COUPON_DISCOUNT_PERCENTAGE = 100 / 3
 
-  // List of valid influencer coupon codes
-  // You can add more codes here as needed
-  const validCoupons = new Set([
-    'INFLUENCER33',
-    'CUPI33',
-    'SPECIAL33',
-  ])
+const LEGACY_COUPONS = new Map<string, number>([
+  ['INFLUENCER33', LEGACY_COUPON_DISCOUNT_PERCENTAGE],
+  ['CUPI33', LEGACY_COUPON_DISCOUNT_PERCENTAGE],
+  ['SPECIAL33', LEGACY_COUPON_DISCOUNT_PERCENTAGE],
+])
 
-  if (validCoupons.has(normalized)) {
-    // Return 2/3 multiplier (33.33% discount)
-    return 2 / 3
+export function legacyCouponDiscountPercentage(code: string): number | null {
+  return LEGACY_COUPONS.get(normalizeCode(code)) ?? null
+}
+
+/**
+ * Resolves any coupon — partner code or legacy campaign code — to the discount
+ * the BUYER receives, as a percentage.
+ *
+ * Returns null when the code is unusable. This is the single lookup used by both
+ * the public validation endpoint and checkout, so the price a buyer is quoted can
+ * never differ from the price they are charged.
+ */
+export async function resolveCouponDiscountPercentage(
+  code: string,
+): Promise<number | null> {
+  const normalized = normalizeCode(code)
+  if (!isValidCodeFormat(normalized)) return null
+
+  const influencer = await getInfluencerByCode(normalized)
+  if (influencer) {
+    return isRedeemable(influencer) ? influencer.discountPercentage : null
   }
 
-  return null
+  return legacyCouponDiscountPercentage(normalized)
 }
 
 /**
  * GET /api/validate-coupon
- * Validates a coupon code and returns the discount multiplier.
+ *
+ * Validates a coupon and reports the discount it applies. `discountMultiplier`
+ * is kept for the existing checkout UI; `discountPercentage` and the resolved
+ * amounts are what variable-rate codes actually need.
  */
 async function handleValidateCoupon(req: Request, res: Response): Promise<void> {
-  const { code } = req.query
+  const code = typeof req.query.code === 'string' ? req.query.code : ''
 
-  if (!code || typeof code !== 'string') {
+  if (!code.trim()) {
     res.status(400).json({ valid: false, error: 'Coupon code is required' })
     return
   }
 
-  const discountMultiplier = validateCouponCode(code)
+  const templateId = typeof req.query.templateId === 'string' ? req.query.templateId : ''
+  const discountPercentage = await resolveCouponDiscountPercentage(code)
 
-  if (discountMultiplier !== null) {
-    res.json({ valid: true, discountMultiplier })
-  } else {
+  if (discountPercentage === null) {
     res.json({ valid: false, error: 'Invalid coupon code' })
+    return
   }
+
+  const multiplier = 1 - discountPercentage / 100
+  const response: Record<string, unknown> = {
+    valid: true,
+    discountMultiplier: multiplier,
+    discountPercentage,
+  }
+
+  // Quote the real price when a template is supplied, so the checkout button
+  // never shows an amount the server would then refuse.
+  if (ALLOWED_TEMPLATES.includes(templateId)) {
+    const priced = priceOrder({
+      baseAmount: await resolvePriceInRupees(templateId),
+      discountPercentage,
+      commissionPercentage: 0,
+    })
+    response.originalAmount = priced.originalAmount
+    response.amount = priced.amount
+    response.discountGiven = priced.discountGiven
+  }
+
+  res.json(response)
+}
+
+/**
+ * POST /api/checkout/apply-coupon
+ *
+ * Public. Validates a code and returns exactly what the buyer will be charged
+ * for a given template. The checkout button and the order itself both come from
+ * `priceOrder`, so a quote can never disagree with the charge.
+ */
+async function handleApplyCoupon(req: Request, res: Response): Promise<void> {
+  const body = req.body as { code?: unknown; templateId?: unknown }
+  const code = typeof body?.code === 'string' ? body.code : ''
+  const templateId = typeof body?.templateId === 'string' ? body.templateId : ''
+
+  if (!code.trim()) {
+    res.status(400).json({ valid: false, error: 'Coupon code is required' })
+    return
+  }
+  if (!ALLOWED_TEMPLATES.includes(templateId)) {
+    res.status(400).json({ valid: false, error: 'Unknown template ID' })
+    return
+  }
+
+  const normalized = normalizeCode(code)
+  const influencer = await getInfluencerByCode(normalized)
+
+  if (influencer) {
+    const resolution = resolveCoupon(normalized, influencer)
+    if (!resolution.valid) {
+      res.status(200).json({
+        valid: false,
+        reason: resolution.reason,
+        error: REJECTION_MESSAGES[resolution.reason ?? 'NOT_FOUND'],
+      })
+      return
+    }
+
+    const baseAmount = await resolvePriceInRupees(templateId)
+    const priced = priceOrder({
+      baseAmount,
+      discountPercentage: influencer.discountPercentage,
+      commissionPercentage: influencer.commissionPercentage,
+    })
+
+    res.json({
+      valid: true,
+      code: influencer.uniqueCode,
+      // The partner's name is not returned: this endpoint is public and the
+      // dashboard owns who a code belongs to.
+      discountPercentage: influencer.discountPercentage,
+      discountMultiplier: 1 - influencer.discountPercentage / 100,
+      originalAmount: priced.originalAmount,
+      amount: priced.amount,
+      discountGiven: priced.discountGiven,
+    })
+    return
+  }
+
+  const legacyPercentage = legacyCouponDiscountPercentage(normalized)
+  if (legacyPercentage === null) {
+    res.json({
+      valid: false,
+      reason: 'NOT_FOUND',
+      error: REJECTION_MESSAGES.NOT_FOUND,
+    })
+    return
+  }
+
+  const baseAmount = await resolvePriceInRupees(templateId)
+  const priced = priceOrder({
+    baseAmount,
+    discountPercentage: legacyPercentage,
+    commissionPercentage: 0,
+  })
+
+  res.json({
+    valid: true,
+    code: normalized,
+    legacy: true,
+    discountPercentage: legacyPercentage,
+    discountMultiplier: 1 - legacyPercentage / 100,
+    originalAmount: priced.originalAmount,
+    amount: priced.amount,
+    discountGiven: priced.discountGiven,
+  })
 }
 
 // 1. CORS
@@ -288,20 +424,58 @@ async function handleCreateOrder(
     // Resolve base price
     const basePrice = await resolvePriceInRupees(templateId)
 
-    // Apply coupon discount if provided
-    let finalAmount = basePrice
-    const couponCode = req.body.couponCode
-    if (couponCode && typeof couponCode === 'string') {
-      const discountMultiplier = validateCouponCode(couponCode)
-      if (discountMultiplier !== null) {
-        finalAmount = Math.round(basePrice * discountMultiplier)
-        console.log(`[COUPON APPLIED] ${couponCode}: ₹${basePrice} → ₹${finalAmount}`)
+    // Resolve attribution: an explicit coupon wins, otherwise a referral code
+    // captured from the landing URL is used. Both are re-validated here, on the
+    // server — a code that has since been paused or has expired earns nothing,
+    // however recently it was captured in the browser.
+    const requestedCoupon =
+      typeof req.body.couponCode === 'string' ? req.body.couponCode.trim() : ''
+    const referralCode =
+      typeof req.body.referralCode === 'string' ? req.body.referralCode.trim() : ''
+    const submittedCode = requestedCoupon || referralCode
+
+    let influencer: InfluencerRecord | null = null
+    let discountPercentage = 0
+    let couponCode: string | null = null
+
+    if (submittedCode) {
+      const normalized = normalizeCode(submittedCode)
+      if (isValidCodeFormat(normalized)) {
+        const candidate = await getInfluencerByCode(normalized)
+        if (candidate && isRedeemable(candidate)) {
+          influencer = candidate
+          discountPercentage = candidate.discountPercentage
+          couponCode = candidate.uniqueCode
+          console.log(
+            `[COUPON APPLIED] ${candidate.uniqueCode} (${discountPercentage}% off) for ${templateId}`,
+          )
+        } else if (candidate) {
+          console.log(
+            `[COUPON REFUSED] ${normalized}: influencer exists but is not redeemable`,
+          )
+        } else {
+          const legacyPercentage = legacyCouponDiscountPercentage(normalized)
+          if (legacyPercentage !== null) {
+            discountPercentage = legacyPercentage
+            couponCode = normalized
+            console.log(`[LEGACY COUPON APPLIED] ${normalized} (${legacyPercentage}% off)`)
+          } else {
+            console.log(`[COUPON INVALID] ${normalized}`)
+          }
+        }
       } else {
-        console.log(`[COUPON INVALID] ${couponCode}`)
+        console.log(`[COUPON MALFORMED] ${normalized}`)
       }
     }
 
-    const amount = finalAmount
+    // One pricing function decides every amount, so the gateway charge, the
+    // buyer's receipt and the affiliate payout can never disagree.
+    const priced = priceOrder({
+      baseAmount: basePrice,
+      discountPercentage,
+      commissionPercentage: influencer?.commissionPercentage ?? 0,
+    })
+    const amount = priced.amount
 
     if (!process.env.FAMGATEWAY_API_KEY) {
       res.status(500).json({
@@ -328,6 +502,9 @@ async function handleCreateOrder(
     // a payment can never be taken for an order that does not exist (which the
     // webhook would then silently ignore).
     try {
+      // Attribution is written in the same insert as the order. A separate
+      // "transactions" row would need a second write, and a crash between the
+      // two would record a real paid sale that no influencer is credited for.
       await createOrder({
         id: cupiOrderId,
         gatewayOrderId: famOrder.orderId,
@@ -335,6 +512,19 @@ async function handleCreateOrder(
         amount,
         currency: 'INR',
         customizationPayload: sanitized,
+        attribution: {
+          influencerId: influencer?.id ?? null,
+          couponCode,
+          originalAmount: priced.originalAmount,
+          discountGiven: priced.discountGiven,
+          netRevenue: priced.netRevenue,
+          commissionEarned: priced.commissionEarned,
+          trafficSource: normalizeTrafficSource(
+            req.body.trafficSource ?? req.query.utm_source ?? req.query.ref,
+          ),
+          // req.ip, not a raw x-forwarded-for chain, which a caller can forge.
+          customerIp: normalizeIp(req.ip),
+        },
       })
     } catch (error) {
       console.error('[ORDER CREATE] could not persist the order:', cupiOrderId, error)
@@ -780,6 +970,11 @@ async function handleGetProductPrices(_req: Request, res: Response): Promise<voi
 }
 app.get('/api/products/prices', wrap(handleGetProductPrices))
 app.get('/api/validate-coupon', wrap(handleValidateCoupon))
+
+// Public coupon check for the storefront: quotes the exact amount a buyer will
+// be charged. Distinct from the legacy GET above, which the existing checkout UI
+// calls and which only reports a multiplier.
+app.post('/api/checkout/apply-coupon', wrap(handleApplyCoupon))
 
 // Public audio endpoint
 async function handleGetTemplateAudio(req: Request, res: Response): Promise<void> {

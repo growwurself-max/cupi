@@ -86,6 +86,103 @@ create table if not exists public.cupi_template_audio (
   updated_at  timestamptz not null default now()
 );
 
+-- Influencers: partners who promote Cupi and earn commission on referred sales.
+--
+-- DESIGN NOTES
+-- * unique_code is the referral/coupon handle ("SHAFEY20"). It is the JOIN key
+--   every attribution flows through, so it carries a UNIQUE constraint rather
+--   than a plain index: two live influencers sharing a code would make
+--   "which partner gets the commission" undecidable and silently double-claim
+--   revenue. Case-insensitive uniqueness is enforced by storing the
+--   normalized (upper-cased, trimmed) code.
+-- * discount_percentage and commission_percentage are bounded to 0..100 by a
+--   CHECK so a bad API payload can never write a negative payout or a
+--   discount that pays out more than it takes.
+-- * status is the operator's intent ('active' | 'paused'). 'expired' is
+--   DERIVED from expiry_date at read time rather than stored, because a coupon
+--   becomes expired by the passage of time and no cron can be relied on to flip
+--   a row at the right second.
+create table if not exists public.cupi_influencers (
+  id                     uuid primary key default gen_random_uuid(),
+  name                   text not null check (length(btrim(name)) > 0),
+  email                  text,
+  phone                  text,
+  unique_code            text not null,
+  discount_percentage    numeric(5, 2) not null default 0
+                           check (discount_percentage >= 0 and discount_percentage <= 100),
+  -- Commission is a share of NET revenue (what Cupi keeps after the discount),
+  -- never of the gross order amount: paying 20% of the pre-discount total on a
+  -- 33%-off order would cost Cupi real margin on money it never received.
+  commission_percentage  numeric(5, 2) not null default 0
+                           check (commission_percentage >= 0 and commission_percentage <= 100),
+  -- Total commission paid out to this influencer so far
+  commission_paid        numeric(12, 2) not null default 0
+                           check (commission_paid >= 0),
+  -- NULL means "never expires"; otherwise the coupon stops working after this
+  -- instant. Stored as a date so an expiry is inclusive of the whole day.
+  expiry_date            date,
+  status                 text not null default 'active'
+                           check (status in ('active', 'paused', 'deleted')),
+  created_at             timestamptz not null default now(),
+  updated_at             timestamptz not null default now()
+);
+
+-- The referral handle. Case-insensitive uniqueness via a functional index over
+-- upper(unique_code), so "shafey20" and "SHAFEY20" cannot both exist.
+create unique index if not exists cupi_influencers_code_unique
+  on public.cupi_influencers (upper(unique_code));
+create index if not exists cupi_influencers_status_idx
+  on public.cupi_influencers (status);
+
+-- Order attribution: which partner referred this order, what it was worth, and
+-- how much of it is owed to them.
+--
+-- These live on cupi_orders rather than in a separate table so that money and
+-- attribution are written in the SAME insert as the order itself. A separate
+-- transactions row would need a second write, and any crash between the two
+-- would record a paid sale that is silently unattributed — the exact failure an
+-- affiliate payout dispute cannot be resolved against.
+--
+-- Monetary snapshot semantics: discount_given, net_revenue and
+-- influencer_commission_earned are frozen at checkout. Editing an influencer's
+-- commission rate later must never retroactively rewrite what a past order
+-- owed, or the books would silently change under a partner who has already been
+-- paid.
+alter table public.cupi_orders add column if not exists influencer_id uuid
+  references public.cupi_influencers (id) on delete set null;
+alter table public.cupi_orders add column if not exists coupon_code text;
+alter table public.cupi_orders add column if not exists original_amount numeric(12, 2);
+alter table public.cupi_orders add column if not exists discount_given numeric(12, 2)
+  not null default 0 check (discount_given >= 0);
+alter table public.cupi_orders add column if not exists net_revenue numeric(12, 2)
+  not null default 0 check (net_revenue >= 0);
+alter table public.cupi_orders add column if not exists influencer_commission_earned numeric(12, 2)
+  not null default 0 check (influencer_commission_earned >= 0);
+alter table public.cupi_orders add column if not exists traffic_source text;
+alter table public.cupi_orders add column if not exists customer_ip text;
+
+-- Admin rollups group and filter by influencer over PAID orders only.
+create index if not exists cupi_orders_influencer_idx
+  on public.cupi_orders (influencer_id) where status = 'PAID';
+create index if not exists cupi_orders_coupon_code_idx
+  on public.cupi_orders (coupon_code);
+
+-- Keep `updated_at` honest on the partner table too.
+create or replace function public.touch_cupi_influencer_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists cupi_influencers_touch_updated_at on public.cupi_influencers;
+create trigger cupi_influencers_touch_updated_at
+  before update on public.cupi_influencers
+  for each row execute function public.touch_cupi_influencer_updated_at();
+
 -- Operational indexes. Every lookup Cupi performs is already covered by a
 -- primary key or unique constraint; these two only help admin/ops queries.
 create index if not exists cupi_orders_created_at_idx
@@ -100,6 +197,7 @@ alter table public.cupi_orders          enable row level security;
 alter table public.cupi_experiences    enable row level security;
 alter table public.cupi_product_prices enable row level security;
 alter table public.cupi_template_audio enable row level security;
+alter table public.cupi_influencers    enable row level security;
 
 -- Deliberately NOT granted:
 --   grant usage on schema public to anon, authenticated;   <- would expose data
@@ -109,6 +207,7 @@ revoke all on public.cupi_orders          from anon, authenticated;
 revoke all on public.cupi_experiences    from anon, authenticated;
 revoke all on public.cupi_product_prices from anon, authenticated;
 revoke all on public.cupi_template_audio from anon, authenticated;
+revoke all on public.cupi_influencers    from anon, authenticated;
 
 -- Keep `updated_at` honest for any future code path that forgets to set it.
 create or replace function public.touch_cupi_order_updated_at()

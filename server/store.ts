@@ -20,6 +20,18 @@ export interface OrderRecord {
   experienceId: string | null
   createdAt: string
   updatedAt: string
+  /**
+   * Referral attribution for this order, exactly as persisted. The defaults
+   * describe a direct (unattributed) sale.
+   */
+  influencerId: string | null
+  couponCode: string | null
+  originalAmount: number | null
+  discountGiven: number
+  netRevenue: number
+  influencerCommissionEarned: number
+  trafficSource: string | null
+  customerIp: string | null
 }
 
 /**
@@ -60,6 +72,48 @@ export interface ExperienceRecord {
    */
 }
 
+/**
+ * Operator intent for a partner. 'expired' is deliberately NOT stored: a coupon
+ * expires by the passage of time, so it is derived from `expiryDate` at read
+ * time rather than relying on a scheduled job to flip a row.
+ */
+export type InfluencerStatus = 'active' | 'paused' | 'deleted'
+
+/** A partner who promotes Cupi and earns commission on referred sales. */
+export interface InfluencerRecord {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  /** Referral/coupon handle, stored normalized (trimmed, upper-cased). */
+  uniqueCode: string
+  /** Percentage taken off the buyer's price. 0..100. */
+  discountPercentage: number
+  /** Percentage of NET revenue owed to the partner. 0..100. */
+  commissionPercentage: number
+  /** Total commission paid out so far */
+  commissionPaid: number
+  /** NULL means the code never expires. */
+  expiryDate: string | null
+  status: InfluencerStatus | 'deleted'
+  createdAt: string
+  updatedAt: string
+}
+
+/** Aggregated performance for one influencer, computed over PAID orders. */
+export interface InfluencerMetrics {
+  /** Count of PAID orders attributed to this influencer. */
+  totalOrders: number
+  /** Gross amount those buyers paid (sum of order.amount). */
+  totalRevenueGenerated: number
+  /** Sum of discount_given across those orders. */
+  totalDiscountGiven: number
+  /** Commission owed but not yet marked paid (total earned - paid). */
+  commissionOwed: number
+  /** Total commission earned over all PAID orders. */
+  commissionEarned: number
+}
+
 export interface CreateOrderInput {
   // Optional internal Cupi order id, generated in the route handler when the
   // id must be known before the gateway order is created (redirect URLs).
@@ -69,6 +123,31 @@ export interface CreateOrderInput {
   amount: number
   currency: string
   customizationPayload: unknown
+  /**
+   * Referral attribution for this order. Written in the SAME insert as the
+   * order so a paid sale can never end up silently unattributed.
+   */
+  attribution?: OrderAttribution
+}
+
+/**
+ * The money + partner facts for one order, resolved by the server at checkout.
+ *
+ * Every field is a snapshot: the amounts are what this order actually is, even
+ * if the influencer's rate is edited tomorrow.
+ */
+export interface OrderAttribution {
+  influencerId: string | null
+  /** The code the buyer used, normalized. Retained even if the row was deleted. */
+  couponCode: string | null
+  /** Price before any discount. */
+  originalAmount: number | null
+  discountGiven: number
+  /** What Cupi keeps: amount - discount - commission. */
+  netRevenue: number
+  commissionEarned: number
+  trafficSource: string | null
+  customerIp: string | null
 }
 
 /** Rows exactly as they sit in `db.json` / Postgres, before normalization. */
@@ -84,6 +163,54 @@ export interface StoredOrder {
   experience_id: string | null
   created_at: string
   updated_at: string
+  // Referral attribution. Present on every row after the columns were added;
+  // read defensively because orders written earlier have no such columns.
+  influencer_id?: string | null
+  coupon_code?: string | null
+  original_amount?: number | string | null
+  discount_given?: number | string | null
+  net_revenue?: number | string | null
+  influencer_commission_earned?: number | string | null
+  traffic_source?: string | null
+  customer_ip?: string | null
+}
+
+/** Row shape of `cupi_influencers`, before normalization. */
+export interface StoredInfluencer {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  unique_code: string
+  discount_percentage: number | string
+  commission_percentage: number | string
+  commission_paid?: number | string | null
+  expiry_date: string | null
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateInfluencerInput {
+  name: string
+  email?: string | null
+  phone?: string | null
+  uniqueCode?: string | null
+  discountPercentage: number
+  commissionPercentage: number
+  expiryDate?: string | null
+  status?: InfluencerStatus | 'deleted'
+}
+
+export interface UpdateInfluencerInput {
+  name?: string
+  email?: string | null
+  phone?: string | null
+  uniqueCode?: string
+  discountPercentage?: number
+  commissionPercentage?: number
+  expiryDate?: string | null
+  status?: InfluencerStatus
 }
 
 export interface StoredExperience {
@@ -155,4 +282,25 @@ export interface Store {
    * Sets the audio settings for a template.
    */
   setTemplateAudio(templateId: string, audioData: string | null, audioUrl: string | null): Promise<void>
+
+  // ------------------------------------------------------------- influencers --
+
+  listInfluencers(): Promise<InfluencerRecord[]>
+  getInfluencerById(id: string): Promise<InfluencerRecord | null>
+  /** Case-insensitive lookup by referral code. The checkout hot path. */
+  getInfluencerByCode(code: string): Promise<InfluencerRecord | null>
+  createInfluencer(input: CreateInfluencerInput): Promise<InfluencerRecord>
+  updateInfluencer(id: string, input: UpdateInfluencerInput): Promise<InfluencerRecord | null>
+  /**
+   * Retains historical order attribution: deleting a partner nulls the
+   * influencer_id on their orders (ON DELETE SET NULL) but the coupon_code and
+   * the money snapshots stay, so past payouts remain auditable.
+   */
+  deleteInfluencer(id: string): Promise<boolean>
+
+  /**
+   * Aggregates PAID orders per influencer. Returns a map keyed by influencer id;
+   * an influencer with no paid orders is simply absent.
+   */
+  getInfluencerMetrics(): Promise<Map<string, InfluencerMetrics>>
 }

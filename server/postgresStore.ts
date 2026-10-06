@@ -22,19 +22,27 @@ import {
   SupabaseStoreError,
   type SupabaseConfig,
 } from './supabase.js'
+import { normalizeCode, round2 } from './influencers.js'
 import type {
+  CreateInfluencerInput,
   CreateOrderInput,
   ExperienceRecord,
+  InfluencerMetrics,
+  InfluencerRecord,
+  InfluencerStatus,
   OrderRecord,
   OrderStatus,
   Store,
   StoredExperience,
+  StoredInfluencer,
   StoredOrder,
+  UpdateInfluencerInput,
 } from './store.js'
 
 const ORDERS_TABLE = 'cupi_orders'
 const EXPERIENCES_TABLE = 'cupi_experiences'
 const PRODUCT_PRICES_TABLE = 'cupi_product_prices'
+const INFLUENCERS_TABLE = 'cupi_influencers'
 
 function toNumber(value: number | string | null | undefined, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -81,6 +89,43 @@ function mapOrder(row: StoredOrder): OrderRecord {
     status: normalizeOrderStatus(row.status),
     customizationPayload: row.customization_payload,
     experienceId: row.experience_id ?? null,
+    createdAt: toIsoString(row.created_at, new Date(0).toISOString()),
+    updatedAt: toIsoString(row.updated_at, new Date(row.created_at).toISOString()),
+    influencerId: row.influencer_id ?? null,
+    couponCode: row.coupon_code ?? null,
+    originalAmount:
+      row.original_amount === null || row.original_amount === undefined
+        ? null
+        : toNumber(row.original_amount),
+    discountGiven: toNumber(row.discount_given),
+    netRevenue: toNumber(row.net_revenue),
+    influencerCommissionEarned: toNumber(row.influencer_commission_earned),
+    trafficSource: row.traffic_source ?? null,
+    customerIp: row.customer_ip ?? null,
+  }
+}
+
+/** Absent/unknown status is treated as active, matching the CHECK constraint. */
+function normalizeInfluencerStatus(value: unknown): InfluencerStatus {
+  return value === 'paused' ? 'paused' : 'active'
+}
+
+function mapInfluencer(row: StoredInfluencer): InfluencerRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email ?? null,
+    phone: row.phone ?? null,
+    uniqueCode: normalizeCode(row.unique_code),
+    discountPercentage: toNumber(row.discount_percentage),
+    commissionPercentage: toNumber(row.commission_percentage),
+    // Postgres `date` round-trips as 'YYYY-MM-DD'; anything else is unusable as
+    // an expiry comparison, so it is dropped rather than trusted.
+    expiryDate:
+      typeof row.expiry_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(row.expiry_date)
+        ? row.expiry_date
+        : null,
+    status: normalizeInfluencerStatus(row.status),
     createdAt: toIsoString(row.created_at, new Date(0).toISOString()),
     updatedAt: toIsoString(row.updated_at, new Date(row.created_at).toISOString()),
   }
@@ -136,6 +181,7 @@ export class PostgresStore implements Store {
 
     const id = input.id ?? crypto.randomUUID()
     const now = new Date().toISOString()
+    const attribution = input.attribution
     const row: StoredOrder = {
       id,
       gateway_order_id: input.gatewayOrderId,
@@ -148,6 +194,15 @@ export class PostgresStore implements Store {
       experience_id: null,
       created_at: now,
       updated_at: now,
+      influencer_id: attribution?.influencerId ?? null,
+      coupon_code: attribution?.couponCode ?? null,
+      original_amount: attribution?.originalAmount ?? null,
+      discount_given: attribution?.discountGiven ?? 0,
+      // A direct sale keeps the full charge as net revenue.
+      net_revenue: attribution?.netRevenue ?? input.amount,
+      influencer_commission_earned: attribution?.commissionEarned ?? 0,
+      traffic_source: attribution?.trafficSource ?? null,
+      customer_ip: attribution?.customerIp ?? null,
     }
 
     const { data } = await this.rest.request<StoredOrder[]>({
@@ -440,6 +495,162 @@ export class PostgresStore implements Store {
         updated_at: now,
       },
     })
+  }
+
+  // ------------------------------------------------------------- influencers --
+
+  async listInfluencers(): Promise<InfluencerRecord[]> {
+    const { data } = await this.rest.request<StoredInfluencer[]>({
+      method: 'GET',
+      path: INFLUENCERS_TABLE,
+      query: { order: 'created_at.desc' },
+    })
+    return (data ?? []).map(mapInfluencer)
+  }
+
+  async getInfluencerById(id: string): Promise<InfluencerRecord | null> {
+    const { data } = await this.rest.request<StoredInfluencer[]>({
+      method: 'GET',
+      path: INFLUENCERS_TABLE,
+      query: { id: `eq.${escapePostgrestValue(id)}`, limit: 1 },
+    })
+    return data && data.length > 0 ? mapInfluencer(data[0]) : null
+  }
+
+  /**
+   * Case-insensitive lookup. The functional unique index on upper(unique_code)
+   * makes this an index scan rather than a table scan, and guarantees the
+   * "one code, one partner" rule holds at the database level too.
+   */
+  async getInfluencerByCode(code: string): Promise<InfluencerRecord | null> {
+    const normalized = normalizeCode(code)
+    if (!normalized) return null
+    const { data } = await this.rest.request<StoredInfluencer[]>({
+      method: 'GET',
+      path: INFLUENCERS_TABLE,
+      query: { unique_code: `eq.${escapePostgrestValue(normalized)}`, limit: 1 },
+    })
+    return data && data.length > 0 ? mapInfluencer(data[0]) : null
+  }
+
+  async createInfluencer(input: CreateInfluencerInput): Promise<InfluencerRecord> {
+    const now = new Date().toISOString()
+    const row: StoredInfluencer = {
+      id: crypto.randomUUID(),
+      name: input.name.trim(),
+      email: input.email?.trim() || null,
+      phone: input.phone?.trim() || null,
+      unique_code: normalizeCode(input.uniqueCode ?? ''),
+      discount_percentage: input.discountPercentage,
+      commission_percentage: input.commissionPercentage,
+      expiry_date: input.expiryDate ?? null,
+      status: input.status ?? 'active',
+      created_at: now,
+      updated_at: now,
+    }
+    const { data } = await this.rest.request<StoredInfluencer[]>({
+      method: 'POST',
+      path: INFLUENCERS_TABLE,
+      prefer: 'return=representation',
+      body: row,
+    })
+    return mapInfluencer(Array.isArray(data) && data.length > 0 ? data[0] : row)
+  }
+
+  async updateInfluencer(
+    id: string,
+    input: UpdateInfluencerInput,
+  ): Promise<InfluencerRecord | null> {
+    const existing = await this.getInfluencerById(id)
+    if (!existing) return null
+
+    const patch: Record<string, unknown> = {}
+    if (input.name !== undefined) patch.name = input.name.trim()
+    if (input.email !== undefined) patch.email = input.email?.trim() || null
+    if (input.phone !== undefined) patch.phone = input.phone?.trim() || null
+    if (input.uniqueCode !== undefined) patch.unique_code = normalizeCode(input.uniqueCode)
+    if (input.discountPercentage !== undefined) {
+      patch.discount_percentage = input.discountPercentage
+    }
+    if (input.commissionPercentage !== undefined) {
+      patch.commission_percentage = input.commissionPercentage
+    }
+    if (input.expiryDate !== undefined) patch.expiry_date = input.expiryDate ?? null
+    if (input.status !== undefined) patch.status = input.status
+
+    if (Object.keys(patch).length === 0) return existing
+
+    const { data } = await this.rest.request<StoredInfluencer[]>({
+      method: 'PATCH',
+      path: INFLUENCERS_TABLE,
+      query: { id: `eq.${escapePostgrestValue(id)}` },
+      prefer: 'return=representation',
+      body: patch,
+    })
+    if (!data || data.length === 0) return null
+    return mapInfluencer(data[0])
+  }
+
+  /**
+   * `cupi_orders.influencer_id` is declared ON DELETE SET NULL, so the FK does
+   * the retention work: past orders keep their coupon_code and money snapshots
+   * and simply lose the partner link.
+   */
+  async deleteInfluencer(id: string): Promise<boolean> {
+    const { data } = await this.rest.request<StoredInfluencer[]>({
+      method: 'DELETE',
+      path: INFLUENCERS_TABLE,
+      query: { id: `eq.${escapePostgrestValue(id)}` },
+      prefer: 'return=representation',
+    })
+    return Array.isArray(data) && data.length > 0
+  }
+
+  /**
+   * Aggregates PAID orders per influencer.
+   *
+   * PENDING orders are excluded on purpose: commission is owed on money that was
+   * actually collected, so an abandoned checkout must never appear as revenue.
+   * Grouping happens in Postgres, not in Node, so the dashboard never pulls
+   * every order into memory to total a handful of columns.
+   */
+  async getInfluencerMetrics(): Promise<Map<string, InfluencerMetrics>> {
+    const { data } = await this.rest.request<
+      Array<{
+        influencer_id: string | null
+        total_orders: number | string
+        total_revenue: number | string
+        total_discount: number | string
+        total_commission: number | string
+      }>
+    >({
+      method: 'GET',
+      path: ORDERS_TABLE,
+      query: {
+        select: [
+          'influencer_id',
+          'count(*)::bigint as total_orders',
+          'coalesce(sum(amount), 0) as total_revenue',
+          'coalesce(sum(discount_given), 0) as total_discount',
+          'coalesce(sum(influencer_commission_earned), 0) as total_commission',
+        ].join(','),
+        status: 'eq.PAID',
+        influencer_id: 'not.is.null',
+        group_by: 'influencer_id',
+      },
+    })
+
+    const metrics = new Map<string, InfluencerMetrics>()
+    for (const row of data ?? []) {
+      if (!row.influencer_id) continue
+      metrics.set(row.influencer_id, {
+        totalOrders: toNumber(row.total_orders),
+        totalRevenueGenerated: round2(toNumber(row.total_revenue)),
+        totalDiscountGiven: round2(toNumber(row.total_discount)),
+        commissionOwed: round2(toNumber(row.total_commission)),
+      })
+    }
+    return metrics
   }
 }
 

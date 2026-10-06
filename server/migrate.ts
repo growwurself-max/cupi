@@ -28,8 +28,9 @@ import path from 'node:path'
 import { DATA_DIR } from './config.js'
 import { DB_FILE, readJsonDbFile, type JsonDatabase } from './jsonStore.js'
 import { PostgresStore } from './postgresStore.js'
+import { normalizeCode } from './influencers.js'
 import { escapePostgrestValue, readSupabaseConfig, SupabaseRest } from './supabase.js'
-import type { StoredExperience, StoredOrder } from './store.js'
+import type { StoredExperience, StoredInfluencer, StoredOrder } from './store.js'
 
 const argv = process.argv.slice(2)
 const DRY_RUN = argv.includes('--dry-run')
@@ -92,6 +93,30 @@ async function main(): Promise<void> {
   console.log(`backup     : ${backupPath ?? 'nothing to back up'}`)
   console.log(`orders found      : ${source.orders.length}`)
   console.log(`experiences found : ${source.experiences.length}`)
+  console.log(`influencers found : ${source.influencers?.length ?? 0}`)
+
+  // Partners migrate first: cupi_orders.influencer_id is a foreign key onto
+  // them, so an order attributed to a partner cannot be inserted before that
+  // partner exists.
+  const influencerErrors: string[] = []
+  const validInfluencers: StoredInfluencer[] = []
+  const seenCodes = new Set<string>()
+  for (const row of source.influencers ?? []) {
+    if (!row.id || !row.unique_code) {
+      influencerErrors.push(`influencer without id/unique_code: ${JSON.stringify(row).slice(0, 120)}`)
+      continue
+    }
+    const code = normalizeCode(String(row.unique_code))
+    if (seenCodes.has(code)) {
+      // cupi_influencers.unique_code is unique; a duplicate here would abort the
+      // whole upsert batch, so the later row is skipped and reported.
+      influencerErrors.push(`duplicate influencer code ${code} — skipped`)
+      continue
+    }
+    seenCodes.add(code)
+    validInfluencers.push({ ...row, unique_code: code })
+  }
+  const knownInfluencerIds = new Set(validInfluencers.map((row) => row.id))
 
   // Per-row validation. A bad row is skipped and reported, never guessed at.
   const orderErrors: string[] = []
@@ -101,6 +126,13 @@ async function main(): Promise<void> {
       orderErrors.push(`order without id/gateway_order_id: ${JSON.stringify(row).slice(0, 120)}`)
     } else if (!row.customization_payload) {
       orderErrors.push(`order ${row.id} has no customization payload`)
+    } else if (row.influencer_id && !knownInfluencerIds.has(row.influencer_id)) {
+      // influencer_id is a foreign key: keeping a stale id would abort the whole
+      // insert. The code and money snapshots still carry the attribution.
+      orderErrors.push(
+        `order ${row.id} references missing influencer ${row.influencer_id} (kept, link nulled)`,
+      )
+      validOrders.push({ ...row, influencer_id: null })
     } else {
       validOrders.push(row)
     }
@@ -123,6 +155,7 @@ async function main(): Promise<void> {
   }
 
   const legacySlugs = validExperiences.filter((row) => row.id.startsWith('fg_')).length
+  console.log(`influencers valid  : ${validInfluencers.length}`)
   console.log(`orders valid       : ${validOrders.length}`)
   console.log(`experiences valid  : ${validExperiences.length}`)
   console.log(`orders skipped     : ${orderErrors.length}`)
@@ -131,7 +164,9 @@ async function main(): Promise<void> {
 
   if (DRY_RUN) {
     heading('DRY RUN complete — nothing was written')
-    for (const message of [...orderErrors, ...experienceErrors]) console.log(`  ! ${message}`)
+    for (const message of [...influencerErrors, ...orderErrors, ...experienceErrors]) {
+      console.log(`  ! ${message}`)
+    }
     console.log('\nRe-run without --dry-run to migrate.')
     return
   }
@@ -140,7 +175,7 @@ async function main(): Promise<void> {
   heading('2. Connect to the database')
   const rest = new SupabaseRest(config)
 
-  for (const table of ['cupi_orders', 'cupi_experiences']) {
+  for (const table of ['cupi_orders', 'cupi_experiences', 'cupi_influencers']) {
     try {
       await rest.request({ method: 'GET', path: table, query: { select: 'id', limit: 1 } })
     } catch (error) {
@@ -155,11 +190,43 @@ async function main(): Promise<void> {
       throw error
     }
   }
-  console.log('schema present     : cupi_orders, cupi_experiences')
+  console.log('schema present     : cupi_orders, cupi_experiences, cupi_influencers')
 
   // ------------------------------------------------------------- migrate ---
-  // Orders first: cupi_experiences.order_id is a foreign key onto cupi_orders.
-  heading('3. Migrate orders (upsert on the existing id — idempotent)')
+  // Influencers first: cupi_orders.influencer_id is a foreign key onto them.
+  heading('3. Migrate influencers (upsert on id — idempotent)')
+  let influencersWritten = 0
+  for (const influencer of validInfluencers) {
+    const { data } = await rest.request<StoredInfluencer[]>({
+      method: 'POST',
+      path: 'cupi_influencers',
+      query: { on_conflict: 'id' },
+      prefer: 'resolution=merge-duplicates,return=representation',
+      body: {
+        id: influencer.id,
+        name: influencer.name,
+        email: influencer.email ?? null,
+        phone: influencer.phone ?? null,
+        unique_code: influencer.unique_code,
+        discount_percentage: Number(influencer.discount_percentage) || 0,
+        commission_percentage: Number(influencer.commission_percentage) || 0,
+        expiry_date: influencer.expiry_date ?? null,
+        status: influencer.status === 'paused' ? 'paused' : 'active',
+        created_at: influencer.created_at,
+        updated_at: influencer.updated_at,
+      },
+    })
+    const saved = Array.isArray(data) ? data[0] : undefined
+    if (saved && saved.id === influencer.id) {
+      influencersWritten += 1
+    } else {
+      console.log(`  ! influencer ${influencer.id} did not read back correctly`)
+    }
+  }
+  console.log(`influencers migrated: ${influencersWritten}/${validInfluencers.length}`)
+
+  // Orders next: cupi_experiences.order_id is a foreign key onto cupi_orders.
+  heading('4. Migrate orders (upsert on the existing id — idempotent)')
   let ordersWritten = 0
   for (const order of validOrders) {
     const { data } = await rest.request<StoredOrder[]>({
@@ -179,6 +246,17 @@ async function main(): Promise<void> {
         experience_id: order.experience_id ?? null,
         created_at: order.created_at,
         updated_at: order.updated_at,
+        // Attribution columns. Legacy rows predate the influencer system, so
+        // they migrate as a direct sale: no partner, no discount. Their money
+        // snapshots default to the amount actually charged.
+        influencer_id: order.influencer_id ?? null,
+        coupon_code: order.coupon_code ?? null,
+        original_amount: order.original_amount ?? Number(order.amount),
+        discount_given: Number(order.discount_given ?? 0) || 0,
+        net_revenue: Number(order.net_revenue ?? Number(order.amount)) || 0,
+        influencer_commission_earned: Number(order.influencer_commission_earned ?? 0) || 0,
+        traffic_source: order.traffic_source ?? null,
+        customer_ip: order.customer_ip ?? null,
       },
     })
     const saved = Array.isArray(data) ? data[0] : undefined
@@ -190,7 +268,7 @@ async function main(): Promise<void> {
   }
   console.log(`orders migrated    : ${ordersWritten}/${validOrders.length}`)
 
-  heading('4. Migrate generated websites (ids preserved exactly)')
+  heading('5. Migrate generated websites (ids preserved exactly)')
   let experiencesWritten = 0
   const seenIds = new Set<string>()
   for (const experience of validExperiences) {
@@ -231,7 +309,8 @@ async function main(): Promise<void> {
   console.log(`websites migrated  : ${experiencesWritten}/${validExperiences.length}`)
 
   // -------------------------------------------------------------- verify ---
-  heading('5. Verify what actually landed in the database')
+  heading('6. Verify what actually landed in the database')
+  console.log(`rows in cupi_influencers: ${await countRows(rest, 'cupi_influencers')}`)
   console.log(`rows in cupi_orders      : ${await countRows(rest, 'cupi_orders')}`)
   console.log(`rows in cupi_experiences : ${await countRows(rest, 'cupi_experiences')}`)
 
