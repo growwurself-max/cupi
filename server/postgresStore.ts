@@ -653,45 +653,84 @@ export class PostgresStore implements Store {
    *
    * PENDING orders are excluded on purpose: commission is owed on money that was
    * actually collected, so an abandoned checkout must never appear as revenue.
-   * Grouping happens in Postgres, not in Node, so the dashboard never pulls
-   * every order into memory to total a handful of columns.
+   *
+   * The totals are summed in Node rather than grouped by Postgres, because
+   * PostgREST cannot express this query:
+   *
+   *   - It has NO `group_by` parameter. Every unknown query parameter is parsed
+   *     as a column filter, so `group_by=influencer_id` looks for a column named
+   *     `group_by` on cupi_orders and answers 400 (PGRST204).
+   *   - `count(*)::bigint as total_orders` / `coalesce(sum(x), 0) as alias` is
+   *     SQL, not PostgREST select grammar (which wants `x.sum()` and `alias:x`),
+   *     and Supabase keeps aggregate functions disabled by default anyway.
+   *
+   * Both rejections arrive as a 400, get rethrown as SupabaseStoreError and are
+   * rendered by the global error handler as the 500 that used to hit
+   * GET /api/admin/influencers. So the rows are read with the plain column
+   * select + filters this store already uses everywhere else, and totalled here.
+   * Only the four columns the totals need are requested, in pages of 1000 (the
+   * PostgREST max-rows window), so one large PAID backlog stays bounded.
    */
   async getInfluencerMetrics(): Promise<Map<string, InfluencerMetrics>> {
-    const { data } = await this.rest.request<
-      Array<{
-        influencer_id: string | null
-        total_orders: number | string
-        total_revenue: number | string
-        total_discount: number | string
-        total_commission: number | string
-      }>
-    >({
-      method: 'GET',
-      path: ORDERS_TABLE,
-      query: {
-        select: [
-          'influencer_id',
-          'count(*)::bigint as total_orders',
-          'coalesce(sum(amount), 0) as total_revenue',
-          'coalesce(sum(discount_given), 0) as total_discount',
-          'coalesce(sum(influencer_commission_earned), 0) as total_commission',
-        ].join(','),
-        status: 'eq.PAID',
-        influencer_id: 'not.is.null',
-        group_by: 'influencer_id',
-      },
-    })
-
     const metrics = new Map<string, InfluencerMetrics>()
-    for (const row of data ?? []) {
-      if (!row.influencer_id) continue
-      metrics.set(row.influencer_id, {
-        totalOrders: toNumber(row.total_orders),
-        totalRevenueGenerated: round2(toNumber(row.total_revenue)),
-        totalDiscountGiven: round2(toNumber(row.total_discount)),
-        commissionOwed: round2(toNumber(row.total_commission)),
+    const pageSize = 1000
+    const maxPages = 100
+    let offset = 0
+
+    for (let page = 0; page < maxPages; page += 1) {
+      const { data } = await this.rest.request<
+        Array<{
+          influencer_id: string | null
+          amount: number | string
+          discount_given: number | string | null
+          influencer_commission_earned: number | string | null
+        }>
+      >({
+        method: 'GET',
+        path: ORDERS_TABLE,
+        query: {
+          select: 'influencer_id,amount,discount_given,influencer_commission_earned',
+          status: 'eq.PAID',
+          influencer_id: 'not.is.null',
+          // Deterministic order so offset paging cannot skip or repeat a row.
+          order: 'id.asc',
+          limit: pageSize,
+          offset,
+        },
       })
+
+      const rows = data ?? []
+      for (const row of rows) {
+        if (!row.influencer_id) continue
+        const current = metrics.get(row.influencer_id) ?? {
+          totalOrders: 0,
+          totalRevenueGenerated: 0,
+          totalDiscountGiven: 0,
+          commissionOwed: 0,
+          commissionEarned: 0,
+        }
+        current.totalOrders += 1
+        current.totalRevenueGenerated = round2(
+          current.totalRevenueGenerated + toNumber(row.amount),
+        )
+        current.totalDiscountGiven = round2(
+          current.totalDiscountGiven + toNumber(row.discount_given),
+        )
+        current.commissionEarned = round2(
+          current.commissionEarned + toNumber(row.influencer_commission_earned),
+        )
+        // Cupi has no payout table yet: nothing ever marks a commission as
+        // paid, so everything earned is still owed. jsonStore reports the same
+        // figure, and the dashboard reads it as "total commission owed".
+        current.commissionOwed = current.commissionEarned
+        metrics.set(row.influencer_id, current)
+      }
+
+      // A short page means the result set is exhausted.
+      if (rows.length < pageSize) break
+      offset += rows.length
     }
+
     return metrics
   }
 
