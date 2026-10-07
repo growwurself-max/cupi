@@ -868,26 +868,58 @@ export class PostgresStore implements Store {
     return SupabaseRest.parseExactCount(headers) ?? 0
   }
 
-  /** One grouped query for the admin list, mirroring `getInfluencerMetrics`. */
+  /**
+   * Redemption totals per coupon for the admin list.
+   *
+   * Counted in Node instead of grouped by Postgres for the same reason as
+   * `getInfluencerMetrics`: PostgREST has no `group_by` parameter (a bare
+   * `group_by=` is parsed as a filter on a column of that name and answers 400),
+   * `count(*)::bigint as redemptions` is SQL rather than PostgREST select
+   * grammar, and Supabase keeps aggregate functions disabled by default. That
+   * 400 was rethrown as SupabaseStoreError and surfaced as the 500 on
+   * GET /api/admin/coupons, so the rows are read with a plain column select plus
+   * the same filters and totalled here.
+   *
+   * PAID orders only: an abandoned checkout never redeemed anything. Only
+   * `coupon_code` is selected, paged 1000 rows at a time, so the payload stays
+   * small no matter how many orders exist.
+   */
   async getCouponRedemptionCounts(): Promise<Map<string, number>> {
-    const { data } = await this.rest.request<
-      Array<{ coupon_code: string | null; redemptions: number | string }>
-    >({
-      method: 'GET',
-      path: ORDERS_TABLE,
-      query: {
-        select: ['coupon_code', 'count(*)::bigint as redemptions'].join(','),
-        status: 'eq.PAID',
-        coupon_code: 'not.is.null',
-        group_by: 'coupon_code',
-      },
-    })
-
     const counts = new Map<string, number>()
-    for (const row of data ?? []) {
-      if (!row.coupon_code) continue
-      counts.set(normalizeCouponCode(row.coupon_code), toNumber(row.redemptions))
+    const pageSize = 1000
+    const maxPages = 100
+    let offset = 0
+
+    for (let page = 0; page < maxPages; page += 1) {
+      const { data } = await this.rest.request<
+        Array<{ coupon_code: string | null }>
+      >({
+        method: 'GET',
+        path: ORDERS_TABLE,
+        query: {
+          select: 'coupon_code',
+          status: 'eq.PAID',
+          coupon_code: 'not.is.null',
+          // Deterministic order so offset paging cannot skip or repeat a row.
+          order: 'id.asc',
+          limit: pageSize,
+          offset,
+        },
+      })
+
+      const rows = data ?? []
+      for (const row of rows) {
+        if (!row.coupon_code) continue
+        const code = normalizeCouponCode(row.coupon_code)
+        if (!code) continue
+        counts.set(code, (counts.get(code) ?? 0) + 1)
+      }
+
+      // A short page means the result set is exhausted.
+      if (rows.length < pageSize) break
+      offset += rows.length
     }
+
     return counts
   }
 }
