@@ -57,7 +57,7 @@ import { SupabaseStoreError } from './supabase.js'
 declare global {
   namespace Express {
     interface Request {
-      /** Set by `requireCustomerAuth` / `optionalCustomerAuth`. */
+      /** Set by `requireCustomerAuth` / `requireVerifiedCustomer`. */
       customer?: CustomerRecord
     }
   }
@@ -272,6 +272,42 @@ export async function requireCustomerAuth(
   }
 }
 
+/**
+ * Stricter gate for routes that must never accept a guest or an unverified
+ * account (currently POST /orders/create). A brand-new e-mail signup is born
+ * unverified, so this 403 is what stops them paying (or being charged) until
+ * they confirm the address — Google accounts are verified by Google, so they
+ * pass. A store outage propagates to the global handler as a retryable 503
+ * rather than being reported as bad credentials.
+ */
+export async function requireVerifiedCustomer(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const token = bearerToken(req)
+    const customerId = token ? parseSessionToken(token) : null
+    if (!customerId) {
+      res.status(401).json({ error: 'Please sign in to continue.' })
+      return
+    }
+    const customer = await getCustomerById(customerId)
+    if (!customer) {
+      res.status(401).json({ error: 'Please sign in to continue.' })
+      return
+    }
+    if (!customer.emailVerified) {
+      res.status(403).json({ error: 'Please verify your e-mail address before purchasing.' })
+      return
+    }
+    req.customer = customer
+    next()
+  } catch (error) {
+    next(error)
+  }
+}
+
 // -------------------------------------------------------------- rate limits --
 
 const failureLog = new Map<string, { count: number; resetAt: number }>()
@@ -357,8 +393,22 @@ export interface EmailMessage {
  * unconfigured or unreachable e-mail provider must never block sign-up, login
  * or a password reset, so the caller is simply told whether it went out.
  */
+let warnedNoResendKey = false
+
 async function sendEmail(message: EmailMessage): Promise<boolean> {
-  if (!RESEND_API_KEY) return false
+  if (!RESEND_API_KEY) {
+    // A missing key silently disables every verification/reset e-mail. Log it
+    // (once per process) so an operator is never left wondering why no e-mail
+    // arrived — the browser is told separately via emailSent: false.
+    if (!warnedNoResendKey) {
+      warnedNoResendKey = true
+      console.warn(
+        '[auth] RESEND_API_KEY is not set — verification and reset e-mails are NOT being sent. ' +
+          'Set it in the environment (and a verified EMAIL_FROM) before customers sign up.',
+      )
+    }
+    return false
+  }
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -637,8 +687,8 @@ async function handleSignup(req: Request, res: Response): Promise<void> {
       emailSent: link.emailSent,
       devLink: devLink(link.url),
       message: link.emailSent
-        ? 'Account created. Check your inbox to verify your e-mail.'
-        : 'Account created. Verify your e-mail from the link we send you.',
+        ? 'Account created. Please verify your e-mail before purchasing.'
+        : 'Account created, but the verification e-mail could not be sent right now.',
     })
   } catch (error) {
     // Two simultaneous sign-ups for one address race on the unique index.

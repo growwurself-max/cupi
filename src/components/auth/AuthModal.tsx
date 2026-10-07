@@ -8,12 +8,13 @@
  * linking an account.
  */
 import { motion } from 'framer-motion'
-import { AlertCircle, ArrowLeft, CheckCircle2, Heart, Loader2, Lock, Mail, Sparkles, User, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, Heart, Loader2, Lock, Mail, Sparkles, User, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   forgotPassword,
   login,
   loginWithGoogle,
+  resendVerification,
   signup,
   type AuthResponse,
 } from '../../lib/api.ts'
@@ -80,6 +81,11 @@ export function AuthModal() {
   const [forgot, setForgot] = useState(false)
   const [googleButtonReady, setGoogleButtonReady] = useState(false)
   const googleButtonRef = useRef<HTMLDivElement | null>(null)
+  // Holds the just-signed-up address so the success panel can offer a resend.
+  const [signedUpEmail, setSignedUpEmail] = useState<string | null>(null)
+  const [signedUpEmailSent, setSignedUpEmailSent] = useState(true)
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [resendError, setResendError] = useState<string | null>(null)
 
   const open = modalMode !== null
 
@@ -90,6 +96,9 @@ export function AuthModal() {
     setError(null)
     setNotice(null)
     setForgot(false)
+    setSignedUpEmail(null)
+    setResendState('idle')
+    setResendError(null)
   }, [])
 
   const handleClose = useCallback(() => {
@@ -98,6 +107,9 @@ export function AuthModal() {
     setError(null)
     setNotice(null)
     setSubmitting(false)
+    setSignedUpEmail(null)
+    setResendState('idle')
+    setResendError(null)
   }, [closeAuth, submitting])
 
   useEffect(() => {
@@ -192,10 +204,18 @@ export function AuthModal() {
         mode === 'signup' ? await signup({ name, email, password }) : await login({ email, password })
       applyAuthResponse(response)
       if (mode === 'signup') {
-        // Account created (and usually an e-mail sent): tell them what happens
-        // next instead of vanishing, since verification is optional to browse.
+        // Account created. Purchases are locked until the e-mail is verified,
+        // so tell them explicitly — and remember whether the verification
+        // e-mail actually went out so we can offer a resend if it didn't.
+        setSignedUpEmail(email)
+        setSignedUpEmailSent(Boolean(response.emailSent))
+        setResendState('idle')
+        setResendError(null)
         setNotice(
-          response.message || 'Account created. Check your inbox to verify your e-mail.',
+          response.emailSent
+            ? response.message ||
+                'Account created. Please verify your e-mail before purchasing.'
+            : 'Account created, but the verification e-mail could not be sent right now.',
         )
       } else {
         closeAuth()
@@ -205,6 +225,31 @@ export function AuthModal() {
       setError(errorMessage(cause, 'Something went wrong. Please try again.'))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // Re-send the verification e-mail from the post-signup panel when the first
+  // attempt didn't go out (or from the customizer's buy-block). Mirrors the
+  // Navbar's pattern but stays inside the modal the user is already looking at.
+  const handleResendVerification = async () => {
+    const target = signedUpEmail
+    if (!target || resendState === 'sending') return
+    setResendState('sending')
+    setResendError(null)
+    try {
+      const response = await resendVerification(target)
+      if (!response.emailSent) {
+        setResendError(
+          response.message ||
+            'The e-mail could not be sent right now. Please try again in a moment.',
+        )
+        setResendState('idle')
+        return
+      }
+      setResendState('sent')
+    } catch (cause) {
+      setResendError(errorMessage(cause, 'The e-mail could not be sent right now.'))
+      setResendState('idle')
     }
   }
 
@@ -311,24 +356,69 @@ export function AuthModal() {
         )}
 
         {notice ? (
-          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-              <div>
-                <p className="font-semibold">{notice}</p>
-                <p className="mt-1 text-xs opacity-80">
-                  No need to wait — go ahead and keep exploring while you do.
-                </p>
+          mode === 'signup' && !signedUpEmailSent ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <div>
+                  <p className="font-semibold">{notice}</p>
+                  <p className="mt-1 text-xs leading-relaxed opacity-90">
+                    You can still browse — but you'll need the verification link
+                    before you can buy anything.
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                disabled={resendState === 'sending'}
+                onClick={() => void handleResendVerification()}
+                className="mt-3 w-full rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-bold text-amber-700 transition-transform active:scale-95 disabled:opacity-60"
+              >
+                {resendState === 'sending' ? 'Sending…' : resendState === 'sent' ? 'Verification e-mail sent' : 'Resend verification e-mail'}
+              </button>
+              {resendState === 'sent' && (
+                <p className="mt-2 text-xs font-semibold text-emerald-700">
+                  A fresh verification link is on its way — check your inbox.
+                </p>
+              )}
+              {resendError && (
+                <p className="mt-2 text-xs font-semibold text-rose-600">{resendError}</p>
+              )}
+              <button
+                type="button"
+                onClick={handleClose}
+                className="mt-2 w-full rounded-full bg-amber-600 px-4 py-2 text-sm font-bold text-white transition-transform active:scale-95"
+              >
+                Done
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="mt-3 w-full rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition-transform active:scale-95"
-            >
-              Done
-            </button>
-          </div>
+          ) : (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <div>
+                  <p className="font-semibold">{notice}</p>
+                  {mode === 'signup' ? (
+                    <p className="mt-1 text-xs opacity-80">
+                      No need to wait — keep exploring while you do. We'll need
+                      the link verified before the purchase step, though.
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs opacity-80">
+                      No need to wait — go ahead and keep exploring while you do.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="mt-3 w-full rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition-transform active:scale-95"
+              >
+                Done
+              </button>
+            </div>
+          )
         ) : (
           <form onSubmit={(e) => void handleSubmit(e)} className="mt-4 flex flex-col gap-3">
             {forgot && (

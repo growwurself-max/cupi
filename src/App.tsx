@@ -19,6 +19,7 @@ import { Footer } from './components/store/Footer'
 import { HeroSection } from './components/store/HeroSection'
 import { captureReferralFromUrl } from './lib/referral'
 import { HowItWorks } from './components/store/HowItWorks'
+import { useAuth } from './lib/authContext.ts'
 import { Navbar } from './components/store/Navbar'
 import { ThemeGrid } from './components/store/ThemeGrid'
 import { themeRegistry } from './themes/registry'
@@ -83,11 +84,14 @@ function parsePath(pathname: string): Route {
 }
 
 export default function App() {
+  const { customer, loading, openAuth } = useAuth()
   const [view, setView] = useState<View>('store')
   const [activeThemeId, setActiveThemeId] = useState('birthday-01')
   const [activeCategory, setActiveCategory] =
     useState<CategorySelection>('all')
   const [customizeTheme, setCustomizeTheme] =
+    useState<ExperienceMetadata | null>(null)
+  const [pendingCustomize, setPendingCustomize] =
     useState<ExperienceMetadata | null>(null)
   const [route, setRoute] = useState<Route>(() =>
     parsePath(typeof window !== 'undefined' ? window.location.pathname : '/'),
@@ -130,9 +134,29 @@ export default function App() {
     }
   }, [view])
 
+  // A guest who clicked "Get Now" went to the Login/Sign-Up modal instead of the
+  // customizer (purchasing requires an account). Once they sign in, the customizer
+  // they asked for opens automatically instead of making them find the card again.
+  useEffect(() => {
+    if (pendingCustomize && customer) {
+      setCustomizeTheme(pendingCustomize)
+      setPendingCustomize(null)
+    }
+  }, [pendingCustomize, customer])
+
   const handleCustomize = useCallback(
-    (theme: ExperienceMetadata) => setCustomizeTheme(theme),
-    [],
+    (theme: ExperienceMetadata) => {
+      // Session hydration is fast, but a guest must never start a purchase
+      // (or be told they're signed out) just because the check hasn't finished.
+      if (loading) return
+      if (!customer) {
+        setPendingCustomize(theme)
+        openAuth('login')
+        return
+      }
+      setCustomizeTheme(theme)
+    },
+    [customer, loading, openAuth],
   )
 
   const handleSelectCategory = useCallback((id: CategorySelection) => {

@@ -56,7 +56,7 @@ import {
 import { sanitizeCustomization } from './sanitize.js'
 import { SupabaseStoreError } from './supabase.js'
 import { createAdminRouter } from './adminRoutes.js'
-import { createCustomerAuthRouter, resolveCustomerFromRequest } from './customerAuth.js'
+import { createCustomerAuthRouter, requireVerifiedCustomer } from './customerAuth.js'
 
 // Public backend origin used to build the FamGateway webhook URL. Override
 // with BACKEND_URL when deploying the API somewhere other than Render.
@@ -618,15 +618,9 @@ async function handleCreateOrder(
       customerName: sanitizedCustomization.senderName,
     })
 
-    // Link the order to the signed-in buyer when there is one. Best effort by
-    // design: a guest checkout, an expired session or an unreachable store must
-    // never stop a payment — the order simply goes in without a customer_id.
-    let customerId: string | null = null
-    try {
-      customerId = (await resolveCustomerFromRequest(req))?.id ?? null
-    } catch (error) {
-      console.warn('[ORDER CREATE] could not resolve the signed-in customer:', error)
-    }
+    // The buyer was resolved and verified by requireVerifiedCustomer before
+    // this handler ran, so the order is always linked to their account.
+    const customerId = req.customer?.id ?? null
 
     // The order MUST be persisted before the customer is given a way to pay.
     // If this write fails we abort here: the checkout URL is never returned, so
@@ -1071,7 +1065,11 @@ async function handleGetExperience(req: Request, res: Response): Promise<void> {
 // base-URL mismatch can never fall through to a 404 / SPA catch-all.
 const orderRoutes = express.Router()
 
-orderRoutes.post('/create', wrap(handleCreateOrder))
+// No order row and no FamGateway payment session may exist until the buyer is
+// signed in AND their e-mail is verified (Google accounts arrive pre-verified).
+// The middleware resolves the customer from the Authorization header; the
+// handler below uses req.customer and never re-resolves it.
+orderRoutes.post('/create', requireVerifiedCustomer, wrap(handleCreateOrder))
 orderRoutes.post('/verify', wrap(handleVerifyOrder))
 
 app.use('/api/orders', orderRoutes)

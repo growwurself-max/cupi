@@ -6,7 +6,7 @@
  * checkout -> payment -> webhook -> permanent /x/:id link -> read-only refusal.
  * Also proves the production guard rails around store selection.
  */
-import { createHmac } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 import { mkdirSync, rmSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import path from 'node:path'
@@ -37,6 +37,8 @@ const experiences: Row[] = []
 const productPrices: Row[] = []
 const templateAudio: Row[] = []
 const influencers: Row[] = []
+const customers: Row[] = []
+const authTokens: Row[] = []
 let simDown = false
 
 function tableOf(t: string): Row[] | null {
@@ -45,6 +47,8 @@ function tableOf(t: string): Row[] | null {
   if (t === 'cupi_product_prices') return productPrices
   if (t === 'cupi_template_audio') return templateAudio
   if (t === 'cupi_influencers') return influencers
+  if (t === 'cupi_customers') return customers
+  if (t === 'cupi_auth_tokens') return authTokens
   return null
 }
 function project(rows: Row[], select: string | null): Row[] {
@@ -302,8 +306,6 @@ const status = await (await realFetch(`${API}/api/store-status`)).json()
 check('store-status performs a real query', status.reachable === true, JSON.stringify(status))
 check('store-status reports durability', status.durable === true)
 
-// ---------------------------------------------------------------- checkout ---
-console.log('\n=== 2. Checkout ===')
 // birthday-03 allows photos, so the round trip also proves image payloads.
 const CUSTOMIZATION = {
   recipient: { name: 'Ayesha' },
@@ -314,9 +316,97 @@ const CUSTOMIZATION = {
     photos: [{ src: 'data:image/jpeg;base64,QUJD', caption: 'us' }],
   },
 }
+
+// --------------------------------------------- the purchase gate (auth) ---
+console.log('\n=== 2. The purchase gate (account + verified e-mail) ===')
+// Sign sessions exactly like the server: CUSTOMER_AUTH_SECRET falls back to
+// SUPER_ADMIN_TOKEN in tests, so the session key derives from 'test-admin-token'.
+const sessionKey = createHash('sha256')
+  .update('cupi-customer-session-v1:test-admin-token')
+  .digest()
+const sessionTokenFor = (customerId: string): string => {
+  const payload = Buffer.from(
+    JSON.stringify({ id: customerId, exp: Date.now() + 60_000 }),
+    'utf8',
+  ).toString('base64url')
+  const signature = createHmac('sha256', sessionKey)
+    .update(`customer-session:${payload}`)
+    .digest('base64url')
+  return `${payload}.${signature}`
+}
+
+// One happy customer and one fresh signup who never clicked the link.
+const verifiedCustomerId = 'cust-verified-0001'
+const unverifiedCustomerId = 'cust-unverified-0001'
+const stamp = new Date().toISOString()
+customers.push(
+  {
+    id: verifiedCustomerId,
+    email: 'buyer@example.com',
+    password_hash: null,
+    name: 'Happy Buyer',
+    avatar_url: null,
+    google_sub: null,
+    email_verified: true,
+    created_at: stamp,
+    updated_at: stamp,
+  },
+  {
+    id: unverifiedCustomerId,
+    email: 'fresh@example.com',
+    password_hash: null,
+    name: 'Fresh Signup',
+    avatar_url: null,
+    google_sub: null,
+    email_verified: false,
+    created_at: stamp,
+    updated_at: stamp,
+  },
+)
+
+const GUEST = { 'content-type': 'application/json' }
+const BUYER = {
+  'content-type': 'application/json',
+  Authorization: `Bearer ${sessionTokenFor(verifiedCustomerId)}`,
+}
+const UNVERIFIED = {
+  'content-type': 'application/json',
+  Authorization: `Bearer ${sessionTokenFor(unverifiedCustomerId)}`,
+}
+
+const guestCreate = await realFetch(`${API}/api/orders/create`, {
+  method: 'POST',
+  headers: GUEST,
+  body: JSON.stringify({ templateId: 'birthday-03', customization: CUSTOMIZATION }),
+})
+const guestBody = await guestCreate.json()
+check('a guest cannot create an order (401)', guestCreate.status === 401, String(guestCreate.status))
+check('the guest is told to sign in', guestBody.error === 'Please sign in to continue.', JSON.stringify(guestBody))
+check('a guest attempt stored nothing', orders.length === 0)
+
+const junkCreate = await realFetch(`${API}/api/orders/create`, {
+  method: 'POST',
+  headers: { ...GUEST, Authorization: 'Bearer not.a-real-token' },
+  body: JSON.stringify({ templateId: 'birthday-03', customization: CUSTOMIZATION }),
+})
+check('a forged session token is refused (401)', junkCreate.status === 401, String(junkCreate.status))
+check('a forged token stored nothing', orders.length === 0)
+
+const unverifiedCreate = await realFetch(`${API}/api/orders/create`, {
+  method: 'POST',
+  headers: UNVERIFIED,
+  body: JSON.stringify({ templateId: 'birthday-03', customization: CUSTOMIZATION }),
+})
+const unverifiedBody = await unverifiedCreate.json()
+check('an unverified account cannot pay (403)', unverifiedCreate.status === 403, String(unverifiedCreate.status))
+check('the blocker says to verify the e-mail', unverifiedBody.error === 'Please verify your e-mail address before purchasing.', JSON.stringify(unverifiedBody))
+check('the blocked checkout stored nothing', orders.length === 0)
+
+// ---------------------------------------------------------------- checkout ---
+console.log('\n=== 3. Checkout (signed-in, verified buyer) ===')
 const createRes = await realFetch(`${API}/api/orders/create`, {
   method: 'POST',
-  headers: { 'content-type': 'application/json' },
+  headers: BUYER,
   body: JSON.stringify({ templateId: 'birthday-03', customization: CUSTOMIZATION }),
 })
 const created = await createRes.json()
@@ -324,6 +414,7 @@ check('checkout returns 201', createRes.status === 201, JSON.stringify(created))
 check('checkout returns a checkoutUrl', typeof created.checkoutUrl === 'string')
 const orderId = created.orderId as string
 check('order persisted BEFORE checkout was handed out', orders.length === 1 && orders[0].id === orderId)
+check('order belongs to the signed-in buyer', orders[0].customer_id === verifiedCustomerId, String(orders[0].customer_id))
 check('order starts PENDING', orders[0].status === 'PENDING')
 check('photo data stored intact', JSON.stringify(orders[0].customization_payload).includes('QUJD'))
 check('letter text stored intact', JSON.stringify(orders[0].customization_payload).includes('Line two'))
@@ -334,14 +425,14 @@ check('no website exists before payment', experiences.length === 0)
 // A template that does not exist must be rejected.
 const badTemplate = await realFetch(`${API}/api/orders/create`, {
   method: 'POST',
-  headers: { 'content-type': 'application/json' },
+  headers: BUYER,
   body: JSON.stringify({ templateId: 'nope-99', customization: CUSTOMIZATION }),
 })
 check('unknown template rejected', badTemplate.status === 400, String(badTemplate.status))
 check('rejected checkout stored nothing', orders.length === 1)
 
 // ----------------------------------------------------------------- payment ---
-console.log('\n=== 3. Payment confirmation (webhook) ===')
+console.log('\n=== 4. Payment confirmation (webhook) ===')
 const paidAmount = Number(orders[0].amount)
 check('order recorded the amount actually charged', Number.isFinite(paidAmount) && paidAmount > 0, String(paidAmount))
 const webhookBody = JSON.stringify({
@@ -392,7 +483,7 @@ check('unknown-order webhook ignored, not fatal', unknownRes.status === 200, Str
 check('no order invented', orders.length === 1)
 
 // ------------------------------------------------------------- the link ---
-console.log('\n=== 4. The permanent /x/:id link ===')
+console.log('\n=== 5. The permanent /x/:id link ===')
 const shareRes = await realFetch(`${API}/api/experiences/${slug}`)
 const share = await shareRes.json()
 check('share link returns 200', shareRes.status === 200)
@@ -418,7 +509,7 @@ const missing = await realFetch(`${API}/api/experiences/definitely_not_here`)
 check('unknown slug returns 404', missing.status === 404, String(missing.status))
 
 // -------------------------------------------------------------- read-only ---
-console.log('\n=== 5. Read-only enforcement ===')
+console.log('\n=== 6. Read-only enforcement ===')
 for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
   const res = await realFetch(`${API}/api/experiences/${slug}`, {
     method,
@@ -432,7 +523,7 @@ check('unknown sub-path cannot mutate either', subPath.status === 423 || subPath
 check('content was not modified by any attempt', JSON.stringify((await (await realFetch(`${API}/api/experiences/${slug}`)).json()).config).includes('QUJD'))
 
 // ------------------------------------------------------- influencers ---
-console.log('\n=== 6. Influencers, coupons and referral attribution ===')
+console.log('\n=== 7. Influencers, coupons and referral attribution ===')
 const ADMIN = { Authorization: 'Bearer test-admin-token' }
 
 const adminGet = (path: string, headers: Record<string, string> = ADMIN) =>
@@ -505,7 +596,7 @@ check('legacy campaign code still works', legacyBody.valid === true && legacyBod
 // Checkout with a referral code: the order must record the partner and the money.
 const refOrderRes = await realFetch(`${API}/api/orders/create`, {
   method: 'POST',
-  headers: { 'content-type': 'application/json' },
+  headers: BUYER,
   body: JSON.stringify({
     templateId: 'birthday-03',
     customization: CUSTOMIZATION,
@@ -515,6 +606,7 @@ const refOrderRes = await realFetch(`${API}/api/orders/create`, {
 })
 check('referral checkout accepted', refOrderRes.status === 201, String(refOrderRes.status))
 const refOrder = orders[orders.length - 1]
+check('referral order belongs to the signed-in buyer', refOrder.customer_id === verifiedCustomerId, String(refOrder.customer_id))
 check('order attributed to the influencer', refOrder.influencer_id === priya.data.influencer.id, String(refOrder.influencer_id))
 check('coupon code snapshotted on the order', refOrder.coupon_code === 'PRIYA20')
 check('original amount snapshotted', Number(refOrder.original_amount) > 0)
@@ -540,7 +632,7 @@ check('paused code is refused', pausedBody.valid === false && pausedBody.reason 
 
 const pausedOrderRes = await realFetch(`${API}/api/orders/create`, {
   method: 'POST',
-  headers: { 'content-type': 'application/json' },
+  headers: BUYER,
   body: JSON.stringify({ templateId: 'birthday-03', customization: CUSTOMIZATION, couponCode: 'PRIYA20' }),
 })
 check('paused code still allows checkout at full price', pausedOrderRes.status === 201)
@@ -597,7 +689,7 @@ const deletedList = await (await adminGet('/api/admin/influencers')).json()
 check('deleted partner is gone from the list', !deletedList.influencers.some((i: { id: string }) => i.id === priya.data.influencer.id))
 
 // ------------------------------------------------------- store is down ---
-console.log('\n=== 7. A database outage is never shown as "link expired" ===')
+console.log('\n=== 8. A database outage is never shown as "link expired" ===')
 simDown = true
 const outage = await realFetch(`${API}/api/experiences/${slug}`)
 const outageBody = await outage.json()
@@ -609,7 +701,7 @@ check('read-only guard fails closed during an outage', guardDuringOutage.status 
 
 const createDuringOutage = await realFetch(`${API}/api/orders/create`, {
   method: 'POST',
-  headers: { 'content-type': 'application/json' },
+  headers: BUYER,
   body: JSON.stringify({ templateId: 'birthday-03', customization: CUSTOMIZATION }),
 })
 check('checkout refused during an outage (no payment taken)', createDuringOutage.status === 503, String(createDuringOutage.status))
@@ -629,7 +721,7 @@ simDown = false
 check('the link recovers once the database is back', (await realFetch(`${API}/api/experiences/${slug}`)).status === 200)
 
 // ----------------------------------------------- production guard rails ---
-console.log('\n=== 8. Production refuses to run on an ephemeral disk ===')
+console.log('\n=== 9. Production refuses to run on an ephemeral disk ===')
 function bootChild(env: Record<string, string>): Promise<{ code: number | null; out: string }> {
   return new Promise((resolve) => {
     const child = spawn('node', ['node_modules/tsx/dist/cli.mjs', 'server/index.ts'], {
