@@ -25,6 +25,8 @@ interface StatsResponse {
 }
 
 export function AdminDashboard() {
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
   const [token, setToken] = useState('')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
@@ -40,28 +42,33 @@ export function AdminDashboard() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!token.trim()) return
+    if (!identifier.trim() || !password) return
 
     setLoading(true)
     setError(null)
 
     try {
-      // Test authentication by fetching stats
-      const response = await fetch(`${apiUrl}/admin/stats`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      // Exchange credentials for a signed session token.
+      const response = await fetch(`${apiUrl}/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: identifier.trim(), password }),
       })
 
-      if (response.ok) {
-        setIsAuthenticated(true)
-        // Store token in session storage (not localStorage for security)
-        sessionStorage.setItem('adminToken', token)
-        await loadData(token)
-      } else {
-        const data = await response.json()
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
         setError(data.error || 'Authentication failed')
+        return
       }
+
+      const sessionToken = data.token as string
+      setToken(sessionToken)
+      setPassword('')
+      setIsAuthenticated(true)
+      // Store token in session storage (not localStorage for security)
+      sessionStorage.setItem('adminToken', sessionToken)
+      await loadData(sessionToken)
     } catch (err) {
       setError('Failed to connect to server')
     } finally {
@@ -82,6 +89,16 @@ export function AdminDashboard() {
           headers: { Authorization: `Bearer ${authToken}` },
         }),
       ])
+
+      // An expired or revoked session sends the user back to the login form
+      // instead of showing an empty dashboard that never recovers.
+      if (productsRes.status === 401 || statsRes.status === 401) {
+        sessionStorage.removeItem('adminToken')
+        setToken('')
+        setIsAuthenticated(false)
+        setError('Your session has expired. Please log in again.')
+        return
+      }
 
       if (!productsRes.ok || !statsRes.ok) {
         throw new Error('Failed to load data')
@@ -224,16 +241,32 @@ export function AdminDashboard() {
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Super Admin Login</h1>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-2">
-                Admin Token
+              <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-2">
+                Username or Email
+              </label>
+              <input
+                type="text"
+                id="identifier"
+                autoComplete="username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500"
+                placeholder="Enter your username or email"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Password
               </label>
               <input
                 type="password"
-                id="token"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500"
-                placeholder="Enter your admin token"
+                placeholder="Enter your password"
                 required
               />
             </div>

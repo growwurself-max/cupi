@@ -1,7 +1,7 @@
 import express from 'express'
 import type { Request, Response } from 'express'
 import { ALLOWED_TEMPLATES, PHOTO_LIMITS } from './config.js'
-import { requireAdminAuth } from './adminAuth.js'
+import { handleAdminLogin, requireAdminAuth } from './adminAuth.js'
 import { legacyCouponDiscountPercentage, resolvePriceInRupees, wrap } from './index.js'
 import {
   countCouponRedemptions,
@@ -489,6 +489,11 @@ async function handleDeleteCoupon(req: Request, res: Response): Promise<void> {
  */
 export function createAdminRouter() {
   const router = express.Router()
+
+  // Credential exchange for the dashboard login form. It MUST stay above the
+  // auth middleware: every other route in this router requires a token this
+  // one hands out.
+  router.post('/login', wrap(handleAdminLogin))
 
   // Apply auth middleware to all admin routes
   router.use(requireAdminAuth)
