@@ -120,15 +120,10 @@ export const SUPER_ADMIN_EMAIL = (
 
 export const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || ''
 
-/**
- * Customer authentication (POST /api/auth/*).
- *
- * GOOGLE_CLIENT_ID is the OAuth client the "Continue with Google" ID token is
- * verified against. It is PUBLIC (it ships to the browser too, as
- * VITE_GOOGLE_CLIENT_ID); it is a client identity, not a secret — the security
- * comes from verifying the token's signature and audience server-side.
- */
-export const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID ?? '').trim()
+/** Firebase service-account credentials used to verify customer ID tokens. */
+export const FIREBASE_SERVICE_ACCOUNT_JSON = (
+  process.env.FIREBASE_SERVICE_ACCOUNT_JSON ?? ''
+).trim()
 
 /**
  * Key that signs customer session tokens.
@@ -142,15 +137,3 @@ export const CUSTOMER_AUTH_SECRET = (
   process.env.SUPER_ADMIN_TOKEN ||
   ''
 ).trim()
-
-/**
- * Outgoing e-mail (verification links, password resets) via the Resend HTTP
- * API. No npm dependency: it is one authenticated POST, so a missing key only
- * disables e-mail — signup, login and Google sign-in keep working, and the
- * links are logged server-side instead.
- */
-export const RESEND_API_KEY = (process.env.RESEND_API_KEY ?? '').trim()
-export const EMAIL_FROM = (process.env.EMAIL_FROM ?? 'Cupi <onboarding@resend.dev>').trim()
-
-/** Where verification/reset links point back to. First allowed origin wins. */
-export const APP_URL = FRONTEND_ORIGINS[0] || 'http://localhost:5173'

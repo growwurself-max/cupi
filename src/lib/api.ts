@@ -234,10 +234,6 @@ export interface AuthResponse {
   token?: string
   expiresAt?: string
   customer?: CustomerPublic
-  /** True when the verification/reset e-mail actually went out. */
-  emailSent?: boolean
-  /** The raw link, returned only in development so a flow is testable. */
-  devLink?: string
   message?: string
   error?: string
 }
@@ -259,10 +255,10 @@ export function login(input: { email: string; password: string }): Promise<AuthR
   return apiRequest<AuthResponse>('/auth/login', { method: 'POST', body: input })
 }
 
-export function loginWithGoogle(credential: string): Promise<AuthResponse> {
+export function loginWithGoogle(idToken: string): Promise<AuthResponse> {
   return apiRequest<AuthResponse>('/auth/google', {
     method: 'POST',
-    body: { credential },
+    body: { idToken },
   })
 }
 
@@ -273,26 +269,4 @@ export function logout(): Promise<{ success: boolean }> {
 
 export function fetchMe(): Promise<MeResponse> {
   return apiRequest<MeResponse>('/auth/me')
-}
-
-export function verifyEmail(token: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>('/auth/verify-email', { method: 'POST', body: { token } })
-}
-
-export function resendVerification(email?: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>('/auth/resend-verification', {
-    method: 'POST',
-    body: email ? { email } : {},
-  })
-}
-
-export function forgotPassword(email: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>('/auth/forgot-password', { method: 'POST', body: { email } })
-}
-
-export function resetPassword(token: string, password: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>('/auth/reset-password', {
-    method: 'POST',
-    body: { token, password },
-  })
 }

@@ -5,8 +5,6 @@ import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
 import { RefundPolicy } from './pages/legal/RefundPolicy'
 import { TermsConditions } from './pages/legal/TermsConditions'
 import { PaymentResult } from './pages/PaymentResult'
-import { ResetPassword } from './pages/ResetPassword'
-import { VerifyEmail } from './pages/VerifyEmail'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { Pricing } from './pages/Pricing'
 import type { CategorySelection } from './components/store/CategoryFilter'
@@ -37,8 +35,6 @@ interface Route {
     | 'legal'
     | 'admin'
     | 'pricing'
-    | 'auth-verify'
-    | 'auth-reset'
   shareId: string | null
   legalPage: LegalPage | null
 }
@@ -72,13 +68,6 @@ function parsePath(pathname: string): Route {
   }
   if (pathname === '/pricing') {
     return { view: 'pricing', shareId: null, legalPage: null }
-  }
-  // E-mail links land here (the token is read from the query by the page).
-  if (pathname === '/verify-email' || pathname.startsWith('/verify-email')) {
-    return { view: 'auth-verify', shareId: null, legalPage: null }
-  }
-  if (pathname === '/reset-password' || pathname.startsWith('/reset-password')) {
-    return { view: 'auth-reset', shareId: null, legalPage: null }
   }
   return { view: 'store', shareId: null, legalPage: null }
 }
@@ -174,14 +163,6 @@ export default function App() {
 
     if (route.view === 'payment-result') {
       return <PaymentResult onExit={goToStore} />
-    }
-
-    if (route.view === 'auth-verify') {
-      return <VerifyEmail onExit={goToStore} />
-    }
-
-    if (route.view === 'auth-reset') {
-      return <ResetPassword onExit={goToStore} />
     }
 
     if (route.view === 'legal') {

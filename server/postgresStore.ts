@@ -1022,7 +1022,7 @@ export class PostgresStore implements Store {
         if (!warnedMissingCustomersTable) {
           warnedMissingCustomersTable = true
           console.warn(
-            '[db] cupi_customers / cupi_auth_tokens tables are missing — customer login is ' +
+            '[db] cupi_customers table is missing — customer login is ' +
               'disabled until supabase/schema.sql is run.',
           )
         }

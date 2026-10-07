@@ -20,12 +20,10 @@ import {
   X,
   Tag,
   Check,
-  Mail,
-  Send,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFamGateway } from '../../hooks/useFamGateway'
-import { applyCoupon, createOrder, resendVerification } from '../../lib/api'
+import { applyCoupon, createOrder } from '../../lib/api'
 import { useAuth } from '../../lib/authContext.ts'
 import { getStoredReferral } from '../../lib/referral'
 import {
@@ -136,11 +134,6 @@ export function CustomizerModal({
   const [couponValid, setCouponValid] = useState<boolean | null>(null)
   const [couponError, setCouponError] = useState<string | null>(null)
   const [couponChecking, setCouponChecking] = useState(false)
-  /** Set when an unverified buyer hits Pay: shown instead of creating an order. */
-  const [verifyBlocked, setVerifyBlocked] = useState(false)
-  const [resending, setResending] = useState(false)
-  const [resendMessage, setResendMessage] = useState<string | null>(null)
-  const [resendError, setResendError] = useState<string | null>(null)
   /**
    * The server's quote for this coupon + template. Never derived from a
    * hardcoded multiplier: each partner's discount is their own, and only the
@@ -185,9 +178,6 @@ export function CustomizerModal({
     setCouponQuote(null)
     setCouponValid(null)
     setCouponError(null)
-    setVerifyBlocked(false)
-    setResendMessage(null)
-    setResendError(null)
   }, [theme?.id])
 
   // Pre-apply a captured referral link (?ref=CODE) so a buyer who arrived via a
@@ -339,17 +329,9 @@ export function CustomizerModal({
     // even attempting an order (or opening the checkout modal) prematurely.
     if (loading) return
     if (!customer) {
-      setVerifyBlocked(false)
       openAuth('login')
       return
     }
-    if (!customer.emailVerified) {
-      // Buying is blocked until Google-less accounts confirm their address.
-      // Show the resend option instead of creating an order.
-      setVerifyBlocked(true)
-      return
-    }
-    setVerifyBlocked(false)
     setChecking(true)
     try {
       const orderRes = await createOrder(theme.id, previewConfig, couponCode || undefined, {
@@ -393,40 +375,6 @@ export function CustomizerModal({
       setChecking(false)
     }
   }, [theme, previewConfig, checking, openCheckout, couponCode, loading, customer, openAuth])
-
-  /**
-   * "Resend verification e-mail" from the buy-block panel. The signed-in token
-   * identifies the account, so no e-mail field is needed; the server answers
-   * emailSent:false when Resend is missing or refused it, which we surface
-   * instead of pretending the link went out.
-   */
-  const handleResendVerification = useCallback(async () => {
-    if (!customer || resending || !customer.email) return
-    setResending(true)
-    setResendMessage(null)
-    setResendError(null)
-    try {
-      const response = await resendVerification(customer.email)
-      if (!response.emailSent) {
-        setResendError(
-          response.message ||
-            'We could not send the verification e-mail right now. Please try again in a moment.',
-        )
-        return
-      }
-      setResendMessage(
-        response.message || 'A fresh verification link is on its way — check your inbox.',
-      )
-    } catch (cause) {
-      setResendError(
-        cause instanceof Error && cause.message
-          ? cause.message
-          : 'We could not send the verification e-mail right now.',
-      )
-    } finally {
-      setResending(false)
-    }
-  }, [customer, resending])
 
   /**
    * Asks the server what a code costs on this template and stores the quote.
@@ -939,57 +887,6 @@ export function CustomizerModal({
 
             {stepError && (
               <p className="mt-3 text-xs font-medium text-rose-500">{stepError}</p>
-            )}
-
-            {/* Buy gate: an unverified account is blocked from paying until the
-                address is confirmed. Rendered above the buttons so the message
-                and its resend action are the first thing a blocker sees. */}
-            {step === lastStepIndex && verifyBlocked && !pendingPayment && (
-              <div className="mt-4 space-y-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-                <div className="flex items-start gap-2.5">
-                  <Mail className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                  <div>
-                    <p className="text-sm font-bold text-amber-800">
-                      Please verify your e-mail before purchasing.
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-amber-700">
-                      Check your inbox for the verification link you were sent
-                      when you signed up. Once it's verified you can pay right
-                      here — Google accounts are already verified.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  disabled={resending}
-                  onClick={() => void handleResendVerification()}
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-amber-200 bg-white px-5 text-sm font-bold text-amber-700 transition-all duration-200 hover:scale-[1.02] hover:bg-amber-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {resending ? (
-                    <>
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                      Sending…
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4" />
-                      Resend verification e-mail
-                    </>
-                  )}
-                </button>
-                {resendMessage && (
-                  <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                    <Check className="h-3.5 w-3.5" />
-                    {resendMessage}
-                  </p>
-                )}
-                {resendError && (
-                  <p className="flex items-center gap-1.5 text-xs font-semibold text-rose-600">
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    {resendError}
-                  </p>
-                )}
-              </div>
             )}
 
             {/* Footer */}

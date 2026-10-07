@@ -3,10 +3,8 @@
  *
  * WHAT LIVES HERE
  *   • email + password sign-up and sign-in (scrypt-hashed, never plain text)
- *   • "Continue with Google" (the Google ID token is verified server-side
- *     against Google's public JWKS — no Firebase, no third-party auth service)
- *   • single-use e-mail verification and password-reset links, sent through
- *     the Resend HTTP API
+ *   • "Continue with Google" (Firebase verifies the Google identity and its
+ *     ID token is verified server-side with the Firebase Admin SDK)
  *   • signed, stateless session tokens handed to the browser as
  *     `Authorization: Bearer <token>`
  *
@@ -24,31 +22,24 @@
 import {
   createHash,
   createHmac,
-  createPublicKey,
   randomBytes,
   scrypt as scryptCallback,
   timingSafeEqual,
-  verify as verifySignature,
 } from 'node:crypto'
 import { promisify } from 'node:util'
 import express from 'express'
 import type { NextFunction, Request, Response } from 'express'
+import { cert, getApps, initializeApp } from 'firebase-admin/app'
+import { getAuth, type DecodedIdToken } from 'firebase-admin/auth'
 import {
-  APP_URL,
   CUSTOMER_AUTH_SECRET,
-  EMAIL_FROM,
-  GOOGLE_CLIENT_ID,
-  RESEND_API_KEY,
+  FIREBASE_SERVICE_ACCOUNT_JSON,
 } from './config.js'
 import {
-  createAuthToken,
   createCustomer,
-  getAuthTokenByHash,
   getCustomerByEmail,
   getCustomerByGoogleSub,
   getCustomerById,
-  invalidateAuthTokens,
-  markAuthTokenUsed,
   updateCustomer,
 } from './db.js'
 import type { CustomerRecord } from './store.js'
@@ -57,7 +48,7 @@ import { SupabaseStoreError } from './supabase.js'
 declare global {
   namespace Express {
     interface Request {
-      /** Set by `requireCustomerAuth` / `requireVerifiedCustomer`. */
+      /** Set by `requireCustomerAuth`. */
       customer?: CustomerRecord
     }
   }
@@ -71,8 +62,7 @@ function publicCustomer(customer: CustomerRecord): Record<string, unknown> {
     name: customer.name,
     avatarUrl: customer.avatarUrl,
     emailVerified: customer.emailVerified,
-    // Lets the UI explain "this account signs in with Google" / "no password
-    // yet" without ever exposing a credential or Google subject.
+    // This indicates a Firebase-linked Google sign-in without exposing its UID.
     hasPassword: customer.passwordHash !== null,
     googleLinked: customer.googleSub !== null,
     createdAt: customer.createdAt,
@@ -272,42 +262,6 @@ export async function requireCustomerAuth(
   }
 }
 
-/**
- * Stricter gate for routes that must never accept a guest or an unverified
- * account (currently POST /orders/create). A brand-new e-mail signup is born
- * unverified, so this 403 is what stops them paying (or being charged) until
- * they confirm the address — Google accounts are verified by Google, so they
- * pass. A store outage propagates to the global handler as a retryable 503
- * rather than being reported as bad credentials.
- */
-export async function requireVerifiedCustomer(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const token = bearerToken(req)
-    const customerId = token ? parseSessionToken(token) : null
-    if (!customerId) {
-      res.status(401).json({ error: 'Please sign in to continue.' })
-      return
-    }
-    const customer = await getCustomerById(customerId)
-    if (!customer) {
-      res.status(401).json({ error: 'Please sign in to continue.' })
-      return
-    }
-    if (!customer.emailVerified) {
-      res.status(403).json({ error: 'Please verify your e-mail address before purchasing.' })
-      return
-    }
-    req.customer = customer
-    next()
-  } catch (error) {
-    next(error)
-  }
-}
-
 // -------------------------------------------------------------- rate limits --
 
 const failureLog = new Map<string, { count: number; resetAt: number }>()
@@ -343,9 +297,9 @@ function clearFailures(key: string): void {
 /** e-mail + password login: 10 bad tries per address per 15 minutes. */
 const LOGIN_MAX_FAILURES = 10
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
-/** Account creation / e-mail sending: 5 per address per hour. */
-const MAIL_MAX_FAILURES = 5
-const MAIL_WINDOW_MS = 60 * 60 * 1000
+/** Account creation: 5 attempts per address per hour. */
+const SIGNUP_MAX_FAILURES = 5
+const SIGNUP_WINDOW_MS = 60 * 60 * 1000
 
 // ---------------------------------------------------------------- validation --
 
@@ -379,256 +333,84 @@ function passwordError(password: unknown): string | null {
   return null
 }
 
-// -------------------------------------------------------------------- e-mail --
+// ------------------------------------------------------------------ Firebase --
 
-export interface EmailMessage {
-  to: string
-  subject: string
-  text: string
-  html: string
-}
-
-/**
- * Sends through Resend's HTTP API. No npm dependency and no hard failure: an
- * unconfigured or unreachable e-mail provider must never block sign-up, login
- * or a password reset, so the caller is simply told whether it went out.
- */
-let warnedNoResendKey = false
-
-async function sendEmail(message: EmailMessage): Promise<boolean> {
-  if (!RESEND_API_KEY) {
-    // A missing key silently disables every verification/reset e-mail. Log it
-    // (once per process) so an operator is never left wondering why no e-mail
-    // arrived — the browser is told separately via emailSent: false.
-    if (!warnedNoResendKey) {
-      warnedNoResendKey = true
-      console.warn(
-        '[auth] RESEND_API_KEY is not set — verification and reset e-mails are NOT being sent. ' +
-          'Set it in the environment (and a verified EMAIL_FROM) before customers sign up.',
-      )
-    }
-    return false
-  }
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: EMAIL_FROM,
-        to: [message.to],
-        subject: message.subject,
-        text: message.text,
-        html: message.html,
-      }),
-      signal: AbortSignal.timeout(15_000),
-    })
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '')
-      console.error('[auth] Resend rejected the e-mail:', response.status, detail.slice(0, 300))
-      return false
-    }
-    return true
-  } catch (error) {
-    console.error('[auth] could not send e-mail:', error)
-    return false
-  }
-}
-
-function mailFooter(): string {
-  return '\n\n— Cupi\ncupi-one.vercel.app'
-}
-
-// ------------------------------------------------------------ one-use links --
-
-const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000
-
-/** The raw token is never stored: only this digest can look it up. */
-function hashToken(rawToken: string): string {
-  return createHash('sha256').update(rawToken).digest('base64url')
-}
-
-interface IssuedLink {
-  url: string
-  emailSent: boolean
-}
-
-/**
- * Mints a single-use link and e-mails it. Retires any outstanding link of the
- * same purpose first, so only the newest e-mail in a inbox can ever work.
- *
- * The link is ALWAYS logged: with no RESEND_API_KEY configured that log line
- * is the only way to complete verification or a reset during local testing.
- */
-async function issueAuthLink(
-  customer: CustomerRecord,
-  purpose: 'verify_email' | 'reset_password',
-): Promise<IssuedLink> {
-  await invalidateAuthTokens(customer.id, purpose)
-
-  const rawToken = randomBytes(32).toString('base64url')
-  const ttl = purpose === 'verify_email' ? VERIFY_TOKEN_TTL_MS : RESET_TOKEN_TTL_MS
-  await createAuthToken({
-    customerId: customer.id,
-    purpose,
-    tokenHash: hashToken(rawToken),
-    expiresAt: new Date(Date.now() + ttl).toISOString(),
-  })
-
-  const url =
-    purpose === 'verify_email'
-      ? `${APP_URL}/verify-email?token=${encodeURIComponent(rawToken)}`
-      : `${APP_URL}/reset-password?token=${encodeURIComponent(rawToken)}`
-
-  const isVerify = purpose === 'verify_email'
-  const subject = isVerify ? 'Verify your Cupi e-mail address' : 'Reset your Cupi password'
-  const intro = isVerify
-    ? `Hi ${customer.name}, one quick step: confirm this address so we can keep your account and orders reachable.`
-    : `Hi ${customer.name}, we received a request to reset the password for ${customer.email}.`
-  const outro = isVerify
-    ? 'This link expires in 24 hours. If you did not create a Cupi account, you can ignore this e-mail.'
-    : 'This link expires in 1 hour and can only be used once. If you did not ask for this, ignore this e-mail — your password stays unchanged.'
-
-  const emailSent = await sendEmail({
-    to: customer.email,
-    subject,
-    text: `${intro}\n\nOpen this link to continue:\n${url}\n\n${outro}${mailFooter()}`,
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px;color:#3f3a37">
-        <p style="font-size:15px;line-height:1.6">${intro}</p>
-        <p style="margin:28px 0">
-          <a href="${url}"
-             style="display:inline-block;background:linear-gradient(90deg,#f43f5e,#ec4899);color:#fff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:999px">
-            ${isVerify ? 'Verify my e-mail' : 'Reset my password'}
-          </a>
-        </p>
-        <p style="font-size:13px;color:#78716c;line-height:1.6">Or paste this link into your browser:<br/>${url}</p>
-        <p style="font-size:13px;color:#78716c;line-height:1.6">${outro}</p>
-      </div>`.trim(),
-  })
-
-  // Always visible in the server log, so an operator can complete a flow (or
-  // debug a customer) without an e-mail provider being configured.
-  console.log(`[auth] ${purpose} link for ${customer.email}: ${url}`)
-  return { url, emailSent }
-}
-
-/** The payload the client needs to finish a link-based flow by hand in dev. */
-function devLink(url: string): string | undefined {
-  return process.env.NODE_ENV === 'production' ? undefined : url
-}
-
-// ------------------------------------------------------------------ Google --
-
-interface GoogleIdentity {
-  sub: string
+interface FirebaseIdentity {
+  uid: string
   email: string
-  emailVerified: boolean
   name: string
   avatarUrl: string | null
 }
 
-interface GoogleJwk {
-  kty?: string
-  kid?: string
-  alg?: string
-  use?: string
+function firebaseAdminAuth() {
+  if (!FIREBASE_SERVICE_ACCOUNT_JSON) return null
+
+  const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON) as Record<string, unknown>
+  const projectId = serviceAccount.project_id
+  const clientEmail = serviceAccount.client_email
+  const privateKey = serviceAccount.private_key
+  if (
+    typeof projectId !== 'string' ||
+    typeof clientEmail !== 'string' ||
+    typeof privateKey !== 'string'
+  ) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is missing required service-account fields.')
+  }
+
+  const appName = 'cupi-customer-auth'
+  const app =
+    getApps().find((candidate) => candidate.name === appName) ??
+    initializeApp(
+      {
+        credential: cert({
+          projectId,
+          clientEmail,
+          privateKey: privateKey.replace(/\\n/g, '\n'),
+        }),
+      },
+      appName,
+    )
+  return getAuth(app)
 }
 
-const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs'
-const GOOGLE_ISSUERS = new Set(['https://accounts.google.com', 'accounts.google.com'])
-const JWKS_TTL_MS = 10 * 60 * 1000
+async function verifyFirebaseGoogleIdToken(idToken: string): Promise<FirebaseIdentity | null> {
+  const auth = firebaseAdminAuth()
+  if (!auth) return null
 
-let jwksCache: { fetchedAt: number; keys: GoogleJwk[] } | null = null
-
-async function googleKeys(): Promise<GoogleJwk[]> {
-  if (jwksCache && Date.now() - jwksCache.fetchedAt < JWKS_TTL_MS) {
-    return jwksCache.keys
-  }
-  const response = await fetch(GOOGLE_JWKS_URL, {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (!response.ok) {
-    throw new Error(`Google JWKS responded ${response.status}`)
-  }
-  const body = (await response.json()) as { keys?: GoogleJwk[] }
-  const keys = Array.isArray(body.keys) ? body.keys : []
-  jwksCache = { fetchedAt: Date.now(), keys }
-  return keys
-}
-
-function base64UrlJson(part: string): unknown {
-  return JSON.parse(Buffer.from(part, 'base64url').toString('utf8'))
-}
-
-/**
- * Verifies a Google Identity Services ID token with the built-in crypto:
- * RS256 signature against Google's published JWKS, then issuer, audience,
- * expiry and e-mail checks. Returns null for anything that does not hold —
- * a token from another client, another Google project, or a forged one.
- */
-async function verifyGoogleCredential(credential: string): Promise<GoogleIdentity | null> {
-  if (!GOOGLE_CLIENT_ID) return null
-
-  const parts = credential.split('.')
-  if (parts.length !== 3) return null
-
-  let header: { alg?: unknown; kid?: unknown }
-  let claims: {
-    sub?: unknown
-    email?: unknown
-    email_verified?: unknown
-    name?: unknown
-    picture?: unknown
-    iss?: unknown
-    aud?: unknown
-    exp?: unknown
-  }
+  let claims: DecodedIdToken
   try {
-    header = base64UrlJson(parts[0]) as typeof header
-    claims = base64UrlJson(parts[1]) as typeof claims
-  } catch {
+    claims = await auth.verifyIdToken(idToken, true)
+  } catch (error) {
+    const code =
+      error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+        ? error.code
+        : ''
+    if (
+      code === 'auth/argument-error' ||
+      code === 'auth/invalid-id-token' ||
+      code === 'auth/id-token-expired' ||
+      code === 'auth/id-token-revoked'
+    ) {
+      return null
+    }
+    throw error
+  }
+
+  const email = normalizeEmail(claims.email)
+  if (
+    claims.firebase?.sign_in_provider !== 'google.com' ||
+    claims.email_verified !== true ||
+    typeof claims.uid !== 'string' ||
+    !claims.uid ||
+    !isValidEmail(email)
+  ) {
     return null
   }
 
-  if (header.alg !== 'RS256' || typeof header.kid !== 'string') return null
-  if (typeof claims.sub !== 'string' || !claims.sub) return null
-  if (typeof claims.email !== 'string' || !isValidEmail(claims.email.toLowerCase())) return null
-  if (typeof claims.iss !== 'string' || !GOOGLE_ISSUERS.has(claims.iss)) return null
-  const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud]
-  if (!audience.some((entry) => entry === GOOGLE_CLIENT_ID)) return null
-  if (typeof claims.exp !== 'number' || claims.exp * 1000 <= Date.now()) return null
-
-  const input = Buffer.from(`${parts[0]}.${parts[1]}`, 'utf8')
-  const signature = Buffer.from(parts[2], 'base64url')
-
-  const verifyWith = async (keys: GoogleJwk[]): Promise<boolean> => {
-    const jwk = keys.find((entry) => entry.kid === header.kid && entry.kty === 'RSA')
-    if (!jwk) return false
-    const key = createPublicKey({
-      key: jwk,
-      format: 'jwk',
-    } as unknown as Parameters<typeof createPublicKey>[0])
-    return verifySignature('RSA-SHA256', input, key, signature)
-  }
-
-  let valid = await verifyWith(await googleKeys())
-  if (!valid && jwksCache) {
-    // A key rotation within our cache window: one forced refresh, then stop.
-    jwksCache = null
-    valid = await verifyWith(await googleKeys())
-  }
-  if (!valid) return null
-
   return {
-    sub: claims.sub,
-    email: claims.email.trim().toLowerCase(),
-    emailVerified: claims.email_verified !== false,
-    name: cleanName(claims.name, claims.email),
+    uid: claims.uid,
+    email,
+    name: cleanName(claims.name, email),
     avatarUrl: typeof claims.picture === 'string' && claims.picture ? claims.picture : null,
   }
 }
@@ -653,7 +435,7 @@ async function handleSignup(req: Request, res: Response): Promise<void> {
 
   const key = throttleKey('signup', email)
   const now = Date.now()
-  if (isThrottled(key, MAIL_MAX_FAILURES, MAIL_WINDOW_MS, now)) {
+  if (isThrottled(key, SIGNUP_MAX_FAILURES, SIGNUP_WINDOW_MS, now)) {
     res.status(429).json({ error: 'Too many attempts for this address. Try again later.' })
     return
   }
@@ -661,7 +443,7 @@ async function handleSignup(req: Request, res: Response): Promise<void> {
   try {
     const existing = await getCustomerByEmail(email)
     if (existing) {
-      recordFailure(key, MAIL_MAX_FAILURES, MAIL_WINDOW_MS, now)
+      recordFailure(key, SIGNUP_MAX_FAILURES, SIGNUP_WINDOW_MS, now)
       res.status(409).json({
         error: 'An account with this e-mail already exists. Try signing in instead.',
       })
@@ -676,7 +458,6 @@ async function handleSignup(req: Request, res: Response): Promise<void> {
     })
 
     clearFailures(key)
-    const link = await issueAuthLink(customer, 'verify_email')
     const session = issueSessionToken(customer.id)
 
     res.status(201).json({
@@ -684,11 +465,7 @@ async function handleSignup(req: Request, res: Response): Promise<void> {
       token: session.token,
       expiresAt: session.expiresAt,
       customer: publicCustomer(customer),
-      emailSent: link.emailSent,
-      devLink: devLink(link.url),
-      message: link.emailSent
-        ? 'Account created. Please verify your e-mail before purchasing.'
-        : 'Account created, but the verification e-mail could not be sent right now.',
+      message: 'Account created. You can now continue to checkout.',
     })
   } catch (error) {
     // Two simultaneous sign-ups for one address race on the unique index.
@@ -759,35 +536,33 @@ async function handleLogin(req: Request, res: Response): Promise<void> {
 
 async function handleGoogle(req: Request, res: Response): Promise<void> {
   const body = (req.body ?? {}) as Record<string, unknown>
-  const credential = typeof body.credential === 'string' ? body.credential : ''
+  const idToken = typeof body.idToken === 'string' ? body.idToken : ''
 
-  if (!GOOGLE_CLIENT_ID) {
-    res.status(503).json({ error: 'Google sign-in is not configured on this server.' })
+  if (!FIREBASE_SERVICE_ACCOUNT_JSON) {
+    res.status(503).json({ error: 'Firebase Google Sign-In is not configured on this server.' })
     return
   }
-  if (!credential) {
-    res.status(400).json({ error: 'Missing Google credential.' })
+  if (!idToken) {
+    res.status(400).json({ error: 'Missing Firebase ID token.' })
     return
   }
 
-  const identity = await verifyGoogleCredential(credential)
+  const identity = await verifyFirebaseGoogleIdToken(idToken)
   if (!identity) {
-    res.status(401).json({ error: 'That Google sign-in could not be verified. Please try again.' })
+    res.status(401).json({ error: 'That Firebase Google sign-in could not be verified. Please try again.' })
     return
   }
 
-  let customer = await getCustomerByGoogleSub(identity.sub)
+  let customer = await getCustomerByGoogleSub(identity.uid)
 
   if (!customer) {
-    // Same person, signed in before with a password: link the Google account to
-    // the row they already own instead of creating a second one.
+    // A verified provider email safely links to the existing Cupi customer row.
     customer = await getCustomerByEmail(identity.email)
     if (customer) {
       const linked = await updateCustomer(customer.id, {
-        googleSub: identity.sub,
+        googleSub: identity.uid,
         avatarUrl: customer.avatarUrl ?? identity.avatarUrl,
-        // Google only reports a verified address for a verified account.
-        emailVerified: customer.emailVerified || identity.emailVerified,
+        emailVerified: true,
       })
       customer = linked ?? customer
     } else {
@@ -795,10 +570,12 @@ async function handleGoogle(req: Request, res: Response): Promise<void> {
         email: identity.email,
         name: identity.name,
         avatarUrl: identity.avatarUrl,
-        googleSub: identity.sub,
-        emailVerified: identity.emailVerified,
+        googleSub: identity.uid,
+        emailVerified: true,
       })
     }
+  } else if (!customer.emailVerified) {
+    customer = (await updateCustomer(customer.id, { emailVerified: true })) ?? customer
   }
 
   const session = issueSessionToken(customer.id)
@@ -828,186 +605,6 @@ async function handleLogout(_req: Request, res: Response): Promise<void> {
   res.status(200).json({ success: true })
 }
 
-async function handleVerifyEmail(req: Request, res: Response): Promise<void> {
-  const body = (req.body ?? {}) as Record<string, unknown>
-  const rawToken = typeof body.token === 'string' ? body.token.trim() : ''
-  if (!rawToken) {
-    res.status(400).json({ error: 'This verification link is incomplete.' })
-    return
-  }
-
-  const linkError = 'This verification link is invalid or has expired. Request a new one.'
-
-  const record = await getAuthTokenByHash(hashToken(rawToken))
-  if (
-    !record ||
-    record.purpose !== 'verify_email' ||
-    record.usedAt ||
-    Date.parse(record.expiresAt) <= Date.now()
-  ) {
-    res.status(400).json({ error: linkError })
-    return
-  }
-
-  const customer = await getCustomerById(record.customerId)
-  if (!customer) {
-    res.status(400).json({ error: linkError })
-    return
-  }
-
-  // Redeemed even if the flag was already set, so a replay can never re-fire.
-  await markAuthTokenUsed(record.id)
-  const updated = customer.emailVerified
-    ? customer
-    : ((await updateCustomer(customer.id, { emailVerified: true })) ?? customer)
-
-  res.status(200).json({
-    success: true,
-    customer: publicCustomer(updated),
-    message: 'Your e-mail is verified.',
-  })
-}
-
-async function handleResendVerification(req: Request, res: Response): Promise<void> {
-  const body = (req.body ?? {}) as Record<string, unknown>
-
-  // A signed-in customer resending from the account banner needs no e-mail
-  // field; signed-out callers must supply one. Resolution is best-effort — a
-  // stale token simply falls through to the e-mail form below.
-  let customer = await resolveCustomerFromRequest(req)
-  if (!customer) {
-    const email = normalizeEmail(body.email)
-    if (!isValidEmail(email)) {
-      res.status(400).json({ error: 'Please enter a valid e-mail address.' })
-      return
-    }
-    const key = throttleKey('resend', email)
-    const now = Date.now()
-    if (isThrottled(key, MAIL_MAX_FAILURES, MAIL_WINDOW_MS, now)) {
-      res.status(429).json({ error: 'Too many attempts for this address. Try again later.' })
-      return
-    }
-    // Never confirm whether the address exists.
-    customer = await getCustomerByEmail(email)
-    if (!customer) {
-      res.status(200).json({
-        success: true,
-        message: 'If that address has an account, a verification link is on its way.',
-      })
-      return
-    }
-  }
-
-  if (customer.emailVerified) {
-    res.status(200).json({ success: true, message: 'That e-mail is already verified.' })
-    return
-  }
-
-  const key = throttleKey('resend', customer.email)
-  const now = Date.now()
-  if (isThrottled(key, MAIL_MAX_FAILURES, MAIL_WINDOW_MS, now)) {
-    res.status(429).json({ error: 'Too many attempts. Try again later.' })
-    return
-  }
-
-  const link = await issueAuthLink(customer, 'verify_email')
-  res.status(200).json({
-    success: true,
-    emailSent: link.emailSent,
-    devLink: devLink(link.url),
-    message: link.emailSent
-      ? 'Verification link sent.'
-      : 'A verification link was generated. Check the server log if no e-mail arrives.',
-  })
-}
-
-async function handleForgotPassword(req: Request, res: Response): Promise<void> {
-  const body = (req.body ?? {}) as Record<string, unknown>
-  const email = normalizeEmail(body.email)
-
-  if (!isValidEmail(email)) {
-    res.status(400).json({ error: 'Please enter a valid e-mail address.' })
-    return
-  }
-
-  const key = throttleKey('forgot', email)
-  const now = Date.now()
-  if (isThrottled(key, MAIL_MAX_FAILURES, MAIL_WINDOW_MS, now)) {
-    res.status(429).json({ error: 'Too many attempts for this address. Try again later.' })
-    return
-  }
-
-  const customer = await getCustomerByEmail(email)
-  if (customer) {
-    clearFailures(key)
-    const link = await issueAuthLink(customer, 'reset_password')
-    res.status(200).json({
-      success: true,
-      emailSent: link.emailSent,
-      devLink: devLink(link.url),
-      message: 'If that address has an account, a password reset link is on its way.',
-    })
-    return
-  }
-
-  // Same answer either way: this endpoint must never confirm existence.
-  recordFailure(key, MAIL_MAX_FAILURES, MAIL_WINDOW_MS, now)
-  res.status(200).json({
-    success: true,
-    message: 'If that address has an account, a password reset link is on its way.',
-  })
-}
-
-async function handleResetPassword(req: Request, res: Response): Promise<void> {
-  const body = (req.body ?? {}) as Record<string, unknown>
-  const rawToken = typeof body.token === 'string' ? body.token.trim() : ''
-  const invalidPassword = passwordError(body.password)
-
-  if (!rawToken) {
-    res.status(400).json({ error: 'This reset link is incomplete.' })
-    return
-  }
-  if (invalidPassword) {
-    res.status(400).json({ error: invalidPassword })
-    return
-  }
-
-  const record = await getAuthTokenByHash(hashToken(rawToken))
-  const invalidResponse = () =>
-    res.status(400).json({ error: 'This reset link is invalid or has expired. Request a new one.' })
-  if (
-    !record ||
-    record.purpose !== 'reset_password' ||
-    record.usedAt ||
-    Date.parse(record.expiresAt) <= Date.now()
-  ) {
-    invalidResponse()
-    return
-  }
-
-  const customer = await getCustomerById(record.customerId)
-  if (!customer) {
-    invalidResponse()
-    return
-  }
-
-  await markAuthTokenUsed(record.id)
-  // Every outstanding reset link dies with the password: a link an attacker
-  // requested before the legitimate reset must not outlive it.
-  await invalidateAuthTokens(customer.id, 'reset_password')
-
-  await updateCustomer(customer.id, {
-    passwordHash: await hashPassword(body.password as string),
-    // Proving control of the mailbox is exactly what verification asks for.
-    emailVerified: true,
-  })
-
-  res.status(200).json({
-    success: true,
-    message: 'Your password has been updated. Sign in with your new password.',
-  })
-}
-
 // ------------------------------------------------------------------- router --
 
 type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>
@@ -1034,19 +631,15 @@ export function createCustomerAuthRouter() {
   router.post('/login', wrap(handleLogin))
   router.post('/logout', wrap(handleLogout))
   router.get('/me', requireCustomerAuth, wrap(handleMe))
-  router.post('/verify-email', wrap(handleVerifyEmail))
-  router.post('/resend-verification', wrap(handleResendVerification))
-  router.post('/forgot-password', wrap(handleForgotPassword))
-  router.post('/reset-password', wrap(handleResetPassword))
   router.post('/google', wrap(handleGoogle))
 
-  // A missing cupi_customers / cupi_auth_tokens table (supabase/schema.sql not
+  // A missing cupi_customers table (supabase/schema.sql not
   // re-run) surfaces as a PostgREST 404. Report it as "not available yet"
   // instead of a bare 500, and say what to do about it in the log.
   router.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
     if (isMissingAuthTables(error)) {
       console.error(
-        '[auth] cupi_customers / cupi_auth_tokens are missing — run supabase/schema.sql ' +
+        '[auth] cupi_customers is missing — run supabase/schema.sql ' +
           'to enable customer accounts.',
       )
       res.status(503).json({

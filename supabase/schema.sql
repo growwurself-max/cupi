@@ -203,10 +203,11 @@ create trigger cupi_coupons_touch_updated_at
 -- * password_hash is NULL for accounts that only ever signed in with Google.
 --   It holds a self-describing scrypt hash ("scrypt$N$r$p$salt$hash") for
 --   password accounts — never the password itself.
--- * google_sub is Google's immutable account subject (never an email, which a
---   user can change). Unique, so one Google account maps to exactly one row.
--- * email_verified is derived at read time from the row itself; a Google sign-in
---   is born verified because Google already confirmed the address.
+-- * google_sub stores the Firebase Authentication UID for Google-linked
+--   accounts (never an email, which a user can change). Unique, so one
+--   Firebase identity maps to exactly one row.
+-- * email_verified records verified identity status; checkout requires an
+--   account but no longer blocks password signups on this flag.
 create table if not exists public.cupi_customers (
   id             uuid primary key default gen_random_uuid(),
   email          text not null,
@@ -240,7 +241,9 @@ create trigger cupi_customers_touch_updated_at
   before update on public.cupi_customers
   for each row execute function public.touch_cupi_customer_updated_at();
 
--- Single-use, expiring links for e-mail verification and password reset.
+-- Legacy single-use auth-link storage. Current customer auth no longer
+-- generates verification or password-reset e-mails; keep this table in place
+-- so deployments do not need a schema migration.
 --
 -- DESIGN NOTES
 -- * Only the SHA-256 HASH of the token is stored: a database leak must not

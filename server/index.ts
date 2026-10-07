@@ -56,7 +56,7 @@ import {
 import { sanitizeCustomization } from './sanitize.js'
 import { SupabaseStoreError } from './supabase.js'
 import { createAdminRouter } from './adminRoutes.js'
-import { createCustomerAuthRouter, requireVerifiedCustomer } from './customerAuth.js'
+import { createCustomerAuthRouter, requireCustomerAuth } from './customerAuth.js'
 
 // Public backend origin used to build the FamGateway webhook URL. Override
 // with BACKEND_URL when deploying the API somewhere other than Render.
@@ -618,8 +618,8 @@ async function handleCreateOrder(
       customerName: sanitizedCustomization.senderName,
     })
 
-    // The buyer was resolved and verified by requireVerifiedCustomer before
-    // this handler ran, so the order is always linked to their account.
+    // The buyer was resolved by requireCustomerAuth before this handler ran,
+    // so the order is always linked to their account.
     const customerId = req.customer?.id ?? null
 
     // The order MUST be persisted before the customer is given a way to pay.
@@ -1066,10 +1066,9 @@ async function handleGetExperience(req: Request, res: Response): Promise<void> {
 const orderRoutes = express.Router()
 
 // No order row and no FamGateway payment session may exist until the buyer is
-// signed in AND their e-mail is verified (Google accounts arrive pre-verified).
-// The middleware resolves the customer from the Authorization header; the
+// signed in. The middleware resolves the customer from Authorization; the
 // handler below uses req.customer and never re-resolves it.
-orderRoutes.post('/create', requireVerifiedCustomer, wrap(handleCreateOrder))
+orderRoutes.post('/create', requireCustomerAuth, wrap(handleCreateOrder))
 orderRoutes.post('/verify', wrap(handleVerifyOrder))
 
 app.use('/api/orders', orderRoutes)
@@ -1131,10 +1130,8 @@ app.get('/api/audio/:templateId', wrap(handleGetTemplateAudio))
 const adminRouter = createAdminRouter()
 app.use('/api/admin', adminRouter)
 
-// Customer authentication (Login / Sign Up / verification / password reset).
-// Mounted before the static + SPA catch-all so an e-mail link's path is never
-// swallowed by index.html, and both with and without the /api prefix for the
-// same reason the other API routers are.
+// Customer authentication is mounted before the static + SPA catch-all, and
+// both with and without the /api prefix like the other API routers.
 const customerAuthRouter = createCustomerAuthRouter()
 app.use('/api/auth', customerAuthRouter)
 app.use('/auth', customerAuthRouter)

@@ -1,6 +1,5 @@
-import { CheckCircle2, Heart, LogIn, LogOut, Mail, Send, Sparkles } from 'lucide-react'
+import { Heart, LogIn, LogOut, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { resendVerification } from '../../lib/api.ts'
 import { useAuth } from '../../lib/authContext.ts'
 
 const TAGLINE = 'Interactive Digital Surprises'
@@ -31,7 +30,6 @@ export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false)
   const { customer, openAuth, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle')
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -64,17 +62,6 @@ export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
     if (href.startsWith('/') && onNavigate) {
       e.preventDefault()
       onNavigate(href)
-    }
-  }
-
-  const handleResend = async () => {
-    if (!customer || resendState !== 'idle') return
-    setResendState('sending')
-    try {
-      await resendVerification(customer.email)
-      setResendState('sent')
-    } catch {
-      setResendState('idle')
     }
   }
 
@@ -126,13 +113,6 @@ export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
         <div className="flex items-center gap-2 sm:gap-3">
           {customer ? (
             <div className="relative" ref={menuRef}>
-              {!customer.emailVerified && (
-                <span
-                  aria-hidden
-                  title="E-mail not verified"
-                  className="absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white bg-amber-400"
-                />
-              )}
               <button
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}
@@ -159,32 +139,8 @@ export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
                   <div className="border-b border-rose-50 px-4 py-3">
                     <p className="truncate text-sm font-bold text-stone-900">{customer.name}</p>
                     <p className="truncate text-xs text-stone-500">{customer.email}</p>
-                    {customer.emailVerified ? (
-                      <p className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                        <CheckCircle2 className="h-3 w-3" /> E-mail verified
-                      </p>
-                    ) : (
-                      <p className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-amber-600">
-                        <Mail className="h-3 w-3" /> E-mail not verified yet
-                      </p>
-                    )}
                   </div>
                   <div className="p-1.5">
-                    {!customer.emailVerified && (
-                      <button
-                        type="button"
-                        onClick={handleResend}
-                        disabled={resendState !== 'idle'}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-stone-600 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-                      >
-                        <Send className="h-4 w-4 shrink-0" />
-                        {resendState === 'sent'
-                          ? 'Verification link sent'
-                          : resendState === 'sending'
-                            ? 'Sending…'
-                            : 'Resend verification link'}
-                      </button>
-                    )}
                     <button
                       type="button"
                       role="menuitem"
@@ -219,19 +175,6 @@ export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
         </div>
       </div>
 
-      {customer && !customer.emailVerified && (
-        <div className="rounded-xl bg-amber-50/95 px-4 py-2 text-center text-xs font-medium text-amber-700">
-          Your e-mail isn’t verified yet —{' '}
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={resendState !== 'idle'}
-            className="font-bold text-amber-800 underline underline-offset-2 hover:text-rose-600 disabled:opacity-50"
-          >
-            {resendState === 'sent' ? 'Link sent!' : resendState === 'sending' ? 'Sending…' : 'Send the link again'}
-          </button>
-        </div>
-      )}
     </header>
   )
 }

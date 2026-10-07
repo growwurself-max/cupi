@@ -230,9 +230,9 @@ export interface UpdateInfluencerInput {
  * A Cupi customer account.
  *
  * Two sign-in methods, one row: a password account may later link a Google
- * account (`googleSub`), and a Google account may later set a password
- * (`passwordHash`). Both are optional so neither method can lock a customer out
- * of the account they already own.
+ * account (`googleSub`, the Firebase user UID), and a Google account may later
+ * set a password (`passwordHash`). Both are optional so neither sign-in method
+ * can lock a customer out of the account they already own.
  */
 export interface CustomerRecord {
   id: string
@@ -242,7 +242,7 @@ export interface CustomerRecord {
   /** scrypt hash, self-describing (`scrypt$N$r$p$salt$hash`). Null = no password. */
   passwordHash: string | null
   avatarUrl: string | null
-  /** Google's immutable account subject. Null for password-only accounts. */
+  /** Firebase's immutable user UID. Null for password-only accounts. */
   googleSub: string | null
   emailVerified: boolean
   createdAt: string
