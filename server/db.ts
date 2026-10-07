@@ -15,10 +15,15 @@ import { createPostgresStoreFromEnv } from './postgresStore.js'
 import { JsonFileStore } from './jsonStore.js'
 import { readSupabaseConfig } from './supabase.js'
 import type {
+  AuthTokenPurpose,
+  AuthTokenRecord,
   CouponRecord,
+  CreateAuthTokenInput,
   CreateCouponInput,
+  CreateCustomerInput,
   CreateInfluencerInput,
   CreateOrderInput,
+  CustomerRecord,
   ExperienceRecord,
   ExperienceStatus,
   InfluencerMetrics,
@@ -29,14 +34,20 @@ import type {
   OrderStatus,
   Store,
   UpdateCouponInput,
+  UpdateCustomerInput,
   UpdateInfluencerInput,
 } from './store.js'
 
 export type {
+  AuthTokenPurpose,
+  AuthTokenRecord,
   CouponRecord,
+  CreateAuthTokenInput,
   CreateCouponInput,
+  CreateCustomerInput,
   CreateInfluencerInput,
   CreateOrderInput,
+  CustomerRecord,
   ExperienceRecord,
   ExperienceStatus,
   InfluencerMetrics,
@@ -47,6 +58,7 @@ export type {
   OrderStatus,
   Store,
   UpdateCouponInput,
+  UpdateCustomerInput,
   UpdateInfluencerInput,
 }
 
@@ -245,6 +257,50 @@ export function countCouponRedemptions(code: string): Promise<number> {
 /** One grouped query for the admin list. */
 export function getCouponRedemptionCounts(): Promise<Map<string, number>> {
   return activeStore().getCouponRedemptionCounts()
+}
+
+// -------------------------------------------------------------- customers --
+
+export function getCustomerById(id: string): Promise<CustomerRecord | null> {
+  return activeStore().getCustomerById(id)
+}
+
+export function getCustomerByEmail(email: string): Promise<CustomerRecord | null> {
+  return activeStore().getCustomerByEmail(email)
+}
+
+export function getCustomerByGoogleSub(sub: string): Promise<CustomerRecord | null> {
+  return activeStore().getCustomerByGoogleSub(sub)
+}
+
+export function createCustomer(input: CreateCustomerInput): Promise<CustomerRecord> {
+  return activeStore().createCustomer(input)
+}
+
+export function updateCustomer(
+  id: string,
+  input: UpdateCustomerInput,
+): Promise<CustomerRecord | null> {
+  return activeStore().updateCustomer(id, input)
+}
+
+export function createAuthToken(input: CreateAuthTokenInput): Promise<AuthTokenRecord> {
+  return activeStore().createAuthToken(input)
+}
+
+export function getAuthTokenByHash(tokenHash: string): Promise<AuthTokenRecord | null> {
+  return activeStore().getAuthTokenByHash(tokenHash)
+}
+
+export function markAuthTokenUsed(id: string): Promise<void> {
+  return activeStore().markAuthTokenUsed(id)
+}
+
+export function invalidateAuthTokens(
+  customerId: string,
+  purpose: AuthTokenPurpose,
+): Promise<void> {
+  return activeStore().invalidateAuthTokens(customerId, purpose)
 }
 
 export { shortId } from './jsonStore.js'

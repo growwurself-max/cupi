@@ -5,10 +5,13 @@ import { PrivacyPolicy } from './pages/legal/PrivacyPolicy'
 import { RefundPolicy } from './pages/legal/RefundPolicy'
 import { TermsConditions } from './pages/legal/TermsConditions'
 import { PaymentResult } from './pages/PaymentResult'
+import { ResetPassword } from './pages/ResetPassword'
+import { VerifyEmail } from './pages/VerifyEmail'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { Pricing } from './pages/Pricing'
 import type { CategorySelection } from './components/store/CategoryFilter'
 import { AudioPlayer } from './components/store/AudioPlayer'
+import { AuthModal } from './components/auth/AuthModal'
 import { BackgroundAnimation } from './components/store/BackgroundAnimation'
 import { CustomizerModal } from './components/store/CustomizerModal'
 import { ExperienceView } from './components/store/ExperienceView'
@@ -26,7 +29,15 @@ type View = 'store' | 'demo'
 type LegalPage = 'privacy' | 'terms' | 'refund' | 'contact'
 
 interface Route {
-  view: View | 'share' | 'payment-result' | 'legal' | 'admin' | 'pricing'
+  view:
+    | View
+    | 'share'
+    | 'payment-result'
+    | 'legal'
+    | 'admin'
+    | 'pricing'
+    | 'auth-verify'
+    | 'auth-reset'
   shareId: string | null
   legalPage: LegalPage | null
 }
@@ -60,6 +71,13 @@ function parsePath(pathname: string): Route {
   }
   if (pathname === '/pricing') {
     return { view: 'pricing', shareId: null, legalPage: null }
+  }
+  // E-mail links land here (the token is read from the query by the page).
+  if (pathname === '/verify-email' || pathname.startsWith('/verify-email')) {
+    return { view: 'auth-verify', shareId: null, legalPage: null }
+  }
+  if (pathname === '/reset-password' || pathname.startsWith('/reset-password')) {
+    return { view: 'auth-reset', shareId: null, legalPage: null }
   }
   return { view: 'store', shareId: null, legalPage: null }
 }
@@ -125,92 +143,111 @@ export default function App() {
   const activeRegistration = themeRegistry[activeThemeId]
   const DemoExperience = activeRegistration?.component
 
-  if (route.view === 'share' && route.shareId) {
-    return <ExperienceView experienceId={route.shareId} onExit={goToStore} />
-  }
+  const renderView = () => {
+    if (route.view === 'share' && route.shareId) {
+      return <ExperienceView experienceId={route.shareId} onExit={goToStore} />
+    }
 
-  if (route.view === 'payment-result') {
-    return <PaymentResult onExit={goToStore} />
-  }
+    if (route.view === 'payment-result') {
+      return <PaymentResult onExit={goToStore} />
+    }
 
-  if (route.view === 'legal') {
-    const legalPage = route.legalPage ?? 'privacy'
-    const LegalPage =
-      legalPage === 'privacy'
-        ? PrivacyPolicy
-        : legalPage === 'terms'
-          ? TermsConditions
-          : legalPage === 'refund'
-            ? RefundPolicy
-            : ContactUs
-    return <LegalPage onExit={goToStore} />
-  }
+    if (route.view === 'auth-verify') {
+      return <VerifyEmail onExit={goToStore} />
+    }
 
-  if (route.view === 'admin') {
-    return <AdminDashboard />
-  }
+    if (route.view === 'auth-reset') {
+      return <ResetPassword onExit={goToStore} />
+    }
 
-  if (route.view === 'pricing') {
-    return <Pricing onExit={goToStore} />
-  }
+    if (route.view === 'legal') {
+      const legalPage = route.legalPage ?? 'privacy'
+      const LegalPage =
+        legalPage === 'privacy'
+          ? PrivacyPolicy
+          : legalPage === 'terms'
+            ? TermsConditions
+            : legalPage === 'refund'
+              ? RefundPolicy
+              : ContactUs
+      return <LegalPage onExit={goToStore} />
+    }
 
-  return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FEFAF4] bg-gradient-to-b from-[#FDF3EC] via-[#FEF9F4] to-[#FBE9EC]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-[540px] w-[860px] -translate-x-1/2 rounded-full bg-rose-100/35 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-[36%] -left-44 h-96 w-96 rounded-full bg-pink-100/40 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-[68%] -right-44 h-96 w-96 rounded-full bg-violet-100/30 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-rose-100/30 blur-3xl"
-      />
+    if (route.view === 'admin') {
+      return <AdminDashboard />
+    }
 
-      <Navbar onLaunchDemo={() => enterDemo('birthday-01')} onNavigate={navigate} />
+    if (route.view === 'pricing') {
+      return <Pricing onExit={goToStore} />
+    }
 
-      <main className="relative z-[1]">
-        <HeroSection onLaunchDemo={() => enterDemo('birthday-01')} />
-        <ThemeGrid
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
-          onLaunchDemo={(theme) => enterDemo(theme.id)}
-          onCustomize={handleCustomize}
+    return (
+      <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FEFAF4] bg-gradient-to-b from-[#FDF3EC] via-[#FEF9F4] to-[#FBE9EC]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-40 left-1/2 h-[540px] w-[860px] -translate-x-1/2 rounded-full bg-rose-100/35 blur-3xl"
         />
-        <HowItWorks />
-      </main>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-[36%] -left-44 h-96 w-96 rounded-full bg-pink-100/40 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-[68%] -right-44 h-96 w-96 rounded-full bg-violet-100/30 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-rose-100/30 blur-3xl"
+        />
 
-      <Footer onSelectCategory={handleSelectCategory} onNavigate={navigate} />
+        <Navbar onLaunchDemo={() => enterDemo('birthday-01')} onNavigate={navigate} />
 
-      <CustomizerModal
-        theme={customizeTheme}
-        onClose={() => setCustomizeTheme(null)}
-      />
+        <main className="relative z-[1]">
+          <HeroSection onLaunchDemo={() => enterDemo('birthday-01')} />
+          <ThemeGrid
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+            onLaunchDemo={(theme) => enterDemo(theme.id)}
+            onCustomize={handleCustomize}
+          />
+          <HowItWorks />
+        </main>
 
-      <AnimatePresence>
-        {view === 'demo' && DemoExperience && (
-          <motion.div
-            key="demo-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="demo-scope fixed inset-0 z-[100] bg-[#FEFAF4]"
-            role="dialog"
-            aria-label={`${activeRegistration?.metadata.name ?? 'Surprise'} live demo preview`}
-          >
-            <BackgroundAnimation templateId={activeThemeId} />
-            <AudioPlayer templateId={activeThemeId} />
-            <DemoExperience onExit={exitDemo} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        <Footer onSelectCategory={handleSelectCategory} onNavigate={navigate} />
+
+        <CustomizerModal
+          theme={customizeTheme}
+          onClose={() => setCustomizeTheme(null)}
+        />
+
+        <AnimatePresence>
+          {view === 'demo' && DemoExperience && (
+            <motion.div
+              key="demo-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="demo-scope fixed inset-0 z-[100] bg-[#FEFAF4]"
+              role="dialog"
+              aria-label={`${activeRegistration?.metadata.name ?? 'Surprise'} live demo preview`}
+            >
+              <BackgroundAnimation templateId={activeThemeId} />
+              <AudioPlayer templateId={activeThemeId} />
+              <DemoExperience onExit={exitDemo} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    )
+  }
+
+  // The auth dialog lives above the route so login/sign-up can be opened from
+  // any page — including /pricing, a share link or the legal pages.
+  return (
+    <>
+      <AuthModal />
+      {renderView()}
+    </>
   )
 }

@@ -194,6 +194,73 @@ create trigger cupi_coupons_touch_updated_at
   before update on public.cupi_coupons
   for each row execute function public.touch_cupi_coupon_updated_at();
 
+-- Customer accounts: the people who buy from Cupi.
+--
+-- DESIGN NOTES
+-- * email is stored normalized (trimmed, lower-cased) and is unique, so
+--   "Ram@X.com" and "ram@x.com" can never both sign up, and login is a single
+--   index hit.
+-- * password_hash is NULL for accounts that only ever signed in with Google.
+--   It holds a self-describing scrypt hash ("scrypt$N$r$p$salt$hash") for
+--   password accounts — never the password itself.
+-- * google_sub is Google's immutable account subject (never an email, which a
+--   user can change). Unique, so one Google account maps to exactly one row.
+-- * email_verified is derived at read time from the row itself; a Google sign-in
+--   is born verified because Google already confirmed the address.
+create table if not exists public.cupi_customers (
+  id             uuid primary key default gen_random_uuid(),
+  email          text not null,
+  password_hash  text,
+  name           text not null default '',
+  avatar_url     text,
+  google_sub     text unique,
+  email_verified boolean not null default false,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+  constraint cupi_customers_email_format check (position('@' in email) > 1),
+  constraint cupi_customers_email_len check (char_length(email) between 3 and 254)
+);
+
+-- Case-insensitive uniqueness even if a row were written with another case.
+create unique index if not exists cupi_customers_email_unique
+  on public.cupi_customers (lower(email));
+
+create or replace function public.touch_cupi_customer_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists cupi_customers_touch_updated_at on public.cupi_customers;
+create trigger cupi_customers_touch_updated_at
+  before update on public.cupi_customers
+  for each row execute function public.touch_cupi_customer_updated_at();
+
+-- Single-use, expiring links for e-mail verification and password reset.
+--
+-- DESIGN NOTES
+-- * Only the SHA-256 HASH of the token is stored: a database leak must not
+--   hand over live reset links. The raw token exists only in the e-mail.
+-- * purpose makes one token usable for exactly one job, and `used_at` (set the
+--   moment it is redeemed) makes it single-use even inside its expiry window.
+-- * expires_at is mandatory: no token lives forever.
+create table if not exists public.cupi_auth_tokens (
+  id          uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references public.cupi_customers (id) on delete cascade,
+  purpose     text not null check (purpose in ('verify_email', 'reset_password')),
+  token_hash  text not null unique,
+  expires_at  timestamptz not null,
+  used_at     timestamptz,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists cupi_auth_tokens_customer_idx
+  on public.cupi_auth_tokens (customer_id, purpose);
+
 -- Order attribution: which partner referred this order, what it was worth, and
 -- how much of it is owed to them.
 --
@@ -220,6 +287,15 @@ alter table public.cupi_orders add column if not exists influencer_commission_ea
   not null default 0 check (influencer_commission_earned >= 0);
 alter table public.cupi_orders add column if not exists traffic_source text;
 alter table public.cupi_orders add column if not exists customer_ip text;
+-- The signed-in buyer this order belongs to, when there was one. Nullable and
+-- ON DELETE SET NULL on purpose: checkout works signed out (it always has),
+-- and deleting a customer account must never delete their orders.
+alter table public.cupi_orders add column if not exists customer_id uuid
+  references public.cupi_customers (id) on delete set null;
+
+-- Purchase history: "orders for this customer" is a single index scan.
+create index if not exists cupi_orders_customer_idx
+  on public.cupi_orders (customer_id);
 
 -- Admin rollups group and filter by influencer over PAID orders only.
 create index if not exists cupi_orders_influencer_idx
@@ -259,6 +335,8 @@ alter table public.cupi_product_prices enable row level security;
 alter table public.cupi_template_audio enable row level security;
 alter table public.cupi_influencers    enable row level security;
 alter table public.cupi_coupons        enable row level security;
+alter table public.cupi_customers      enable row level security;
+alter table public.cupi_auth_tokens    enable row level security;
 
 -- Deliberately NOT granted:
 --   grant usage on schema public to anon, authenticated;   <- would expose data
@@ -270,6 +348,8 @@ revoke all on public.cupi_product_prices from anon, authenticated;
 revoke all on public.cupi_template_audio from anon, authenticated;
 revoke all on public.cupi_influencers    from anon, authenticated;
 revoke all on public.cupi_coupons        from anon, authenticated;
+revoke all on public.cupi_customers      from anon, authenticated;
+revoke all on public.cupi_auth_tokens    from anon, authenticated;
 
 -- Keep `updated_at` honest for any future code path that forgets to set it.
 create or replace function public.touch_cupi_order_updated_at()

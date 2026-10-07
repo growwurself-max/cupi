@@ -26,21 +26,29 @@ import { DATA_DIR } from './config.js'
 import { normalizeCode, round2 } from './influencers.js'
 import { normalizeCouponCode } from './coupons.js'
 import type {
+  AuthTokenPurpose,
+  AuthTokenRecord,
   CouponRecord,
+  CreateAuthTokenInput,
   CreateCouponInput,
+  CreateCustomerInput,
   CreateInfluencerInput,
   CreateOrderInput,
+  CustomerRecord,
   ExperienceRecord,
   InfluencerMetrics,
   InfluencerRecord,
   InfluencerStatus,
   OrderRecord,
   Store,
+  StoredAuthToken,
   StoredCoupon,
+  StoredCustomer,
   StoredExperience,
   StoredInfluencer,
   StoredOrder,
   UpdateCouponInput,
+  UpdateCustomerInput,
   UpdateInfluencerInput,
 } from './store.js'
 
@@ -58,6 +66,10 @@ export interface JsonDatabase {
   influencers?: StoredInfluencer[]
   /** Generic campaign codes. Absent on pre-coupon files, hence optional. */
   coupons?: StoredCoupon[]
+  /** Customer accounts. Absent on pre-auth files, hence optional. */
+  customers?: StoredCustomer[]
+  /** Single-use e-mail verification / password-reset links (hashed). */
+  auth_tokens?: StoredAuthToken[]
 }
 
 if (!existsSync(DATA_DIR)) {
@@ -72,6 +84,8 @@ export function emptyJsonDb(): JsonDatabase {
     template_audio: {},
     influencers: [],
     coupons: [],
+    customers: [],
+    auth_tokens: [],
   }
 }
 
@@ -120,6 +134,7 @@ export function normalizeStoredOrder(raw: unknown): StoredOrder | null {
     experience_id: asNullableText(pick(row, 'experienceId', 'experience_id')),
     created_at: createdAt,
     updated_at: asText(pick(row, 'updatedAt', 'updated_at'), createdAt),
+    customer_id: asNullableText(pick(row, 'customerId', 'customer_id')),
   }
 }
 
@@ -206,6 +221,53 @@ export function normalizeStoredCoupon(raw: unknown): StoredCoupon | null {
 }
 
 /**
+ * Normalizes a raw customer row. An account without an e-mail cannot log in,
+ * so such a row is dropped rather than guessed at. The e-mail is lower-cased on
+ * read so a hand-edited file cannot create two spellings of one address.
+ */
+export function normalizeStoredCustomer(raw: unknown): StoredCustomer | null {
+  if (!raw || typeof raw !== 'object') return null
+  const row = raw as Row
+  const id = asText(pick(row, 'id'))
+  const email = asText(pick(row, 'email')).trim().toLowerCase()
+  if (!id || !email) return null
+  const createdAt = asText(pick(row, 'created_at', 'createdAt'))
+  return {
+    id,
+    email,
+    password_hash: asNullableText(pick(row, 'password_hash', 'passwordHash')),
+    name: asText(pick(row, 'name')),
+    avatar_url: asNullableText(pick(row, 'avatar_url', 'avatarUrl')),
+    google_sub: asNullableText(pick(row, 'google_sub', 'googleSub')),
+    email_verified: pick(row, 'email_verified', 'emailVerified') === true,
+    created_at: createdAt,
+    updated_at: asText(pick(row, 'updated_at', 'updatedAt'), createdAt),
+  }
+}
+
+/** Normalizes a raw single-use auth link row. */
+export function normalizeStoredAuthToken(raw: unknown): StoredAuthToken | null {
+  if (!raw || typeof raw !== 'object') return null
+  const row = raw as Row
+  const id = asText(pick(row, 'id'))
+  const customerId = asText(pick(row, 'customer_id', 'customerId'))
+  const tokenHash = asText(pick(row, 'token_hash', 'tokenHash'))
+  const expiresAt = asText(pick(row, 'expires_at', 'expiresAt'))
+  if (!id || !customerId || !tokenHash || !expiresAt) return null
+  const purpose = asText(pick(row, 'purpose')) === 'reset_password' ? 'reset_password' : 'verify_email'
+  const createdAt = asText(pick(row, 'created_at', 'createdAt'))
+  return {
+    id,
+    customer_id: customerId,
+    purpose,
+    token_hash: tokenHash,
+    expires_at: expiresAt,
+    used_at: asNullableText(pick(row, 'used_at', 'usedAt')),
+    created_at: createdAt,
+  }
+}
+
+/**
  * Reads and parses db.json without touching or repairing anything. Shared by the
  * store and by the migration script so both see identical bytes.
  *
@@ -245,6 +307,16 @@ export function readJsonDbFile(file: string = DB_FILE): JsonDatabase {
       ? (parsed.coupons as unknown[])
           .map(normalizeStoredCoupon)
           .filter((row): row is StoredCoupon => row !== null)
+      : [],
+    customers: Array.isArray(parsed.customers)
+      ? (parsed.customers as unknown[])
+          .map(normalizeStoredCustomer)
+          .filter((row): row is StoredCustomer => row !== null)
+      : [],
+    auth_tokens: Array.isArray(parsed.auth_tokens)
+      ? (parsed.auth_tokens as unknown[])
+          .map(normalizeStoredAuthToken)
+          .filter((row): row is StoredAuthToken => row !== null)
       : [],
   }
 }
@@ -396,6 +468,7 @@ export function mapOrder(row: StoredOrder): OrderRecord {
     influencerCommissionEarned: Number(row.influencer_commission_earned ?? 0) || 0,
     trafficSource: row.traffic_source ?? null,
     customerIp: row.customer_ip ?? null,
+    customerId: row.customer_id ?? null,
   }
 }
 
@@ -409,6 +482,7 @@ export function mapInfluencer(row: StoredInfluencer): InfluencerRecord {
     uniqueCode: row.unique_code,
     discountPercentage: Number(row.discount_percentage) || 0,
     commissionPercentage: Number(row.commission_percentage) || 0,
+    commissionPaid: Number(row.commission_paid ?? 0) || 0,
     expiryDate: row.expiry_date,
     status: row.status === 'paused' ? 'paused' : 'active',
     createdAt: row.created_at,
@@ -454,6 +528,34 @@ export function mapExperience(row: StoredExperience): ExperienceRecord {
   }
 }
 
+/** Inverts `StoredCustomer` into the app-facing shape. */
+export function mapCustomer(row: StoredCustomer): CustomerRecord {
+  return {
+    id: row.id,
+    email: (row.email ?? '').trim().toLowerCase(),
+    name: (row.name ?? '').trim(),
+    passwordHash: row.password_hash ?? null,
+    avatarUrl: row.avatar_url ?? null,
+    googleSub: row.google_sub ?? null,
+    emailVerified: row.email_verified === true,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at,
+  }
+}
+
+/** Inverts `StoredAuthToken` into the app-facing shape. */
+export function mapAuthToken(row: StoredAuthToken): AuthTokenRecord {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    purpose: row.purpose === 'reset_password' ? 'reset_password' : 'verify_email',
+    tokenHash: row.token_hash,
+    expiresAt: row.expires_at,
+    usedAt: row.used_at ?? null,
+    createdAt: row.created_at,
+  }
+}
+
 export class JsonFileStore implements Store {
   readonly kind = 'json-file'
   readonly durable = false
@@ -482,6 +584,7 @@ export class JsonFileStore implements Store {
       influencer_commission_earned: attribution?.commissionEarned ?? 0,
       traffic_source: attribution?.trafficSource ?? null,
       customer_ip: attribution?.customerIp ?? null,
+      customer_id: input.customerId ?? null,
     }
     db.orders.push(row)
     saveJsonDb(db)
@@ -724,6 +827,7 @@ export class JsonFileStore implements Store {
         totalOrders: 0,
         totalRevenueGenerated: 0,
         totalDiscountGiven: 0,
+        commissionEarned: 0,
         commissionOwed: 0,
       }
       current.totalOrders += 1
@@ -733,9 +837,13 @@ export class JsonFileStore implements Store {
       current.totalDiscountGiven = round2(
         current.totalDiscountGiven + (Number(order.discount_given) || 0),
       )
-      current.commissionOwed = round2(
-        current.commissionOwed + (Number(order.influencer_commission_earned) || 0),
+      current.commissionEarned = round2(
+        current.commissionEarned + (Number(order.influencer_commission_earned) || 0),
       )
+      // Cupi has no payout table yet: nothing ever marks a commission as paid,
+      // so everything earned is still owed. postgresStore reports the same
+      // figure, and the dashboard reads it as "total commission owed".
+      current.commissionOwed = current.commissionEarned
       metrics.set(order.influencer_id, current)
     }
     return metrics
@@ -840,5 +948,115 @@ export class JsonFileStore implements Store {
       counts.set(code, (counts.get(code) ?? 0) + 1)
     }
     return counts
+  }
+
+  // -------------------------------------------------------------- customers --
+
+  async getCustomerById(id: string): Promise<CustomerRecord | null> {
+    const row = (loadJsonDb().customers ?? []).find((entry) => entry.id === id)
+    return row ? mapCustomer(row) : null
+  }
+
+  /** Case-insensitive, matching the lower-cased e-mail every write path stores. */
+  async getCustomerByEmail(email: string): Promise<CustomerRecord | null> {
+    const normalized = email.trim().toLowerCase()
+    if (!normalized) return null
+    const row = (loadJsonDb().customers ?? []).find((entry) => entry.email === normalized)
+    return row ? mapCustomer(row) : null
+  }
+
+  async getCustomerByGoogleSub(sub: string): Promise<CustomerRecord | null> {
+    if (!sub) return null
+    const row = (loadJsonDb().customers ?? []).find((entry) => entry.google_sub === sub)
+    return row ? mapCustomer(row) : null
+  }
+
+  async createCustomer(input: CreateCustomerInput): Promise<CustomerRecord> {
+    const db = loadJsonDb()
+    const rows = (db.customers ??= [])
+    const email = input.email.trim().toLowerCase()
+    if (rows.some((entry) => entry.email === email)) {
+      throw new Error(`customer already exists: ${email}`)
+    }
+    const now = new Date().toISOString()
+    const row: StoredCustomer = {
+      id: crypto.randomUUID(),
+      email,
+      password_hash: input.passwordHash ?? null,
+      name: input.name.trim(),
+      avatar_url: input.avatarUrl ?? null,
+      google_sub: input.googleSub ?? null,
+      email_verified: input.emailVerified ?? false,
+      created_at: now,
+      updated_at: now,
+    }
+    rows.push(row)
+    saveJsonDb(db)
+    return mapCustomer(row)
+  }
+
+  async updateCustomer(
+    id: string,
+    input: UpdateCustomerInput,
+  ): Promise<CustomerRecord | null> {
+    const db = loadJsonDb()
+    const row = (db.customers ?? []).find((entry) => entry.id === id)
+    if (!row) return null
+
+    if (input.name !== undefined) row.name = input.name.trim()
+    if (input.passwordHash !== undefined) row.password_hash = input.passwordHash
+    if (input.avatarUrl !== undefined) row.avatar_url = input.avatarUrl
+    if (input.googleSub !== undefined) row.google_sub = input.googleSub
+    if (input.emailVerified !== undefined) row.email_verified = input.emailVerified
+    row.updated_at = new Date().toISOString()
+
+    saveJsonDb(db)
+    return mapCustomer(row)
+  }
+
+  async createAuthToken(input: CreateAuthTokenInput): Promise<AuthTokenRecord> {
+    const db = loadJsonDb()
+    const rows = (db.auth_tokens ??= [])
+    const now = new Date().toISOString()
+    const row: StoredAuthToken = {
+      id: crypto.randomUUID(),
+      customer_id: input.customerId,
+      purpose: input.purpose,
+      token_hash: input.tokenHash,
+      expires_at: input.expiresAt,
+      used_at: null,
+      created_at: now,
+    }
+    rows.push(row)
+    saveJsonDb(db)
+    return mapAuthToken(row)
+  }
+
+  async getAuthTokenByHash(tokenHash: string): Promise<AuthTokenRecord | null> {
+    if (!tokenHash) return null
+    const row = (loadJsonDb().auth_tokens ?? []).find(
+      (entry) => entry.token_hash === tokenHash,
+    )
+    return row ? mapAuthToken(row) : null
+  }
+
+  async markAuthTokenUsed(id: string): Promise<void> {
+    const db = loadJsonDb()
+    const row = (db.auth_tokens ?? []).find((entry) => entry.id === id)
+    if (!row || row.used_at) return
+    row.used_at = new Date().toISOString()
+    saveJsonDb(db)
+  }
+
+  async invalidateAuthTokens(customerId: string, purpose: AuthTokenPurpose): Promise<void> {
+    const db = loadJsonDb()
+    const now = new Date().toISOString()
+    let changed = false
+    for (const row of db.auth_tokens ?? []) {
+      if (row.customer_id !== customerId || row.purpose !== purpose || row.used_at) continue
+      row.used_at = now
+      changed = true
+    }
+    if (changed) saveJsonDb(db)
   }
 }

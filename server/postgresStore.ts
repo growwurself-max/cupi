@@ -25,12 +25,17 @@ import {
 import { normalizeCode, round2 } from './influencers.js'
 import { normalizeCouponCode } from './coupons.js'
 import type {
+  AuthTokenPurpose,
+  AuthTokenRecord,
   CouponKind,
   CouponRecord,
   CouponStatus,
+  CreateAuthTokenInput,
   CreateCouponInput,
+  CreateCustomerInput,
   CreateInfluencerInput,
   CreateOrderInput,
+  CustomerRecord,
   ExperienceRecord,
   InfluencerMetrics,
   InfluencerRecord,
@@ -38,11 +43,14 @@ import type {
   OrderRecord,
   OrderStatus,
   Store,
+  StoredAuthToken,
   StoredCoupon,
+  StoredCustomer,
   StoredExperience,
   StoredInfluencer,
   StoredOrder,
   UpdateCouponInput,
+  UpdateCustomerInput,
   UpdateInfluencerInput,
 } from './store.js'
 
@@ -51,9 +59,13 @@ const EXPERIENCES_TABLE = 'cupi_experiences'
 const PRODUCT_PRICES_TABLE = 'cupi_product_prices'
 const INFLUENCERS_TABLE = 'cupi_influencers'
 const COUPONS_TABLE = 'cupi_coupons'
+const CUSTOMERS_TABLE = 'cupi_customers'
+const AUTH_TOKENS_TABLE = 'cupi_auth_tokens'
 
 /** Warn exactly once if the (newest) coupons table has not been created yet. */
 let warnedMissingCouponsTable = false
+/** Warn exactly once if the customer tables have not been created yet. */
+let warnedMissingCustomersTable = false
 
 function toNumber(value: number | string | null | undefined, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -113,6 +125,7 @@ function mapOrder(row: StoredOrder): OrderRecord {
     influencerCommissionEarned: toNumber(row.influencer_commission_earned),
     trafficSource: row.traffic_source ?? null,
     customerIp: row.customer_ip ?? null,
+    customerId: row.customer_id ?? null,
   }
 }
 
@@ -130,6 +143,7 @@ function mapInfluencer(row: StoredInfluencer): InfluencerRecord {
     uniqueCode: normalizeCode(row.unique_code),
     discountPercentage: toNumber(row.discount_percentage),
     commissionPercentage: toNumber(row.commission_percentage),
+    commissionPaid: toNumber(row.commission_paid),
     // Postgres `date` round-trips as 'YYYY-MM-DD'; anything else is unusable as
     // an expiry comparison, so it is dropped rather than trusted.
     expiryDate:
@@ -192,6 +206,41 @@ function mapExperience(row: StoredExperience): ExperienceRecord {
 
 const AUDIO_TABLE = 'cupi_template_audio'
 
+/**
+ * Normalizes an account row. The e-mail is stored normalized by every write
+ * path, but a hand-inserted row is lower-cased here too so login can never see
+ * two spellings of one address.
+ */
+function mapCustomer(row: StoredCustomer): CustomerRecord {
+  return {
+    id: row.id,
+    email: (row.email ?? '').trim().toLowerCase(),
+    name: (row.name ?? '').trim(),
+    passwordHash: row.password_hash ?? null,
+    avatarUrl: row.avatar_url ?? null,
+    googleSub: row.google_sub ?? null,
+    // A non-boolean can only come from a hand-written row; treat it as
+    // UNVERIFIED, which is the safe direction (it asks for a link, not grants).
+    emailVerified: row.email_verified === true,
+    createdAt: toIsoString(row.created_at, new Date(0).toISOString()),
+    updatedAt: toIsoString(row.updated_at ?? row.created_at, row.created_at),
+  }
+}
+
+/** A token whose expiry has passed is never handed back as usable. */
+function mapAuthToken(row: StoredAuthToken): AuthTokenRecord {
+  const expiresAt = toIsoString(row.expires_at, new Date(0).toISOString())
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    purpose: row.purpose === 'reset_password' ? 'reset_password' : 'verify_email',
+    tokenHash: row.token_hash,
+    expiresAt,
+    usedAt: row.used_at ? toIsoString(row.used_at, row.used_at) : null,
+    createdAt: toIsoString(row.created_at, new Date(0).toISOString()),
+  }
+}
+
 export class PostgresStore implements Store {
   readonly kind = 'supabase-postgres'
   readonly durable = true
@@ -245,17 +294,48 @@ export class PostgresStore implements Store {
       influencer_commission_earned: attribution?.commissionEarned ?? 0,
       traffic_source: attribution?.trafficSource ?? null,
       customer_ip: attribution?.customerIp ?? null,
+      customer_id: input.customerId ?? null,
     }
 
-    const { data } = await this.rest.request<StoredOrder[]>({
-      method: 'POST',
-      path: ORDERS_TABLE,
-      prefer: 'return=representation',
-      body: row,
-    })
+    try {
+      const { data } = await this.rest.request<StoredOrder[]>({
+        method: 'POST',
+        path: ORDERS_TABLE,
+        prefer: 'return=representation',
+        body: row,
+      })
+      const saved = Array.isArray(data) && data.length > 0 ? data[0] : row
+      return mapOrder({ ...row, ...saved })
+    } catch (error) {
+      // The customer columns are the newest addition to cupi_orders: an
+      // operator who has not re-run supabase/schema.sql yet has no
+      // `customer_id` column, and a signed-in checkout must not fail because of
+      // it. The order is written again WITHOUT the column (customer link lost,
+      // everything else intact) and the missing migration is reported once.
+      const missingColumn =
+        error instanceof SupabaseStoreError &&
+        error.status === 400 &&
+        input.customerId != null &&
+        (error.code === 'PGRST204' || error.message.includes('customer_id'))
+      if (!missingColumn) throw error
 
-    const saved = Array.isArray(data) && data.length > 0 ? data[0] : row
-    return mapOrder({ ...row, ...saved })
+      if (!warnedMissingCustomersTable) {
+        warnedMissingCustomersTable = true
+        console.warn(
+          '[db] cupi_orders.customer_id is missing — re-run supabase/schema.sql so orders ' +
+            'can be linked to customer accounts. Orders are still being saved without the link.',
+        )
+      }
+      const { customer_id: _customer, ...withoutCustomer } = row
+      const { data } = await this.rest.request<StoredOrder[]>({
+        method: 'POST',
+        path: ORDERS_TABLE,
+        prefer: 'return=representation',
+        body: withoutCustomer,
+      })
+      const saved = Array.isArray(data) && data.length > 0 ? data[0] : withoutCustomer
+      return mapOrder({ ...withoutCustomer, ...saved })
+    }
   }
 
   async getOrderById(id: string): Promise<OrderRecord | null> {
@@ -921,6 +1001,165 @@ export class PostgresStore implements Store {
     }
 
     return counts
+  }
+
+  // -------------------------------------------------------------- customers --
+
+  /**
+   * Reads the customer tables. A 404 from PostgREST means they do not exist
+   * yet (supabase/schema.sql has not been re-run since accounts shipped).
+   * Auth must fail CLOSED with a clear message rather than a bare 500: no
+   * account can be created or signed in until the operator migrates.
+   */
+  private async requestCustomerRows<T>(
+    options: Parameters<SupabaseRest['request']>[0],
+  ): Promise<T> {
+    try {
+      const { data } = await this.rest.request<T>(options)
+      return data
+    } catch (error) {
+      if (error instanceof SupabaseStoreError && error.status === 404) {
+        if (!warnedMissingCustomersTable) {
+          warnedMissingCustomersTable = true
+          console.warn(
+            '[db] cupi_customers / cupi_auth_tokens tables are missing — customer login is ' +
+              'disabled until supabase/schema.sql is run.',
+          )
+        }
+      }
+      throw error
+    }
+  }
+
+  async getCustomerById(id: string): Promise<CustomerRecord | null> {
+    const data = await this.requestCustomerRows<StoredCustomer[]>({
+      method: 'GET',
+      path: CUSTOMERS_TABLE,
+      query: { id: `eq.${escapePostgrestValue(id)}`, limit: 1 },
+    })
+    return data && data.length > 0 ? mapCustomer(data[0]) : null
+  }
+
+  async getCustomerByEmail(email: string): Promise<CustomerRecord | null> {
+    const normalized = email.trim().toLowerCase()
+    if (!normalized) return null
+    const data = await this.requestCustomerRows<StoredCustomer[]>({
+      method: 'GET',
+      path: CUSTOMERS_TABLE,
+      // The functional unique index on lower(email) makes this an index scan.
+      query: { email: `eq.${escapePostgrestValue(normalized)}`, limit: 1 },
+    })
+    return data && data.length > 0 ? mapCustomer(data[0]) : null
+  }
+
+  async getCustomerByGoogleSub(sub: string): Promise<CustomerRecord | null> {
+    if (!sub) return null
+    const data = await this.requestCustomerRows<StoredCustomer[]>({
+      method: 'GET',
+      path: CUSTOMERS_TABLE,
+      query: { google_sub: `eq.${escapePostgrestValue(sub)}`, limit: 1 },
+    })
+    return data && data.length > 0 ? mapCustomer(data[0]) : null
+  }
+
+  async createCustomer(input: CreateCustomerInput): Promise<CustomerRecord> {
+    const now = new Date().toISOString()
+    const row: StoredCustomer = {
+      id: crypto.randomUUID(),
+      email: input.email.trim().toLowerCase(),
+      password_hash: input.passwordHash ?? null,
+      name: input.name.trim(),
+      avatar_url: input.avatarUrl ?? null,
+      google_sub: input.googleSub ?? null,
+      email_verified: input.emailVerified ?? false,
+      created_at: now,
+      updated_at: now,
+    }
+    const data = await this.requestCustomerRows<StoredCustomer[]>({
+      method: 'POST',
+      path: CUSTOMERS_TABLE,
+      prefer: 'return=representation',
+      body: row,
+    })
+    return mapCustomer(Array.isArray(data) && data.length > 0 ? data[0] : row)
+  }
+
+  async updateCustomer(
+    id: string,
+    input: UpdateCustomerInput,
+  ): Promise<CustomerRecord | null> {
+    const existing = await this.getCustomerById(id)
+    if (!existing) return null
+
+    const patch: Record<string, unknown> = {}
+    if (input.name !== undefined) patch.name = input.name.trim()
+    if (input.passwordHash !== undefined) patch.password_hash = input.passwordHash
+    if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl
+    if (input.googleSub !== undefined) patch.google_sub = input.googleSub
+    if (input.emailVerified !== undefined) patch.email_verified = input.emailVerified
+
+    if (Object.keys(patch).length === 0) return existing
+
+    const data = await this.requestCustomerRows<StoredCustomer[]>({
+      method: 'PATCH',
+      path: CUSTOMERS_TABLE,
+      query: { id: `eq.${escapePostgrestValue(id)}` },
+      prefer: 'return=representation',
+      body: patch,
+    })
+    if (!data || data.length === 0) return null
+    return mapCustomer(data[0])
+  }
+
+  async createAuthToken(input: CreateAuthTokenInput): Promise<AuthTokenRecord> {
+    const row: StoredAuthToken = {
+      id: crypto.randomUUID(),
+      customer_id: input.customerId,
+      purpose: input.purpose,
+      token_hash: input.tokenHash,
+      expires_at: input.expiresAt,
+      used_at: null,
+      created_at: new Date().toISOString(),
+    }
+    const data = await this.requestCustomerRows<StoredAuthToken[]>({
+      method: 'POST',
+      path: AUTH_TOKENS_TABLE,
+      prefer: 'return=representation',
+      body: row,
+    })
+    return mapAuthToken(Array.isArray(data) && data.length > 0 ? data[0] : row)
+  }
+
+  async getAuthTokenByHash(tokenHash: string): Promise<AuthTokenRecord | null> {
+    if (!tokenHash) return null
+    const data = await this.requestCustomerRows<StoredAuthToken[]>({
+      method: 'GET',
+      path: AUTH_TOKENS_TABLE,
+      query: { token_hash: `eq.${escapePostgrestValue(tokenHash)}`, limit: 1 },
+    })
+    return data && data.length > 0 ? mapAuthToken(data[0]) : null
+  }
+
+  async markAuthTokenUsed(id: string): Promise<void> {
+    await this.requestCustomerRows<StoredAuthToken[]>({
+      method: 'PATCH',
+      path: AUTH_TOKENS_TABLE,
+      query: { id: `eq.${escapePostgrestValue(id)}` },
+      body: { used_at: new Date().toISOString() },
+    })
+  }
+
+  async invalidateAuthTokens(customerId: string, purpose: AuthTokenPurpose): Promise<void> {
+    await this.requestCustomerRows<StoredAuthToken[]>({
+      method: 'PATCH',
+      path: AUTH_TOKENS_TABLE,
+      query: {
+        customer_id: `eq.${escapePostgrestValue(customerId)}`,
+        purpose: `eq.${purpose}`,
+        used_at: 'is.null',
+      },
+      body: { used_at: new Date().toISOString() },
+    })
   }
 }
 

@@ -56,6 +56,7 @@ import {
 import { sanitizeCustomization } from './sanitize.js'
 import { SupabaseStoreError } from './supabase.js'
 import { createAdminRouter } from './adminRoutes.js'
+import { createCustomerAuthRouter, resolveCustomerFromRequest } from './customerAuth.js'
 
 // Public backend origin used to build the FamGateway webhook URL. Override
 // with BACKEND_URL when deploying the API somewhere other than Render.
@@ -617,6 +618,16 @@ async function handleCreateOrder(
       customerName: sanitizedCustomization.senderName,
     })
 
+    // Link the order to the signed-in buyer when there is one. Best effort by
+    // design: a guest checkout, an expired session or an unreachable store must
+    // never stop a payment — the order simply goes in without a customer_id.
+    let customerId: string | null = null
+    try {
+      customerId = (await resolveCustomerFromRequest(req))?.id ?? null
+    } catch (error) {
+      console.warn('[ORDER CREATE] could not resolve the signed-in customer:', error)
+    }
+
     // The order MUST be persisted before the customer is given a way to pay.
     // If this write fails we abort here: the checkout URL is never returned, so
     // a payment can never be taken for an order that does not exist (which the
@@ -632,6 +643,7 @@ async function handleCreateOrder(
         amount,
         currency: 'INR',
         customizationPayload: sanitized,
+        customerId,
         attribution: {
           influencerId: influencer?.id ?? null,
           couponCode,
@@ -1120,6 +1132,14 @@ app.get('/api/audio/:templateId', wrap(handleGetTemplateAudio))
 // Super Admin routes - protected by authentication
 const adminRouter = createAdminRouter()
 app.use('/api/admin', adminRouter)
+
+// Customer authentication (Login / Sign Up / verification / password reset).
+// Mounted before the static + SPA catch-all so an e-mail link's path is never
+// swallowed by index.html, and both with and without the /api prefix for the
+// same reason the other API routers are.
+const customerAuthRouter = createCustomerAuthRouter()
+app.use('/api/auth', customerAuthRouter)
+app.use('/auth', customerAuthRouter)
 
 // 5. Static frontend + SPA catch-all (never intercepts /api routes).
 const indexHtml = path.join(DIST_DIR, 'index.html')

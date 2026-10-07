@@ -14,6 +14,8 @@ const BASE_URL = RAW_URL.replace(/\/+$/, '').replace(/\/api$/, '')
 
 export const API_BASE = `${BASE_URL}/api`
 
+import { getCustomerToken } from './authToken.ts'
+
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
@@ -41,11 +43,16 @@ export class ApiError extends Error {
 
 export async function apiRequest<T>(path: string, options?: RequestOptions): Promise<T> {
   let response: Response
+  // A signed-in customer is attached to every storefront call it makes; the
+  // server uses it to link an order to the buyer and (soon) pull their history.
+  const token = getCustomerToken()
+  const headers: Record<string, string> = {}
+  if (options?.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (token) headers['Authorization'] = `Bearer ${token}`
   try {
     response = await fetch(`${API_BASE}${path}`, {
       method: options?.method ?? 'GET',
-      headers:
-        options?.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers,
       body: options?.body !== undefined ? JSON.stringify(options.body) : undefined,
     })
   } catch (error) {
@@ -205,4 +212,87 @@ export function verifyOrder(
 
 export function fetchExperienceApi(id: string): Promise<ExperienceData> {
   return apiRequest<ExperienceData>(`/experiences/${encodeURIComponent(id)}`)
+}
+
+// -------------------------------------------------------------------- auth --
+
+/** The account shape the server is willing to hand back. Never a hash. */
+export interface CustomerPublic {
+  id: string
+  email: string
+  name: string
+  avatarUrl: string | null
+  emailVerified: boolean
+  hasPassword: boolean
+  googleLinked: boolean
+  createdAt: string
+}
+
+export interface AuthResponse {
+  success: boolean
+  /** Present for signup/login/google: the session token to store. */
+  token?: string
+  expiresAt?: string
+  customer?: CustomerPublic
+  /** True when the verification/reset e-mail actually went out. */
+  emailSent?: boolean
+  /** The raw link, returned only in development so a flow is testable. */
+  devLink?: string
+  message?: string
+  error?: string
+}
+
+export interface MeResponse {
+  success: boolean
+  customer: CustomerPublic
+}
+
+export function signup(input: {
+  name: string
+  email: string
+  password: string
+}): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/signup', { method: 'POST', body: input })
+}
+
+export function login(input: { email: string; password: string }): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/login', { method: 'POST', body: input })
+}
+
+export function loginWithGoogle(credential: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/google', {
+    method: 'POST',
+    body: { credential },
+  })
+}
+
+/** Ends the signed-in session client-side; the token is simply dropped. */
+export function logout(): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>('/auth/logout', { method: 'POST' })
+}
+
+export function fetchMe(): Promise<MeResponse> {
+  return apiRequest<MeResponse>('/auth/me')
+}
+
+export function verifyEmail(token: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/verify-email', { method: 'POST', body: { token } })
+}
+
+export function resendVerification(email?: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/resend-verification', {
+    method: 'POST',
+    body: email ? { email } : {},
+  })
+}
+
+export function forgotPassword(email: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/forgot-password', { method: 'POST', body: { email } })
+}
+
+export function resetPassword(token: string, password: string): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>('/auth/reset-password', {
+    method: 'POST',
+    body: { token, password },
+  })
 }

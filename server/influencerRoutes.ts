@@ -59,6 +59,11 @@ export function toInfluencerView(
   influencer: InfluencerRecord,
   metrics?: { totalOrders: number; totalRevenueGenerated: number; totalDiscountGiven: number; commissionOwed: number },
 ): InfluencerView {
+  // The dashboard's chips know active / paused / expired. 'deleted' happens
+  // only the moment a partner is removed, and the operator-facing view treats a
+  // removed partner exactly like one whose code ran its course.
+  const rawStatus = effectiveStatus(influencer)
+  const status: InfluencerView['status'] = rawStatus === 'deleted' ? 'expired' : rawStatus
   return {
     id: influencer.id,
     name: influencer.name,
@@ -68,7 +73,7 @@ export function toInfluencerView(
     discountPercentage: influencer.discountPercentage,
     commissionPercentage: influencer.commissionPercentage,
     expiryDate: influencer.expiryDate,
-    status: effectiveStatus(influencer),
+    status,
     createdAt: influencer.createdAt,
     updatedAt: influencer.updatedAt,
     totalOrders: metrics?.totalOrders ?? 0,

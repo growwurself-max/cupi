@@ -21,6 +21,12 @@ export interface OrderRecord {
   createdAt: string
   updatedAt: string
   /**
+   * The signed-in buyer, when there was one. Null for the anonymous checkout
+   * Cupi has always allowed, and for every order placed before accounts
+   * existed. Future purchase history joins on this.
+   */
+  customerId: string | null
+  /**
    * Referral attribution for this order, exactly as persisted. The defaults
    * describe a direct (unattributed) sale.
    */
@@ -128,6 +134,8 @@ export interface CreateOrderInput {
    * order so a paid sale can never end up silently unattributed.
    */
   attribution?: OrderAttribution
+  /** The signed-in buyer, when there was one. Null for an anonymous checkout. */
+  customerId?: string | null
 }
 
 /**
@@ -173,6 +181,9 @@ export interface StoredOrder {
   influencer_commission_earned?: number | string | null
   traffic_source?: string | null
   customer_ip?: string | null
+  // Present only after the customer-account columns were added; read
+  // defensively so a pre-auth row still loads.
+  customer_id?: string | null
 }
 
 /** Row shape of `cupi_influencers`, before normalization. */
@@ -211,6 +222,98 @@ export interface UpdateInfluencerInput {
   commissionPercentage?: number
   expiryDate?: string | null
   status?: InfluencerStatus
+}
+
+// ---------------------------------------------------------------- customers --
+
+/**
+ * A Cupi customer account.
+ *
+ * Two sign-in methods, one row: a password account may later link a Google
+ * account (`googleSub`), and a Google account may later set a password
+ * (`passwordHash`). Both are optional so neither method can lock a customer out
+ * of the account they already own.
+ */
+export interface CustomerRecord {
+  id: string
+  /** Normalized (trimmed, lower-cased) — the login identifier. */
+  email: string
+  name: string
+  /** scrypt hash, self-describing (`scrypt$N$r$p$salt$hash`). Null = no password. */
+  passwordHash: string | null
+  avatarUrl: string | null
+  /** Google's immutable account subject. Null for password-only accounts. */
+  googleSub: string | null
+  emailVerified: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCustomerInput {
+  email: string
+  name: string
+  passwordHash?: string | null
+  avatarUrl?: string | null
+  googleSub?: string | null
+  emailVerified?: boolean
+}
+
+export interface UpdateCustomerInput {
+  name?: string
+  passwordHash?: string | null
+  avatarUrl?: string | null
+  googleSub?: string | null
+  emailVerified?: boolean
+}
+
+/** Why a single-use link was minted. */
+export type AuthTokenPurpose = 'verify_email' | 'reset_password'
+
+/**
+ * A single-use, expiring auth link (e-mail verification / password reset).
+ *
+ * Only the HASH of the token is stored, so a database leak cannot be replayed
+ * as a live reset link. The raw token exists solely in the e-mail.
+ */
+export interface AuthTokenRecord {
+  id: string
+  customerId: string
+  purpose: AuthTokenPurpose
+  tokenHash: string
+  expiresAt: string
+  usedAt: string | null
+  createdAt: string
+}
+
+export interface CreateAuthTokenInput {
+  customerId: string
+  purpose: AuthTokenPurpose
+  tokenHash: string
+  expiresAt: string
+}
+
+/** Row shape of `cupi_customers`, before normalization. */
+export interface StoredCustomer {
+  id: string
+  email: string
+  password_hash?: string | null
+  name?: string | null
+  avatar_url?: string | null
+  google_sub?: string | null
+  email_verified?: boolean | null
+  created_at: string
+  updated_at?: string | null
+}
+
+/** Row shape of `cupi_auth_tokens`, before normalization. */
+export interface StoredAuthToken {
+  id: string
+  customer_id: string
+  purpose: string
+  token_hash: string
+  expires_at: string
+  used_at?: string | null
+  created_at: string
 }
 
 /**
@@ -423,4 +526,31 @@ export interface Store {
   countCouponRedemptions(code: string): Promise<number>
   /** Redemption counts for every code that has at least one PAID order. */
   getCouponRedemptionCounts(): Promise<Map<string, number>>
+
+  // -------------------------------------------------------------- customers --
+
+  getCustomerById(id: string): Promise<CustomerRecord | null>
+  /** Case-insensitive lookup on the normalized e-mail. The login hot path. */
+  getCustomerByEmail(email: string): Promise<CustomerRecord | null>
+  /** Google subject lookup — one Google account, exactly one row. */
+  getCustomerByGoogleSub(sub: string): Promise<CustomerRecord | null>
+  /**
+   * Creates an account. Uniqueness on `email` is enforced by the database; a
+   * duplicate must reject rather than silently overwrite the existing account.
+   */
+  createCustomer(input: CreateCustomerInput): Promise<CustomerRecord>
+  /** Partial update. Returns null when the account does not exist. */
+  updateCustomer(id: string, input: UpdateCustomerInput): Promise<CustomerRecord | null>
+
+  /** Stores the HASH of a single-use link, never the raw token. */
+  createAuthToken(input: CreateAuthTokenInput): Promise<AuthTokenRecord>
+  /** Primary-key lookup on the token hash. */
+  getAuthTokenByHash(tokenHash: string): Promise<AuthTokenRecord | null>
+  /** Redeems a token: stamps `used_at`, which makes it single-use. */
+  markAuthTokenUsed(id: string): Promise<void>
+  /**
+   * Retires every outstanding link of one purpose for a customer — issued when
+   * a new one is minted, so only the newest e-mail link ever works.
+   */
+  invalidateAuthTokens(customerId: string, purpose: AuthTokenPurpose): Promise<void>
 }
