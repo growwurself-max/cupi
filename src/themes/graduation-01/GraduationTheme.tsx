@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultGraduationConfig } from './defaultData'
 import { CapTossScreen } from './screens/Screen5CapToss'
 import { GloryScreen } from './screens/Screen3Glory'
@@ -55,8 +56,9 @@ export function GraduationTheme({ config, onExit, isSharedLink }: GraduationThem
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#F8FAFC] via-[#EFF6FF] to-[#FEF9C3]"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#F8FAFC] via-[#EFF6FF] to-[#FEF9C3]"
     >
+      <PremiumFrame variant="graduation" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}

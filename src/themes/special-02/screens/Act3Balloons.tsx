@@ -14,7 +14,7 @@ export function Act3Balloons({ onPop, onComplete }: Act3BalloonsProps) {
   const [showPanda, setShowPanda] = useState(false)
 
   return (
-    <ScreenShell className="bg-[#FCEBEE] py-24">
+    <ScreenShell className="py-24">
       <BalloonPopGame
         words={[...WORDS]}
         onPop={onPop}

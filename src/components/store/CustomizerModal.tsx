@@ -16,6 +16,7 @@ import {
   PenLine,
   QrCode,
   RefreshCw,
+  ShoppingCart,
   Trash2,
   X,
   Tag,
@@ -24,10 +25,13 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useFamGateway } from '../../hooks/useFamGateway'
 import { applyCoupon, createOrder } from '../../lib/api'
+import { addToCart } from '../../lib/cart'
 import { useAuth } from '../../lib/authContext.ts'
 import { getStoredReferral } from '../../lib/referral'
+import { formatRupees, useProductPrices } from '../../lib/prices'
 import {
   getCustomizerStepIds,
+  getFixedQuestionText,
   type CustomizerStepId,
 } from '../../config/customization'
 import { themeRegistry } from '../../themes/registry'
@@ -150,13 +154,30 @@ export function CustomizerModal({
   const canReorderPhotos = maxPhotos > 3
 
   /**
+   * The template's current list price, straight from the backend price table.
+   * Falls back to the catalog default only while the fetch is still in flight.
+   * Every price shown in this dialog (pay button, amount due) is derived from
+   * this one value so the displayed price can never drift from what checkout
+   * charges — the server re-resolves the very same number when the order is
+   * created.
+   */
+  const livePrices = useProductPrices()
+  const livePrice = theme ? livePrices[theme.id] : undefined
+  const listPriceLabel =
+    livePrice !== undefined ? formatRupees(livePrice) : (theme?.price ?? '')
+
+  /**
    * What the Pay button shows: the server's quoted amount when a coupon is
-   * applied, otherwise the theme's list price. Falls back to the list price if
-   * the quote has not arrived yet, which is only a transient state while the
-   * button is also disabled from being charged against an unknown price.
+   * applied, otherwise the template's current list price. Falls back to the
+   * list price if the quote has not arrived yet, which is only a transient
+   * state while the button is also disabled from being charged against an
+   * unknown price.
    */
   const payableLabel =
-    couponQuote && couponValid === true ? `₹${couponQuote.amount}` : (theme?.price ?? '')
+    couponQuote && couponValid === true ? `₹${couponQuote.amount}` : listPriceLabel
+
+  /** Templates with a product-fixed headline (e.g. Special Heart Bloom 01). */
+  const fixedQuestion = getFixedQuestionText(theme)
 
   const steps = useMemo(() => {
     if (!theme) return []
@@ -255,6 +276,8 @@ export function CustomizerModal({
         : 'Add at least one bouquet note.'
     }
     if (currentStepId === 'question') {
+      // Fixed headlines are never editable, so they can never be empty.
+      if (fixedQuestion) return null
       return draft.finalMessage.trim()
         ? null
         : 'Write the question or headline for the big moment.'
@@ -268,7 +291,7 @@ export function CustomizerModal({
         : 'Use a real date — e.g. 0512 = 5 December, or 1205 = 12 May.'
     }
     return null
-  }, [currentStepId, draft, letterEdited])
+  }, [currentStepId, draft, letterEdited, fixedQuestion])
 
   const update = useCallback(
     <K extends keyof CustomizerDraft>(key: K, value: CustomizerDraft[K]) => {
@@ -276,6 +299,15 @@ export function CustomizerModal({
     },
     [],
   )
+
+  // Keep a fixed headline in sync even if it was ever cleared or tampered
+  // with: the preview, the checkout payload and the stored order all derive
+  // from this single draft value.
+  useEffect(() => {
+    if (fixedQuestion && draft.finalMessage !== fixedQuestion) {
+      update('finalMessage', fixedQuestion)
+    }
+  }, [fixedQuestion, draft.finalMessage, update])
 
   const setLetterText = useCallback(
     (value: string) => update('letterLines', value.split('\n')),
@@ -375,6 +407,23 @@ export function CustomizerModal({
       setChecking(false)
     }
   }, [theme, previewConfig, checking, openCheckout, couponCode, loading, customer, openAuth])
+
+  const [addedToCart, setAddedToCart] = useState(false)
+
+  const handleAddToCart = useCallback(() => {
+    if (!theme || !previewConfig || Boolean(stepError) || addedToCart) return
+    addToCart({
+      templateId: theme.id,
+      customization: previewConfig,
+      // Only save a coupon once the server confirmed it for this template; an
+      // unverified or refused code must not travel to checkout with the item.
+      couponCode: couponQuote && couponValid === true ? couponCode : null,
+      referralCode: getStoredReferral()?.code ?? null,
+      trafficSource: getStoredReferral()?.trafficSource ?? null,
+    })
+    setAddedToCart(true)
+    window.setTimeout(() => setAddedToCart(false), 2400)
+  }, [theme, previewConfig, stepError, addedToCart, couponQuote, couponValid, couponCode])
 
   /**
    * Asks the server what a code costs on this template and stores the quote.
@@ -623,25 +672,42 @@ export function CustomizerModal({
                   )}
 
                   {currentStepId === 'question' && (
-                    <Field
-                      label="The big line"
-                      hint="Wins the show — shown big at the moment they see it."
-                    >
-                      <textarea
-                        className={`${INPUT_CLASS} min-h-28 resize-none leading-relaxed`}
-                        placeholder={
-                          theme.categoryId === 'proposal'
-                            ? 'Will you make me the happiest person alive? 💍'
-                            : 'The line they’ll never forget…'
-                        }
-                        value={draft.finalMessage}
-                        onChange={(event) =>
-                          update('finalMessage', event.target.value)
-                        }
-                        maxLength={120}
-                        aria-label="Your question or headline"
-                      />
-                    </Field>
+                    fixedQuestion ? (
+                      <Field
+                        label="The big line"
+                        hint="This headline is locked to keep the surprise just right. It shows big the moment they open it."
+                      >
+                        <div className="flex w-full flex-col gap-3 rounded-xl border border-rose-200/60 bg-white/80 px-4 py-3.5 shadow-sm">
+                          <p className="font-display text-lg leading-snug font-semibold text-stone-900">
+                            {fixedQuestion}
+                          </p>
+                          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-rose-500 uppercase ring-1 ring-rose-100">
+                            <Lock className="h-3 w-3" />
+                            Included with this theme
+                          </span>
+                        </div>
+                      </Field>
+                    ) : (
+                      <Field
+                        label="The big line"
+                        hint="Wins the show — shown big at the moment they see it."
+                      >
+                        <textarea
+                          className={`${INPUT_CLASS} min-h-28 resize-none leading-relaxed`}
+                          placeholder={
+                            theme.categoryId === 'proposal'
+                              ? 'Will you make me the happiest person alive? 💍'
+                              : 'The line they’ll never forget…'
+                          }
+                          value={draft.finalMessage}
+                          onChange={(event) =>
+                            update('finalMessage', event.target.value)
+                          }
+                          maxLength={120}
+                          aria-label="Your question or headline"
+                        />
+                      </Field>
+                    )
                   )}
 
                   {currentStepId === 'passcode' && (
@@ -896,7 +962,7 @@ export function CustomizerModal({
                   Payment ready
                 </p>
                 <p className="text-[11px] font-medium text-stone-400">
-                  Amount due · {theme.price}
+                  Amount due · {listPriceLabel}
                 </p>
                 {pendingPayment.qrUrl && (
                   <div className="space-y-2">
@@ -970,6 +1036,15 @@ export function CustomizerModal({
                     >
                       <Eye className="h-4 w-4" />
                       Preview My Surprise
+                    </button>
+                    <button
+                      type="button"
+                      disabled={checking || Boolean(stepError)}
+                      onClick={handleAddToCart}
+                      className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-rose-200 bg-white px-5 text-sm font-semibold text-rose-600 transition-all duration-200 hover:scale-[1.02] hover:bg-rose-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                      {addedToCart ? 'Added to cart ✓' : 'Add to cart'}
                     </button>
                     <button
                       type="button"

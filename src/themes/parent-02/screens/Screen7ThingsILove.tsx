@@ -53,7 +53,7 @@ export function Screen7ThingsILove({ onContinue }: Screen7ThingsILoveProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="mb-8 text-center font-serif text-2xl font-bold text-pink-200"
+          className="mb-8 text-center font-display text-2xl font-bold text-rose-800 sm:text-3xl"
         >
           Things I Love About You
         </motion.h2>
@@ -65,10 +65,10 @@ export function Screen7ThingsILove({ onContinue }: Screen7ThingsILoveProps) {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={visibleItems.includes(index) ? { opacity: 1, scale: 1 } : {}}
               transition={{ duration: 0.5, ease: 'easeOut' }}
-              className="rounded-2xl border border-pink-400/30 bg-rose-50/60 p-4 text-center shadow-lg shadow-pink-900/20 backdrop-blur-sm"
+              className="rounded-2xl border border-white/70 bg-white/70 p-4 text-center shadow-lg shadow-rose-200/50 backdrop-blur-md"
             >
               <div className="mb-2 text-3xl">{item.icon}</div>
-              <p className="font-serif text-sm font-semibold text-pink-800">
+              <p className="font-serif text-sm font-semibold text-rose-800">
                 {item.text}
               </p>
             </motion.div>
@@ -83,7 +83,7 @@ export function Screen7ThingsILove({ onContinue }: Screen7ThingsILoveProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onContinue}
-          className="mt-8 rounded-full border-2 border-pink-400/50 bg-pink-500/20 px-8 py-3 font-serif text-base font-semibold text-pink-100 backdrop-blur-sm transition-all hover:bg-pink-500/30"
+          className="mt-8 rounded-full border border-white/80 bg-white/75 px-8 py-3 font-display text-base font-semibold text-rose-700 shadow-[0_14px_32px_-16px_rgba(219,39,119,0.55)] backdrop-blur-md transition-all hover:bg-white hover:text-rose-800"
         >
           Continue →
         </motion.button>

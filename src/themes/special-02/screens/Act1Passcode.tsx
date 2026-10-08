@@ -77,7 +77,7 @@ export function Act1Passcode({
   )
 
   return (
-    <ScreenShell className="justify-center bg-[#FCEBEE] py-24">
+    <ScreenShell className="justify-center py-24">
       <div className="relative z-10 flex w-full max-w-3xl flex-col items-center gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
         <div className="w-40 sm:w-48 lg:w-56">
           <div className={demoSuccess ? 'animate-[pulse_0.8s_ease-in-out_2]' : ''}>

@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultLoveConfig } from './defaultData'
 import { Act1Envelope } from './acts/Act1Envelope'
 import { Act2Letter } from './acts/Act2Letter'
@@ -54,8 +55,9 @@ export function LoveTheme({ config, onExit, isSharedLink }: LoveThemeProps) {
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-cream-50"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-cream-50"
     >
+      <PremiumFrame variant="love" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}

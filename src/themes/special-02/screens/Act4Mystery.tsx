@@ -47,7 +47,7 @@ export function Act4Mystery({ onSelect }: Act4MysteryProps) {
   }
 
   return (
-    <ScreenShell className="bg-[#FCEBEE] py-24">
+    <ScreenShell className="py-24">
       {!asked ? (
         <motion.div
           initial={{ opacity: 0, y: 16 }}

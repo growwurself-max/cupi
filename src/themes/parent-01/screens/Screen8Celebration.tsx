@@ -27,7 +27,7 @@ export function Screen8Celebration({ config, onContinue }: Screen8CelebrationPro
   }, [])
 
   return (
-    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-gradient-to-b from-[#1a1f2e] via-[#2d3a4a] to-[#1a1f2e]">
+    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-gradient-to-b from-[#1a1f2e]/75 via-[#2d3a4a]/55 to-[#1a1f2e]/75">
       {/* Warm light gradient */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#c9a959]/10 via-transparent to-transparent" />
       

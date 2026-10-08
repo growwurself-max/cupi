@@ -5,6 +5,7 @@ import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { FloatingParticles } from '../shared/FloatingParticles'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultGoodMorningConfig } from './defaultData'
 
 const TOTAL_STEPS = 1
@@ -78,12 +79,13 @@ export function GoodMorningTheme({
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto"
       style={{
         color: '#4a3218',
         background: 'linear-gradient(180deg, #fdf6e9 0%, #ffe9cd 42%, #ffd9a8 78%, #ffc993 100%)',
       }}
     >
+      <PremiumFrame variant="morning" />
       {/* Sun — soft core with a slow turning ray halo */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-[12%] flex justify-center">
         <div

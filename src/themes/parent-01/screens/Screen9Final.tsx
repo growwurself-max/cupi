@@ -36,9 +36,9 @@ export function Screen9Final({ config, onExit }: Screen9FinalProps) {
   const senderName = config.sender.name || 'Your son'
 
   return (
-    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-[#0a0f1a]">
+    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-[#0a0f1a]/70">
       {/* Cinematic photo background */}
-      <div className="absolute inset-0 overflow-hidden bg-[#0a0f1a]">
+      <div className="absolute inset-0 overflow-hidden bg-[#0a0f1a]/70">
         {showPhoto && mainPhoto?.src ? (
           <motion.img
             initial={{ opacity: 0, scale: 1.05 }}

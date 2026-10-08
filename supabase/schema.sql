@@ -300,6 +300,13 @@ alter table public.cupi_orders add column if not exists customer_id uuid
 create index if not exists cupi_orders_customer_idx
   on public.cupi_orders (customer_id);
 
+-- Anonymous buyer id (a browser-generated UUID v4) that powers a customer's own
+-- "Store" page and payment recovery, with no login required. Null on orders that
+-- predate the column.
+alter table public.cupi_orders add column if not exists customer_id uuid;
+create index if not exists cupi_orders_customer_id_idx
+  on public.cupi_orders (customer_id);
+
 -- Admin rollups group and filter by influencer over PAID orders only.
 create index if not exists cupi_orders_influencer_idx
   on public.cupi_orders (influencer_id) where status = 'PAID';

@@ -27,7 +27,7 @@ export function Screen1Intro({ config, onBegin }: Screen1IntroProps) {
   }, [])
 
   return (
-    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-[#0a0f1a]">
+    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-[#0a0f1a]/70">
       {/* Subtle cinematic light sweep */}
       <motion.div
         initial={{ opacity: 0 }}

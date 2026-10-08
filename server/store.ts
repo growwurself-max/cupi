@@ -134,7 +134,7 @@ export interface CreateOrderInput {
    * order so a paid sale can never end up silently unattributed.
    */
   attribution?: OrderAttribution
-  /** The signed-in buyer, when there was one. Null for an anonymous checkout. */
+/** The signed-in buyer, when there was one. Null for an anonymous checkout. */
   customerId?: string | null
 }
 
@@ -427,6 +427,12 @@ export interface Store {
   createOrder(input: CreateOrderInput): Promise<OrderRecord>
   getOrderById(id: string): Promise<OrderRecord | null>
   getOrderByGatewayOrderId(gatewayOrderId: string): Promise<OrderRecord | null>
+  /**
+   * Every order placed from one anonymous browser (by customer_id), newest
+   * first. Drives the customer's own "Store / purchases" page. Empty array for
+   * a customer id that has no orders.
+   */
+  findOrdersByCustomer(customerId: string): Promise<OrderRecord[]>
 
   /**
    * Creates the single LOCKED website for a verified payment and marks the order

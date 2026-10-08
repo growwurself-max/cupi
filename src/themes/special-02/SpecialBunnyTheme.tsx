@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultSpecialBunnyConfig } from './defaultData'
 import { Act1Passcode } from './screens/Act1Passcode'
 import { Act2Cake } from './screens/Act2Cake'
@@ -65,8 +66,9 @@ export function SpecialBunnyTheme({
     <div
       ref={scrollRef}
       style={{ color: '#3f3a37' }}
-      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FCEBEE]"
+      className="demo-scope relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-[#FCEBEE]"
     >
+      <PremiumFrame variant="special" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel || 'Bunny'}
         step={step}

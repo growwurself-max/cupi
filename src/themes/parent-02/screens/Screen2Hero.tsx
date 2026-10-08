@@ -31,7 +31,7 @@ export function Screen2Hero({ config, onContinue }: Screen2HeroProps) {
         transition={{ duration: 1, ease: 'easeOut' }}
         className="relative mb-8"
       >
-        <div className="relative aspect-[4/5] w-64 overflow-hidden rounded-lg border-4 border-pink-400/30 bg-rose-50/50 shadow-2xl shadow-pink-900/20 sm:w-80">
+        <div className="relative aspect-[4/5] w-64 overflow-hidden rounded-2xl border-4 border-white/80 bg-rose-50/50 shadow-2xl shadow-rose-300/40 sm:w-80">
           {mainPhoto?.src ? (
             <motion.img
               initial={{ filter: 'blur(8px)' }}
@@ -47,7 +47,7 @@ export function Screen2Hero({ config, onContinue }: Screen2HeroProps) {
             </div>
           )}
           {/* Soft glow overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-pink-200/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-rose-200/30 to-transparent" />
         </div>
       </motion.div>
 
@@ -59,10 +59,10 @@ export function Screen2Hero({ config, onContinue }: Screen2HeroProps) {
           transition={{ duration: 0.8 }}
           className="space-y-3"
         >
-          <p className="font-serif text-xl font-semibold text-pink-100/90">
+          <p className="font-display text-xl font-semibold text-rose-800 sm:text-2xl">
             My first home.
           </p>
-          <p className="font-serif text-xl text-pink-200">
+          <p className="font-script text-2xl text-rose-500 sm:text-3xl">
             My forever comfort.
           </p>
         </motion.div>
@@ -76,7 +76,7 @@ export function Screen2Hero({ config, onContinue }: Screen2HeroProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onContinue}
-          className="mt-12 rounded-full border-2 border-pink-400/50 bg-pink-500/20 px-8 py-3 font-serif text-base font-semibold text-pink-100 backdrop-blur-sm transition-all hover:bg-pink-500/30"
+          className="mt-12 rounded-full border border-white/80 bg-white/75 px-8 py-3 font-display text-base font-semibold text-rose-700 shadow-[0_14px_32px_-16px_rgba(219,39,119,0.55)] backdrop-blur-md transition-all hover:bg-white hover:text-rose-800"
         >
           Continue →
         </motion.button>

@@ -43,7 +43,7 @@ export function Screen6Memories({ config, onContinue }: Screen6MemoriesProps) {
           transition={{ duration: 0.8 }}
           className="mb-8 text-center"
         >
-          <p className="font-serif text-lg text-pink-100/90">
+          <p className="font-display text-lg font-semibold text-rose-700 sm:text-xl">
             A lifetime of beautiful memories...
           </p>
         </motion.div>
@@ -57,7 +57,7 @@ export function Screen6Memories({ config, onContinue }: Screen6MemoriesProps) {
             initial={{ opacity: 0, scale: 0.9, rotate: index % 2 === 0 ? -3 : 3 }}
             animate={visiblePhotos.includes(index) ? { opacity: 1, scale: 1, rotate: index % 2 === 0 ? -2 : 2 } : {}}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="relative aspect-[4/3] overflow-hidden rounded-lg border-2 border-pink-400/30 bg-rose-50/60 shadow-lg shadow-pink-900/20"
+            className="relative aspect-[4/3] overflow-hidden rounded-2xl border-2 border-white/70 bg-rose-50/60 shadow-lg shadow-rose-200/60"
           >
             {photo.src ? (
               <img
@@ -71,8 +71,8 @@ export function Screen6Memories({ config, onContinue }: Screen6MemoriesProps) {
               </div>
             )}
             {photo.caption && (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-pink-900/60 to-transparent p-3">
-                <p className="font-serif text-sm text-pink-100/90">{photo.caption}</p>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-rose-900/70 to-transparent p-3">
+                <p className="font-serif text-sm text-white/95">{photo.caption}</p>
               </div>
             )}
           </motion.div>
@@ -86,7 +86,7 @@ export function Screen6Memories({ config, onContinue }: Screen6MemoriesProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onContinue}
-          className="mt-8 rounded-full border-2 border-pink-400/50 bg-pink-500/20 px-8 py-3 font-serif text-base font-semibold text-pink-100 backdrop-blur-sm transition-all hover:bg-pink-500/30"
+          className="mt-8 rounded-full border border-white/80 bg-white/75 px-8 py-3 font-display text-base font-semibold text-rose-700 shadow-[0_14px_32px_-16px_rgba(219,39,119,0.55)] backdrop-blur-md transition-all hover:bg-white hover:text-rose-800"
         >
           Continue →
         </motion.button>

@@ -147,6 +147,8 @@ export interface VerifyOrderResponse {
 
 export interface VerifyOrderPayload {
   orderId: string
+  /** Optional anonymous buyer id; gates recovery on the customer's Store page. */
+  customerId?: string
 }
 
 export interface ExperienceData {
@@ -207,6 +209,36 @@ export function verifyOrder(
   return apiRequest<VerifyOrderResponse>('/orders/verify', {
     method: 'POST',
     body: payload,
+  })
+}
+
+/** A purchase line a buyer can recover on their own Store page. */
+export interface MyOrder {
+  orderId: string
+  gatewayOrderId: string
+  templateId: string
+  amount: number
+  currency: string
+  status: 'PENDING' | 'PAID' | 'FAILED'
+  experienceId: string | null
+  sharePath: string | null
+  createdAt: string
+}
+
+export interface MyOrdersResponse {
+  success: boolean
+  orders: MyOrder[]
+}
+
+/**
+ * Every order for the signed-in customer, newest first. The bearer token from
+ * `apiRequest` identifies the account — nothing customer-specific goes in the
+ * body or URL.
+ */
+export async function fetchMyOrders(): Promise<MyOrdersResponse> {
+  return apiRequest<MyOrdersResponse>('/orders/mine', {
+    method: 'POST',
+    body: {},
   })
 }
 

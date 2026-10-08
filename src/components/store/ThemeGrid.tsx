@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo } from 'react'
 import { categories, experiences } from '../../data/catalog'
+import { useProductPrices, withLivePrices } from '../../lib/prices'
 import { isThemeAvailable } from '../../themes/registry'
 import type { ExperienceMetadata } from '../../types/catalog'
 import { CategoryFilter, type CategorySelection } from './CategoryFilter'
@@ -19,9 +20,13 @@ export function ThemeGrid({
   onLaunchDemo,
   onCustomize,
 }: ThemeGridProps) {
+  // Live prices from the backend: an admin price change shows up here on the
+  // next page load, with no rebuild and no purchase required.
+  const productPrices = useProductPrices()
+
   const visibleExperiences = useMemo(
     () =>
-      experiences
+      withLivePrices(experiences, productPrices)
         .filter(
           (experience) =>
             experience.isAvailable &&
@@ -31,8 +36,23 @@ export function ThemeGrid({
         )
         .slice()
         .sort((a, b) => a.amountInPaise - b.amountInPaise),
-    [activeCategory],
+    [activeCategory, productPrices],
   )
+
+  // Lowest live price inside the special drop, so the banner can never quote a
+  // stale "from" price after an admin price change.
+  const specialFromPrice = useMemo(() => {
+    const specials = withLivePrices(experiences, productPrices).filter(
+      (experience) =>
+        experience.categoryId === 'special' &&
+        experience.isAvailable &&
+        isThemeAvailable(experience.id),
+    )
+    if (specials.length === 0) return null
+    return specials.reduce((min, item) =>
+      item.amountInPaise < min.amountInPaise ? item : min,
+    ).price
+  }, [productPrices])
 
   return (
     <section
@@ -86,7 +106,8 @@ export function ThemeGrid({
                   ✦ Limited-time special drop ✦
                 </p>
                 <h3 className="mt-1.5 font-display text-xl font-bold text-stone-800 sm:text-2xl">
-                  Handcrafted and fully animated — from ₹9.
+                  Handcrafted and fully animated
+                  {specialFromPrice ? ` — from ${specialFromPrice}.` : '.'}
                 </h3>
                 <p className="mt-1 max-w-md text-pretty text-sm leading-relaxed text-stone-500">
                   Storybook letters, bunny mini-games and heart-bloom

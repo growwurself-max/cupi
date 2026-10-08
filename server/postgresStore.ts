@@ -356,6 +356,29 @@ export class PostgresStore implements Store {
     return data && data.length > 0 ? mapOrder(data[0]) : null
   }
 
+  async findOrdersByCustomer(customerId: string): Promise<OrderRecord[]> {
+    const { data } = await this.rest.request<StoredOrder[]>({
+      method: 'GET',
+      path: ORDERS_TABLE,
+      query: {
+        customer_id: `eq.${escapePostgrestValue(customerId)}`,
+        order: 'created_at.desc',
+        limit: 200,
+      },
+    })
+    if (!Array.isArray(data)) return []
+    return data
+      .map(mapOrder)
+      .sort(
+        (a, b) =>
+          a.createdAt === b.createdAt
+            ? b.gatewayOrderId.localeCompare(a.gatewayOrderId)
+            : a.createdAt > b.createdAt
+              ? -1
+              : 1,
+      )
+  }
+
   /** Accepts either a Cupi order id or a gateway order id, like before. */
   private async findOrder(idOrGatewayId: string): Promise<OrderRecord | null> {
     return (

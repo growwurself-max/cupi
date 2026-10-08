@@ -34,7 +34,7 @@ export function Screen9Final({ onExit }: Screen9FinalProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="mb-6 font-serif text-3xl font-bold text-pink-200"
+          className="mb-6 font-display text-3xl font-bold text-rose-800 sm:text-4xl"
         >
           I love you, Mom. ❤️
         </motion.p>
@@ -46,7 +46,7 @@ export function Screen9Final({ onExit }: Screen9FinalProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="mb-4 font-serif text-xl text-pink-100/90"
+          className="mx-auto mb-4 max-w-md font-serif text-lg leading-relaxed text-rose-700 sm:text-xl"
         >
           Thank you for being my home, my comfort and my biggest blessing.
         </motion.p>
@@ -58,7 +58,7 @@ export function Screen9Final({ onExit }: Screen9FinalProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="mb-12 font-serif text-xl text-pink-200"
+          className="mb-12 font-script text-3xl text-rose-600 drop-shadow-sm sm:text-4xl"
         >
           Happy Birthday, Mom! 🌷
         </motion.p>
@@ -74,11 +74,11 @@ export function Screen9Final({ onExit }: Screen9FinalProps) {
         >
           <button
             onClick={onExit}
-            className="rounded-full border-2 border-pink-400/50 bg-pink-500/20 px-8 py-3 font-serif text-lg font-semibold text-pink-100 backdrop-blur-sm transition-all hover:bg-pink-500/30"
+            className="rounded-full border border-white/80 bg-white/75 px-8 py-3 font-display text-lg font-semibold text-rose-700 shadow-[0_14px_32px_-16px_rgba(219,39,119,0.55)] backdrop-blur-md transition-all hover:bg-white hover:text-rose-800"
           >
             Close
           </button>
-          <p className="font-serif text-sm text-pink-300/50">
+          <p className="font-serif text-sm text-rose-400">
             Made with ❤️ on Cupi
           </p>
         </motion.div>

@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultAnniversaryConfig } from './defaultData'
 import { ChapterScreen } from './screens/Screen1Chapter'
 import { TickerScreen } from './screens/Screen2Ticker'
@@ -55,8 +56,9 @@ export function AnniversaryTheme({ config, onExit, isSharedLink }: AnniversaryTh
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFFDF7] via-[#FEF7E6] to-[#FFF9EE]"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFFDF7] via-[#FEF7E6] to-[#FFF9EE]"
     >
+      <PremiumFrame variant="anniversary" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}

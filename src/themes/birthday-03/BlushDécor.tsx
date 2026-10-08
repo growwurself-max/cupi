@@ -51,7 +51,7 @@ export function BlushDécor({ subtle = false }: BlushDécorProps) {
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#FFF8F6] via-[#FFEDF2] to-[#FBE9F0]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#FFF8F6]/75 via-[#FFEDF2]/60 to-[#FBE9F0]/70" />
       <div className="absolute -top-32 -right-24 h-96 w-96 rounded-full bg-[#F9C9DD]/50 blur-3xl" />
       <div className="absolute top-[18%] -left-28 h-[26rem] w-[26rem] rounded-full bg-[#EDE2FF]/55 blur-3xl" />
       <div className="absolute -bottom-24 left-1/3 h-80 w-80 rounded-full bg-[#FFD9E6]/50 blur-3xl" />

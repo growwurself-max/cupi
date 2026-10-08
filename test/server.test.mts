@@ -688,8 +688,119 @@ check('deleted partner leaves the money snapshots', Number(delOrder.influencer_c
 const deletedList = await (await adminGet('/api/admin/influencers')).json()
 check('deleted partner is gone from the list', !deletedList.influencers.some((i: { id: string }) => i.id === priya.data.influencer.id))
 
+// -------------------------------------- fixed-question enforcement ---
+console.log('\n=== 7. Special Heart Bloom 01 headline is locked ===')
+// The Question headline is part of the product: a buyer chooses the template,
+// not the words. Even a hand-crafted payload must be overwritten server-side.
+const specialOrderRes = await realFetch(`${API}/api/orders/create`, {
+  method: 'POST',
+  headers: BUYER,
+  body: JSON.stringify({
+    templateId: 'special-01',
+    customization: {
+      recipient: { name: 'Meera' },
+      sender: { name: 'Arjun' },
+      content: {
+        finalMessage: 'A hand-crafted line that must be ignored',
+        letterLines: ['Hi Meera'],
+      },
+    },
+  }),
+})
+const specialCreated = await specialOrderRes.json()
+check('special-01 checkout succeeds', specialOrderRes.status === 201, String(specialOrderRes.status) + JSON.stringify(specialCreated).slice(0, 200))
+const specialAdded = orders.find((o) => !!specialCreated.orderId && o.id === specialCreated.orderId)
+const specialStored = JSON.stringify(specialAdded?.customization_payload ?? '')
+check('the stored headline is exactly "Happy Birthday"', specialStored.includes('"Happy Birthday"') && !specialStored.includes('hand-crafted'), specialStored.slice(0, 300))
+
+// -------------------------------------- customer store / recovery ---
+console.log('\n=== 8. Customer Store and purchase recovery ===')
+// Two more verified buyers, each with their own session like BUYER above.
+const CUSTOMER_A = 'cust-store-a-000001'
+const CUSTOMER_B = 'cust-store-b-000002'
+customers.push(
+  {
+    id: CUSTOMER_A,
+    email: 'a-store@example.com',
+    password_hash: null,
+    name: 'Store Buyer A',
+    avatar_url: null,
+    google_sub: null,
+    email_verified: true,
+    created_at: stamp,
+    updated_at: stamp,
+  },
+  {
+    id: CUSTOMER_B,
+    email: 'b-store@example.com',
+    password_hash: null,
+    name: 'Store Buyer B',
+    avatar_url: null,
+    google_sub: null,
+    email_verified: true,
+    created_at: stamp,
+    updated_at: stamp,
+  },
+)
+const HDR_A = { ...GUEST, Authorization: `Bearer ${sessionTokenFor(CUSTOMER_A)}` }
+const HDR_B = { ...GUEST, Authorization: `Bearer ${sessionTokenFor(CUSTOMER_B)}` }
+
+async function createAs(headers: Record<string, string>) {
+  return (await (await realFetch(`${API}/api/orders/create`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ templateId: 'birthday-03', customization: CUSTOMIZATION }),
+  })).json())
+}
+const mineA1 = await createAs(HDR_A)
+await new Promise((r) => setTimeout(r, 6))
+const mineA2 = await createAs(HDR_A)
+await new Promise((r) => setTimeout(r, 6))
+const mineB1 = await createAs(HDR_B)
+
+const mineA = await (await realFetch(`${API}/api/orders/mine`, {
+  method: 'POST',
+  headers: HDR_A,
+  body: JSON.stringify({}),
+})).json()
+check('store lists only the signed-in buyer’s orders', Array.isArray(mineA.orders) && mineA.orders.length === 2 && mineA.orders.every((o: { orderId: string }) => [mineA1.orderId, mineA2.orderId].includes(o.orderId)), JSON.stringify(mineA).slice(0, 200))
+check('store returns newest first', mineA.orders[0].orderId === mineA2.orderId && mineA.orders[1].orderId === mineA1.orderId, JSON.stringify(mineA.orders).slice(0, 200))
+const mineB = await (await realFetch(`${API}/api/orders/mine`, {
+  method: 'POST',
+  headers: HDR_B,
+  body: JSON.stringify({}),
+})).json()
+check('another buyer sees only their own order', Array.isArray(mineB.orders) && mineB.orders.length === 1 && mineB.orders[0].orderId === mineB1.orderId, JSON.stringify(mineB).slice(0, 200))
+
+const mineGuest = await realFetch(`${API}/api/orders/mine`, {
+  method: 'POST',
+  headers: GUEST,
+  body: JSON.stringify({}),
+})
+check('a guest cannot list purchases (401)', mineGuest.status === 401, String(mineGuest.status))
+
+// Recovery ownership gate: only the buyer that placed the order can finish it.
+const foreignVerify = await realFetch(`${API}/api/orders/verify`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ orderId: mineA1.orderId, customerId: CUSTOMER_B }),
+})
+check('a foreign finish-payment request is refused', foreignVerify.status === 403, String(foreignVerify.status))
+const ownVerify = await realFetch(`${API}/api/orders/verify`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ orderId: mineA1.orderId, customerId: CUSTOMER_A }),
+})
+check('the owner’s finish-payment request is accepted', ownVerify.status === 200, String(ownVerify.status))
+const redirectVerify = await realFetch(`${API}/api/orders/verify`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ orderId: mineA1.orderId }),
+})
+check('the normal payment-redirect verify is not blocked', redirectVerify.status === 200, String(redirectVerify.status))
+
 // ------------------------------------------------------- store is down ---
-console.log('\n=== 8. A database outage is never shown as "link expired" ===')
+console.log('\n=== 9. A database outage is never shown as "link expired" ===')
 simDown = true
 const outage = await realFetch(`${API}/api/experiences/${slug}`)
 const outageBody = await outage.json()
@@ -721,7 +832,7 @@ simDown = false
 check('the link recovers once the database is back', (await realFetch(`${API}/api/experiences/${slug}`)).status === 200)
 
 // ----------------------------------------------- production guard rails ---
-console.log('\n=== 9. Production refuses to run on an ephemeral disk ===')
+console.log('\n=== 10. Production refuses to run on an ephemeral disk ===')
 function bootChild(env: Record<string, string>): Promise<{ code: number | null; out: string }> {
   return new Promise((resolve) => {
     const child = spawn('node', ['node_modules/tsx/dist/cli.mjs', 'server/index.ts'], {

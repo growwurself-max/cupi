@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultProposalConfig } from './defaultData'
 import { Screen1Mystery } from './screens/Screen1Mystery'
 import { Screen2Memories } from './screens/Screen2Memories'
@@ -55,8 +56,9 @@ export function ProposalTheme({ config, onExit, isSharedLink }: ProposalThemePro
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FAF5FF] via-[#F3E8FF] to-[#FDF4FF]"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FAF5FF] via-[#F3E8FF] to-[#FDF4FF]"
     >
+      <PremiumFrame variant="proposal" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}

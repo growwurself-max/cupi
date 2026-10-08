@@ -143,6 +143,11 @@ export function getOrderByGatewayOrderId(
   return activeStore().getOrderByGatewayOrderId(gatewayOrderId)
 }
 
+/** Every order placed from one anonymous browser, newest first. */
+export function findOrdersByCustomer(customerId: string): Promise<OrderRecord[]> {
+  return activeStore().findOrdersByCustomer(customerId)
+}
+
 /**
  * Creates the single LOCKED website for a verified payment. Safe to call again
  * for the same order — a duplicate webhook or a replayed verify returns the one

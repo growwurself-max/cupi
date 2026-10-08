@@ -601,6 +601,20 @@ export class JsonFileStore implements Store {
     return row ? mapOrder(row) : null
   }
 
+  async findOrdersByCustomer(customerId: string): Promise<OrderRecord[]> {
+    const rows = loadJsonDb().orders.filter((order) => order.customer_id === customerId)
+    return rows
+      .map(mapOrder)
+      .sort(
+        (a, b) =>
+          a.createdAt === b.createdAt
+            ? b.gatewayOrderId.localeCompare(a.gatewayOrderId)
+            : a.createdAt > b.createdAt
+              ? -1
+              : 1,
+      )
+  }
+
   private async findOrder(idOrGatewayId: string): Promise<OrderRecord | null> {
     const db = loadJsonDb()
     const row =

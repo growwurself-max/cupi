@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Heart, Home, RefreshCw } from 'lucide-react'
+import { Heart, Home, RefreshCw, ShoppingCart } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { OrderSuccessModal } from '../components/store/OrderSuccessModal'
+import { checkoutFirstInCart, useCartItems } from '../lib/cart'
 import { verifyOrder } from '../lib/api'
 
 const MAX_ATTEMPTS = 5
@@ -31,6 +32,9 @@ export function PaymentResult({ onExit }: PaymentResultProps) {
   const [state, setState] = useState<PaymentState>({ phase: 'checking' })
   const [showSuccessModal, setShowSuccessModal] = useState(true)
   const [retryKey, setRetryKey] = useState(0)
+  const [cartError, setCartError] = useState<string | null>(null)
+  const [cartBusy, setCartBusy] = useState(false)
+  const cartItems = useCartItems()
 
   const orderIdRef = useRef<string | null>(null)
   if (orderIdRef.current === null) {
@@ -110,7 +114,19 @@ export function PaymentResult({ onExit }: PaymentResultProps) {
     [],
   )
 
+  const continueCart = useCallback(async () => {
+    setCartBusy(true)
+    setCartError(null)
+    try {
+      await checkoutFirstInCart()
+    } catch {
+      setCartError('Could not start the next payment right now. You can try again from your cart.')
+      setCartBusy(false)
+    }
+  }, [])
+
   if (state.phase === 'success') {
+    const remaining = cartItems.length
     return (
       <>
         <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#FFFDFB] bg-gradient-to-b from-[#FFF7F3] via-[#FEFCFB] to-[#FBEDF0] px-5">
@@ -132,6 +148,22 @@ export function PaymentResult({ onExit }: PaymentResultProps) {
             >
               Open Your Surprise
             </button>
+            {remaining > 0 && (
+              <div className="w-full border-t border-rose-100/70 pt-4">
+                <button
+                  type="button"
+                  disabled={cartBusy}
+                  onClick={() => void continueCart()}
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-rose-200 bg-white px-5 text-sm font-semibold text-rose-600 transition-all duration-200 hover:bg-rose-50 active:scale-95 disabled:opacity-60"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Pay for next surprise ({remaining} left in cart)
+                </button>
+                {cartError && (
+                  <p className="pt-2 text-xs font-medium text-stone-500">{cartError}</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <AnimatePresence>

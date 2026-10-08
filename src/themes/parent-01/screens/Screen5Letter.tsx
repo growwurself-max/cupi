@@ -32,9 +32,9 @@ export function Screen5Letter({ config, onContinue }: Screen5LetterProps) {
   const photos = config.content.photos?.slice(1) || []
 
   return (
-    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-[#0a0f1a]">
+    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-[#0a0f1a]/70">
       {/* Subtle background */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(10,15,26,0.5)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(10,15,26,0.42)_100%)]" />
 
       <div className="relative z-10 flex flex-col items-center justify-center px-6 text-center max-w-2xl">
         {/* Heading */}
@@ -57,7 +57,7 @@ export function Screen5Letter({ config, onContinue }: Screen5LetterProps) {
             transition={{ duration: 1.2 }}
             className="mb-8 w-full max-w-lg"
           >
-            <div className="relative overflow-hidden rounded-lg bg-[#0a0f1a]">
+            <div className="relative overflow-hidden rounded-lg bg-[#0a0f1a]/70">
               <img
                 src={photos[0].src}
                 alt={photos[0].alt || 'Memory'}
@@ -86,7 +86,7 @@ export function Screen5Letter({ config, onContinue }: Screen5LetterProps) {
             transition={{ duration: 1.2 }}
             className="mb-8 w-full max-w-lg"
           >
-            <div className="relative overflow-hidden rounded-lg bg-[#0a0f1a]">
+            <div className="relative overflow-hidden rounded-lg bg-[#0a0f1a]/70">
               <img
                 src={photos[1].src}
                 alt={photos[1].alt || 'Memory'}
@@ -115,7 +115,7 @@ export function Screen5Letter({ config, onContinue }: Screen5LetterProps) {
             transition={{ duration: 1.2 }}
             className="mb-12 w-full max-w-lg"
           >
-            <div className="relative overflow-hidden rounded-lg bg-[#0a0f1a]">
+            <div className="relative overflow-hidden rounded-lg bg-[#0a0f1a]/70">
               <img
                 src={photos[2].src}
                 alt={photos[2].alt || 'Memory'}

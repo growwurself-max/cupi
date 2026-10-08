@@ -26,9 +26,9 @@ export function Screen2Hero({ config, onContinue }: Screen2HeroProps) {
   const mainPhoto = config.content.photos?.[0]
 
   return (
-    <div className="relative flex h-full flex-col items-center justify-center bg-[#0a0f1a]">
+    <div className="relative flex h-full flex-col items-center justify-center bg-[#0a0f1a]/70">
       {/* Cinematic photo container - full width with slow zoom */}
-      <div className="absolute inset-0 overflow-hidden bg-[#0a0f1a]">
+      <div className="absolute inset-0 overflow-hidden bg-[#0a0f1a]/30">
         {mainPhoto?.src ? (
           <motion.img
             initial={{ scale: 1.05 }}
@@ -48,7 +48,7 @@ export function Screen2Hero({ config, onContinue }: Screen2HeroProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f1a] via-[#0a0f1a]/40 to-[#0a0f1a]/60" />
         
         {/* Soft vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(10,15,26,0.7)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(10,15,26,0.4)_100%)]" />
       </div>
 
       {/* Text overlay - elegant typography */}

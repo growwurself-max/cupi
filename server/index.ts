@@ -26,6 +26,7 @@ import {
   countExperiences,
   createOrder,
   finalizeOrderForPayment,
+  findOrdersByCustomer,
   getCouponByCode,
   getExperienceById,
   getInfluencerByCode,
@@ -545,6 +546,23 @@ async function handleCreateOrder(
       return
     }
 
+    // Fixed headlines are part of the product itself: which template was
+    // bought decides what the big line says, not the buyer's wording. Re-applied
+    // here so a hand-crafted request can never change what the recipient sees.
+    if (templateId === 'special-01') {
+      sanitized.content.finalMessage = 'Happy Birthday'
+    }
+
+    // Paying is a purchase, so a signed-in customer whose e-mail is not yet
+    // verified is blocked here — before any gateway order is created or money
+    // can be taken. requireCustomerAuth only proves the account exists.
+    if (req.customer && !req.customer.emailVerified) {
+      res.status(403).json({
+        error: 'Please verify your e-mail address before purchasing.',
+      })
+      return
+    }
+
     // Resolve base price
     const basePrice = await resolvePriceInRupees(templateId)
 
@@ -719,6 +737,15 @@ async function handleVerifyOrder(
       return
     }
 
+    // Ownership gate for recovery requests: when the caller claims a customer
+    // id, it must be the id the order was created with. The normal post-payment
+    // redirect does not send one and is unaffected; this only stops one device
+    // from finishing (and reading) another's order through the "Store" page.
+    if (body.customerId != null && order.customerId !== body.customerId) {
+      res.status(403).json({ error: 'This order does not belong to this device.' })
+      return
+    }
+
     // Already finalized (typically by the webhook): return the existing
     // experience/share URL without creating anything new.
     if (order.status === 'PAID' && order.experienceId) {
@@ -794,6 +821,46 @@ async function handleVerifyOrder(
 
     console.log('[FamGateway] Payment confirmed via verify:', order.id)
     sendExperiencePayload(res, experience)
+  } catch (error) {
+    next(error)
+  }
+}
+
+/**
+ * POST /orders/mine
+ * Lists every order placed by the signed-in customer, newest first, so the
+ * buyer can recover their purchases and unfinished payments on their own
+ * "Store" page. The buyer is resolved from Authorization by requireCustomerAuth,
+ * never from the URL or body. Only public summary fields are returned — the
+ * personalization payload stays server-side.
+ */
+async function handleGetMyOrders(
+  req: Request,
+  res: Response,
+  next: (error?: unknown) => void,
+): Promise<void> {
+  try {
+    const customerId = req.customer?.id ?? null
+    if (!customerId) {
+      res.status(401).json({ error: 'Please sign in to continue.' })
+      return
+    }
+
+    const orders = await findOrdersByCustomer(customerId)
+    res.status(200).json({
+      success: true,
+      orders: orders.map((order) => ({
+        orderId: order.id,
+        gatewayOrderId: order.gatewayOrderId,
+        templateId: order.templateId,
+        amount: order.amount,
+        currency: order.currency,
+        status: order.status,
+        experienceId: order.experienceId,
+        sharePath: order.experienceId ? `/x/${order.experienceId}` : null,
+        createdAt: order.createdAt,
+      })),
+    })
   } catch (error) {
     next(error)
   }
@@ -1070,6 +1137,9 @@ const orderRoutes = express.Router()
 // handler below uses req.customer and never re-resolves it.
 orderRoutes.post('/create', requireCustomerAuth, wrap(handleCreateOrder))
 orderRoutes.post('/verify', wrap(handleVerifyOrder))
+// The same signed-in buyer as /orders/create; their Store page only ever sees
+// orders they placed. A guest gets 401 rather than an empty list.
+orderRoutes.post('/mine', requireCustomerAuth, wrap(handleGetMyOrders))
 
 app.use('/api/orders', orderRoutes)
 app.use('/orders', orderRoutes)

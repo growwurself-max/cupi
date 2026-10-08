@@ -30,7 +30,7 @@ export function Screen1Intro({ onBegin }: Screen1IntroProps) {
         initial={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1, ease: 'easeOut' }}
-        className="mb-8 text-7xl"
+        className="mb-6 text-6xl drop-shadow-[0_8px_18px_rgba(225,29,72,0.25)] sm:text-7xl"
       >
         🌷
       </motion.div>
@@ -41,7 +41,7 @@ export function Screen1Intro({ onBegin }: Screen1IntroProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="mb-4 font-serif text-xl leading-relaxed text-pink-100/90"
+          className="mx-auto mb-5 max-w-sm font-serif text-lg leading-relaxed text-rose-600/90 sm:text-xl"
         >
           For the woman who made my world beautiful...
         </motion.p>
@@ -53,7 +53,7 @@ export function Screen1Intro({ onBegin }: Screen1IntroProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="mb-12 font-serif text-2xl font-bold text-pink-200"
+          className="mx-auto mb-12 max-w-md font-script text-4xl leading-tight text-rose-600 drop-shadow-sm sm:text-5xl"
         >
           🌷 Happy Birthday, Mom
         </motion.p>
@@ -67,7 +67,7 @@ export function Screen1Intro({ onBegin }: Screen1IntroProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onBegin}
-          className="rounded-full border-2 border-pink-400/50 bg-pink-500/20 px-8 py-3 font-serif text-lg font-semibold text-pink-100 backdrop-blur-sm transition-all hover:bg-pink-500/30"
+          className="rounded-full border border-white/80 bg-white/75 px-8 py-3 font-display text-lg font-semibold text-rose-700 shadow-[0_14px_32px_-16px_rgba(219,39,119,0.55)] backdrop-blur-md transition-all hover:bg-white hover:text-rose-800"
         >
           Open Your Surprise
         </motion.button>

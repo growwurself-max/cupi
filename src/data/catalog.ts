@@ -1,45 +1,8 @@
 import type { Category, ExperienceMetadata } from '../types/catalog'
 
-/**
- * Fetches current product prices from the server.
- * Returns a map of templateId -> price in rupees.
- */
-export async function fetchProductPrices(): Promise<Record<string, number>> {
-  try {
-    const apiUrl = import.meta.env.VITE_API_URL || '/api'
-    const response = await fetch(`${apiUrl}/products/prices`)
-    if (!response.ok) {
-      console.warn('Failed to fetch product prices, using defaults')
-      return {}
-    }
-    const data = await response.json()
-    return data.prices || {}
-  } catch (error) {
-    console.warn('Error fetching product prices, using defaults:', error)
-    return {}
-  }
-}
-
-/**
- * Returns the experience metadata with updated prices from the server.
- * Falls back to hardcoded prices if the API fails.
- */
-export async function getExperiencesWithPrices(): Promise<ExperienceMetadata[]> {
-  const serverPrices = await fetchProductPrices()
-
-  return experiences.map((exp) => {
-    const serverPrice = serverPrices[exp.id]
-    if (serverPrice !== undefined && serverPrice !== null) {
-      const priceInRupees = `₹${serverPrice.toFixed(2)}`
-      return {
-        ...exp,
-        price: priceInRupees,
-        amountInPaise: Math.round(serverPrice * 100),
-      }
-    }
-    return exp
-  })
-}
+// Prices below are DEFAULTS used only as a render fallback. The live price a
+// customer sees always comes from `src/lib/prices.ts` (GET /api/products/prices),
+// which reflects Super Admin changes immediately.
 
 export const categories: Category[] = [
   {

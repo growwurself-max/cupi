@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultBirthdayMomentsConfig } from './defaultData'
 import { Screen1Teaser } from './screens/Screen1Teaser'
 import { Screen2MemoryReel } from './screens/Screen2MemoryReel'
@@ -76,8 +77,9 @@ export function BirthdayMomentsTheme({
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FFF8F6]"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-[#FFF8F6]"
     >
+      <PremiumFrame variant="birthday" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}

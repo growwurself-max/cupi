@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultBirthdayConfig } from './defaultData'
 import { FloatingHearts } from './FloatingHearts'
 import { Screen1Teaser } from './screens/Screen1Teaser'
@@ -78,8 +79,9 @@ export function BirthdayTheme({
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFE4E6] via-[#FFF1F2] to-[#FCE7F3]"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFE4E6] via-[#FFF1F2] to-[#FCE7F3]"
     >
+      <PremiumFrame variant="birthday" />
       <FloatingHearts className="fixed inset-0 z-0 overflow-hidden" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}

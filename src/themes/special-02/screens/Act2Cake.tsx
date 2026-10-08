@@ -25,7 +25,7 @@ export function Act2Cake({ config, onBlowOut }: Act2CakeProps) {
   }, [blown, lit, onBlowOut])
 
   return (
-    <ScreenShell className="bg-[#FCEBEE] py-24">
+    <ScreenShell className="py-24">
       <motion.p
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

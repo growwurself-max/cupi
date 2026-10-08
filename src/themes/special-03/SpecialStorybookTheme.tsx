@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultSpecialStorybookConfig } from './defaultData'
 import { Act1Intro } from './screens/Act1Intro'
 import { Act2Balloons } from './screens/Act2Balloons'
@@ -70,8 +71,9 @@ export function SpecialStorybookTheme({
         color: '#3f3a37',
         background: 'linear-gradient(170deg, #FFF6F1 0%, #FCEDE8 52%, #F9DEDF 100%)',
       }}
-      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto"
+      className="demo-scope relative isolate h-dvh overflow-x-hidden overflow-y-auto"
     >
+      <PremiumFrame variant="special" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel || 'Storybook'}
         step={step}

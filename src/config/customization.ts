@@ -60,3 +60,22 @@ export function getCustomizerStepIds(
     (theme.supportsPhotos ? [...FALLBACK_STEPS, 'memories'] : FALLBACK_STEPS)
   )
 }
+
+/**
+ * Templates whose "Question" headline is fixed by product policy. The Question
+ * step is still shown (so the customer knows exactly what the headline will
+ * say) but it is read-only — the value can never be changed, even by a crafted
+ * request, because the server re-applies it at order creation.
+ */
+export const FIXED_QUESTION: Readonly<Partial<Record<string, string>>> = {
+  'special-01': 'Happy Birthday',
+}
+
+/** Returns the fixed Question text for a template, or null when editable. */
+export function getFixedQuestionText(
+  themeOrId: string | { id: string } | undefined | null,
+): string | null {
+  if (!themeOrId) return null
+  const id = typeof themeOrId === 'string' ? themeOrId : themeOrId.id
+  return FIXED_QUESTION[id] ?? null
+}

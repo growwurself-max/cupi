@@ -48,7 +48,7 @@ export function TeddyDecor({ subtle = false }: TeddyDecorProps) {
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#FFF0F3] via-[#FFE5EC] to-[#FFF9EE]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#FFF0F3]/75 via-[#FFE5EC]/60 to-[#FFF9EE]/70" />
       <div className="absolute -top-32 -right-24 h-96 w-96 rounded-full bg-[#FFD6E0]/45 blur-3xl" />
       <div className="absolute top-[20%] -left-28 h-[26rem] w-[26rem] rounded-full bg-[#FFECD2]/50 blur-3xl" />
       <div className="absolute -bottom-24 left-1/3 h-80 w-80 rounded-full bg-[#FFE0EC]/50 blur-3xl" />

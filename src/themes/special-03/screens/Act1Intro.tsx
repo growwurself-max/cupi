@@ -26,10 +26,7 @@ export function Act1Intro({ config, onYes }: Act1IntroProps) {
   }
 
   return (
-    <ScreenShell
-      background="linear-gradient(170deg, #FFF6F1 0%, #FCEDE8 52%, #F9DEDF 100%)"
-      className="py-24"
-    >
+    <ScreenShell className="py-24">
       {/* ambient warm auras */}
       <div
         aria-hidden

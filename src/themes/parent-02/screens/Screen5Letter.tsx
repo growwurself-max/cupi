@@ -30,7 +30,7 @@ export function Screen5Letter({ config, onContinue }: Screen5LetterProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="mb-6 text-center font-serif text-2xl font-bold text-pink-200"
+          className="mb-6 text-center font-display text-2xl font-bold text-rose-800 sm:text-3xl"
         >
           A Letter For My Mom
         </motion.h2>
@@ -40,7 +40,7 @@ export function Screen5Letter({ config, onContinue }: Screen5LetterProps) {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8 }}
-          className="relative rounded-lg border-2 border-pink-400/30 bg-pink-50/90 p-6 shadow-2xl shadow-pink-900/20 backdrop-blur-sm"
+          className="relative rounded-2xl border border-white/80 bg-white/90 p-6 shadow-2xl shadow-rose-200/60 backdrop-blur-md"
         >
           {/* Letter content */}
           {showText && (
@@ -48,7 +48,7 @@ export function Screen5Letter({ config, onContinue }: Screen5LetterProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8 }}
-              className="space-y-3 font-serif text-base leading-relaxed text-slate-800"
+              className="space-y-3 font-serif text-base leading-relaxed text-rose-900/90"
             >
               {letterLines.map((line, index) => (
                 <motion.p
@@ -73,7 +73,7 @@ export function Screen5Letter({ config, onContinue }: Screen5LetterProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onContinue}
-          className="mt-8 rounded-full border-2 border-pink-400/50 bg-pink-500/20 px-8 py-3 font-serif text-base font-semibold text-pink-100 backdrop-blur-sm transition-all hover:bg-pink-500/30"
+          className="mt-8 rounded-full border border-white/80 bg-white/75 px-8 py-3 font-display text-base font-semibold text-rose-700 shadow-[0_14px_32px_-16px_rgba(219,39,119,0.55)] backdrop-blur-md transition-all hover:bg-white hover:text-rose-800"
         >
           Continue →
         </motion.button>

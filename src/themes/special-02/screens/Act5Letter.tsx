@@ -36,7 +36,7 @@ export function Act5Letter({
   const current = photos[index]
 
   return (
-    <ScreenShell className="bg-[#FCEBEE] py-24">
+    <ScreenShell className="py-24">
       <div className="relative z-10 w-full max-w-sm" style={{ perspective: 900 }}>
         <div className="relative h-80 overflow-hidden rounded-sm border-8 border-white bg-white p-3 pb-9 shadow-2xl shadow-rose-200/40">
           <AnimatePresence mode="popLayout" initial={false}>

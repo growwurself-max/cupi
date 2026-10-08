@@ -1,6 +1,7 @@
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
+import { useProductPrices } from '../lib/prices'
 import { themeRegistry } from '../themes/registry'
 
 interface PricingProps {
@@ -8,21 +9,13 @@ interface PricingProps {
 }
 
 export function Pricing({ onExit }: PricingProps) {
-  const [prices, setPrices] = useState<Record<string, number>>({})
+  // Same live price source as the storefront and checkout: one backend call,
+  // shared cache, no per-page base-URL drift.
+  const prices = useProductPrices()
 
   useEffect(() => {
     // Scroll to top when page loads
     window.scrollTo(0, 0)
-
-    // Fetch prices
-    fetch(`${import.meta.env.VITE_API_URL || '/api'}/products/prices`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.prices) {
-          setPrices(data.prices)
-        }
-      })
-      .catch((err) => console.error('Failed to load prices:', err))
   }, [])
 
   return (

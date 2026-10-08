@@ -1,11 +1,13 @@
-import { Heart, LogIn, LogOut, Sparkles } from 'lucide-react'
+import { Heart, LogIn, LogOut, ShoppingBag, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../lib/authContext.ts'
+import { useCartCount } from '../../lib/cart'
 
 const TAGLINE = 'Interactive Digital Surprises'
 
 const NAV_LINKS = [
   { label: 'Explore', href: '#experiences' },
+  { label: 'Store', href: '/store' },
   { label: 'Pricing', href: '/pricing' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Special', href: '#special-01' },
@@ -14,6 +16,7 @@ const NAV_LINKS = [
 interface NavbarProps {
   onLaunchDemo: () => void
   onNavigate?: (path: string) => void
+  onOpenCart?: () => void
 }
 
 /** Two initials on the brand's gradient, for accounts without a photo. */
@@ -26,11 +29,12 @@ function initialsOf(name: string): string {
     .join('') || 'C'
 }
 
-export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
+export function Navbar({ onLaunchDemo, onNavigate, onOpenCart }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false)
   const { customer, openAuth, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const cartCount = useCartCount()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16)
@@ -110,7 +114,7 @@ export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+<div className="flex items-center gap-2 sm:gap-3">
           {customer ? (
             <div className="relative" ref={menuRef}>
               <button
@@ -164,6 +168,21 @@ export function Navbar({ onLaunchDemo, onNavigate }: NavbarProps) {
             </button>
           )}
 
+          {onOpenCart && (
+            <button
+              type="button"
+              onClick={onOpenCart}
+              aria-label={`Open cart${cartCount > 0 ? ` (${cartCount} item${cartCount > 1 ? 's' : ''})` : ''}`}
+              className="relative flex h-12 w-12 items-center justify-center rounded-full border border-rose-100 bg-white/80 text-stone-600 transition-colors hover:border-rose-200 hover:text-rose-500"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          )}
           <button
             type="button"
             onClick={onLaunchDemo}

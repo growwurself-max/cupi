@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultFriendshipConfig } from './defaultData'
 import { BestieAlertScreen } from './screens/Screen1BestieAlert'
 import { QuizScreen } from './screens/Screen2Quiz'
@@ -55,8 +56,9 @@ export function FriendshipTheme({ config, onExit, isSharedLink }: FriendshipThem
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFFBEB] via-[#FFF1F2] to-[#F5F3FF]"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFFBEB] via-[#FFF1F2] to-[#F5F3FF]"
     >
+      <PremiumFrame variant="friendship" />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}

@@ -4,6 +4,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultSpecialHeartBloomConfig } from './defaultData'
 import { Act1Aim } from './screens/Act1Aim'
 import { Act2Wish } from './screens/Act2Wish'
@@ -67,8 +68,9 @@ export function SpecialHeartBloomTheme({
     <div
       ref={scrollRef}
       style={{ color: '#3f3a37' }}
-      className="demo-scope relative h-dvh overflow-x-hidden overflow-y-auto bg-[#FBF1E7]"
+      className="demo-scope relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-[#FBF1E7]"
     >
+      <PremiumFrame variant="special" />
       {/* soft paper grain + ambient warmth */}
       <div
         aria-hidden

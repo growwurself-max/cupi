@@ -40,7 +40,7 @@ export function Screen3QueenPresentation({ config, onContinue }: Screen3QueenPre
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.3 }}
-            className="absolute top-1/4 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-pink-300/20 blur-3xl"
+            className="absolute top-1/4 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-rose-200/30 blur-3xl"
           />
         )}
       </div>
@@ -53,7 +53,7 @@ export function Screen3QueenPresentation({ config, onContinue }: Screen3QueenPre
         className="relative mb-6"
       >
         {/* Decorative floral frame */}
-        <div className="relative aspect-[3/4] w-56 overflow-hidden rounded-lg border-4 border-pink-400/40 bg-rose-50/60 shadow-2xl shadow-pink-900/20 sm:w-72">
+        <div className="relative aspect-[3/4] w-56 overflow-hidden rounded-2xl border-4 border-white/80 bg-rose-50/60 shadow-2xl shadow-rose-300/40 sm:w-72">
           {/* Photo */}
           {showPhoto && (
             <motion.div
@@ -74,7 +74,7 @@ export function Screen3QueenPresentation({ config, onContinue }: Screen3QueenPre
                 </div>
               )}
               {/* Soft overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-pink-200/30 via-transparent to-pink-100/10" />
+              <div className="absolute inset-0 bg-gradient-to-t from-rose-200/30 via-transparent to-white/20" />
             </motion.div>
           )}
 
@@ -100,10 +100,10 @@ export function Screen3QueenPresentation({ config, onContinue }: Screen3QueenPre
           transition={{ duration: 0.8 }}
           className="space-y-3"
         >
-          <p className="font-serif text-xl font-semibold text-pink-100/90">
+          <p className="font-display text-xl font-semibold text-rose-800 sm:text-2xl">
             Every home has a heart.
           </p>
-          <p className="font-serif text-2xl font-bold text-pink-200">
+          <p className="font-script text-3xl text-rose-600 sm:text-4xl">
             Ours is you. 👑
           </p>
         </motion.div>
@@ -117,7 +117,7 @@ export function Screen3QueenPresentation({ config, onContinue }: Screen3QueenPre
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onContinue}
-          className="mt-12 rounded-full border-2 border-pink-400/50 bg-pink-500/20 px-8 py-3 font-serif text-base font-semibold text-pink-100 backdrop-blur-sm transition-all hover:bg-pink-500/30"
+          className="mt-12 rounded-full border border-white/80 bg-white/75 px-8 py-3 font-display text-base font-semibold text-rose-700 shadow-[0_14px_32px_-16px_rgba(219,39,119,0.55)] backdrop-blur-md transition-all hover:bg-white hover:text-rose-800"
         >
           Continue →
         </motion.button>

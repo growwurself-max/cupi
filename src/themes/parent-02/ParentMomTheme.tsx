@@ -4,6 +4,8 @@ import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
 import type { ExperienceConfig } from '../../types/experience'
 import { ThemeToolbar } from '../shared/ThemeToolbar'
+import { DreamyDecor } from './DreamyDecor'
+import { PremiumFrame } from '../premium/PremiumFrame'
 import { defaultParentMomConfig } from './defaultData'
 import { Screen1Intro } from './screens/Screen1Intro'
 import { Screen2Hero } from './screens/Screen2Hero'
@@ -63,8 +65,10 @@ export function ParentMomTheme({
   return (
     <div
       ref={scrollRef}
-      className="relative h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#fff0f3] via-[#fbd5e3] to-[#e3d9ff]"
+      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#FFF6FA] via-[#FBE6F0] to-[#EDE6FB]"
     >
+      <PremiumFrame variant="queen" />
+      <DreamyDecor />
       <ThemeToolbar
         themeLabel={resolvedConfig.branding.themeLabel}
         step={step}

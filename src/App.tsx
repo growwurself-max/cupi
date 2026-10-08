@@ -7,15 +7,18 @@ import { TermsConditions } from './pages/legal/TermsConditions'
 import { PaymentResult } from './pages/PaymentResult'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { Pricing } from './pages/Pricing'
+import { Store } from './pages/Store'
 import type { CategorySelection } from './components/store/CategoryFilter'
 import { AudioPlayer } from './components/store/AudioPlayer'
 import { AuthModal } from './components/auth/AuthModal'
 import { BackgroundAnimation } from './components/store/BackgroundAnimation'
+import { CartModal } from './components/store/CartModal'
 import { CustomizerModal } from './components/store/CustomizerModal'
 import { ExperienceView } from './components/store/ExperienceView'
 import { Footer } from './components/store/Footer'
 import { HeroSection } from './components/store/HeroSection'
 import { captureReferralFromUrl } from './lib/referral'
+import { loadProductPrices } from './lib/prices'
 import { HowItWorks } from './components/store/HowItWorks'
 import { useAuth } from './lib/authContext.ts'
 import { Navbar } from './components/store/Navbar'
@@ -28,13 +31,7 @@ type View = 'store' | 'demo'
 type LegalPage = 'privacy' | 'terms' | 'refund' | 'contact'
 
 interface Route {
-  view:
-    | View
-    | 'share'
-    | 'payment-result'
-    | 'legal'
-    | 'admin'
-    | 'pricing'
+  view: View | 'share' | 'payment-result' | 'legal' | 'admin' | 'pricing' | 'my-store'
   shareId: string | null
   legalPage: LegalPage | null
 }
@@ -69,6 +66,9 @@ function parsePath(pathname: string): Route {
   if (pathname === '/pricing') {
     return { view: 'pricing', shareId: null, legalPage: null }
   }
+  if (pathname === '/store') {
+    return { view: 'my-store', shareId: null, legalPage: null }
+  }
   return { view: 'store', shareId: null, legalPage: null }
 }
 
@@ -80,8 +80,9 @@ export default function App() {
     useState<CategorySelection>('all')
   const [customizeTheme, setCustomizeTheme] =
     useState<ExperienceMetadata | null>(null)
-  const [pendingCustomize, setPendingCustomize] =
+const [pendingCustomize, setPendingCustomize] =
     useState<ExperienceMetadata | null>(null)
+  const [cartOpen, setCartOpen] = useState(false)
   const [route, setRoute] = useState<Route>(() =>
     parsePath(typeof window !== 'undefined' ? window.location.pathname : '/'),
   )
@@ -94,8 +95,11 @@ export default function App() {
 
   // Read ?ref= once on load, before any checkout can happen. A returning buyer
   // who was sent a link earlier keeps that partner's code even on this visit.
+  // Prices are prefetched at the same time so the grid never renders a stale
+  // build-time price.
   useEffect(() => {
     captureReferralFromUrl()
+    void loadProductPrices()
   }, [])
 
   useEffect(() => {
@@ -186,73 +190,83 @@ export default function App() {
       return <Pricing onExit={goToStore} />
     }
 
-    return (
-      <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FEFAF4] bg-gradient-to-b from-[#FDF3EC] via-[#FEF9F4] to-[#FBE9EC]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-40 left-1/2 h-[540px] w-[860px] -translate-x-1/2 rounded-full bg-rose-100/35 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute top-[36%] -left-44 h-96 w-96 rounded-full bg-pink-100/40 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute top-[68%] -right-44 h-96 w-96 rounded-full bg-violet-100/30 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-rose-100/30 blur-3xl"
-        />
-
-        <Navbar onLaunchDemo={() => enterDemo('birthday-01')} onNavigate={navigate} />
-
-        <main className="relative z-[1]">
-          <HeroSection onLaunchDemo={() => enterDemo('birthday-01')} />
-          <ThemeGrid
-            activeCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
-            onLaunchDemo={(theme) => enterDemo(theme.id)}
-            onCustomize={handleCustomize}
-          />
-          <HowItWorks />
-        </main>
-
-        <Footer onSelectCategory={handleSelectCategory} onNavigate={navigate} />
-
-        <CustomizerModal
-          theme={customizeTheme}
-          onClose={() => setCustomizeTheme(null)}
-        />
-
-        <AnimatePresence>
-          {view === 'demo' && DemoExperience && (
-            <motion.div
-              key="demo-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
-              className="demo-scope fixed inset-0 z-[100] bg-[#FEFAF4]"
-              role="dialog"
-              aria-label={`${activeRegistration?.metadata.name ?? 'Surprise'} live demo preview`}
-            >
-              <BackgroundAnimation templateId={activeThemeId} />
-              <AudioPlayer templateId={activeThemeId} />
-              <DemoExperience onExit={exitDemo} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    )
+if (route.view === 'my-store') {
+    return <Store onExit={goToStore} onOpenCart={() => setCartOpen(true)} />
   }
 
-  // The auth dialog lives above the route so login/sign-up can be opened from
-  // any page — including /pricing, a share link or the legal pages.
   return (
-    <>
-      <AuthModal />
-      {renderView()}
-    </>
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FEFAF4] bg-gradient-to-b from-[#FDF3EC] via-[#FEF9F4] to-[#FBE9EC]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-40 left-1/2 h-[540px] w-[860px] -translate-x-1/2 rounded-full bg-rose-100/35 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[36%] -left-44 h-96 w-96 rounded-full bg-pink-100/40 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[68%] -right-44 h-96 w-96 rounded-full bg-violet-100/30 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-10 left-1/4 h-80 w-80 rounded-full bg-rose-100/30 blur-3xl"
+      />
+
+      <Navbar
+        onLaunchDemo={() => enterDemo('birthday-01')}
+        onNavigate={navigate}
+        onOpenCart={() => setCartOpen(true)}
+      />
+
+      <main className="relative z-[1]">
+        <HeroSection onLaunchDemo={() => enterDemo('birthday-01')} />
+        <ThemeGrid
+          activeCategory={activeCategory}
+          onCategoryChange={setActiveCategory}
+          onLaunchDemo={(theme) => enterDemo(theme.id)}
+          onCustomize={handleCustomize}
+        />
+        <HowItWorks />
+      </main>
+
+      <Footer onSelectCategory={handleSelectCategory} onNavigate={navigate} />
+
+      <CustomizerModal
+        theme={customizeTheme}
+        onClose={() => setCustomizeTheme(null)}
+      />
+
+      <CartModal open={cartOpen} onClose={() => setCartOpen(false)} />
+
+      <AnimatePresence>
+        {view === 'demo' && DemoExperience && (
+          <motion.div
+            key="demo-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="demo-scope fixed inset-0 z-[100] bg-[#FEFAF4]"
+            role="dialog"
+            aria-label={`${activeRegistration?.metadata.name ?? 'Surprise'} live demo preview`}
+          >
+            <BackgroundAnimation templateId={activeThemeId} />
+            <AudioPlayer templateId={activeThemeId} />
+            <DemoExperience onExit={exitDemo} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// The auth dialog lives above the route so login/sign-up can be opened from
+// any page — including /pricing, a share link or the legal pages.
+return (
+  <>
+    <AuthModal />
+    {renderView()}
+  </>
   )
 }

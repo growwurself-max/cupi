@@ -30,7 +30,7 @@ export function Act2Balloons({ config, onPop, onComplete }: Act2BalloonsProps) {
           50% { transform: translateY(-18px) scale(1); opacity: 1; }
         }
       `}</style>
-      <ScreenShell className="bg-[#FCF1ED] py-24">
+      <ScreenShell className="py-24">
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

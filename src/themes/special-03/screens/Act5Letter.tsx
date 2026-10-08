@@ -21,7 +21,7 @@ export function Act5Letter({ config, onOpen, onContinue }: Act5LetterProps) {
   }
 
   return (
-    <ScreenShell className="bg-[#FCF1ED] py-24">
+    <ScreenShell className="py-24">
       <AnimatePresence mode="wait">
         {phase !== 'open' ? (
           <motion.div

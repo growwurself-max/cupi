@@ -33,9 +33,9 @@ export function Screen4MeaningCards({ onContinue }: Screen4MeaningCardsProps) {
   }, [])
 
   return (
-    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-[#0a0f1a]">
+    <div className="relative flex h-full flex-col items-center justify-center px-6 bg-[#0a0f1a]/70">
       {/* Minimal dark background */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(10,15,26,0.6)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(10,15,26,0.42)_100%)]" />
 
       <div className="relative z-10 flex flex-col items-center justify-center px-6 text-center max-w-2xl">
         {/* Opening line */}
