@@ -1,5 +1,14 @@
-import { CheckCircle2, Home, LoaderCircle, RefreshCw, ShoppingCart } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import {
+  Check,
+  CheckCircle2,
+  Copy,
+  Home,
+  LoaderCircle,
+  RefreshCw,
+  Share2,
+  ShoppingCart,
+} from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchMyOrders, verifyOrder, type MyOrder } from '../lib/api'
 import { themeRegistry } from '../themes/registry'
 
@@ -37,6 +46,18 @@ function formatDate(iso: string): string {
   }
 }
 
+/**
+ * The already-generated website's permanent link: the STORED /x/:id share path
+ * this order already has, resolved against the origin the customer is browsing
+ * from (the same formula OrderSuccessModal uses after checkout). Nothing is
+ * created or regenerated here — the slug was minted once, at payment time.
+ * Returns null for a purchased order that has no link yet.
+ */
+function shareUrlOf(order: MyOrder): string | null {
+  if (!order.sharePath) return null
+  return `${typeof window !== 'undefined' ? window.location.origin : ''}${order.sharePath}`
+}
+
 export function Store({ onExit, onOpenCart }: StoreProps) {
   const [state, setState] = useState<LoadState>({ phase: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
@@ -46,6 +67,20 @@ export function Store({ onExit, onOpenCart }: StoreProps) {
     text: string
     ok: boolean
   } | null>(null)
+  // The order whose Share Link was copied last — its button shows the
+  // "Link copied!" confirmation for a moment.
+  const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null)
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const canNativeShare =
+    typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current)
+    },
+    [],
+  )
 
   useEffect(() => {
     let active = true
@@ -107,6 +142,54 @@ export function Store({ onExit, onOpenCart }: StoreProps) {
     },
     [],
   )
+
+  const markCopied = useCallback((orderId: string) => {
+    setCopiedOrderId(orderId)
+    if (copiedTimer.current) clearTimeout(copiedTimer.current)
+    copiedTimer.current = setTimeout(() => setCopiedOrderId(null), 2200)
+  }, [])
+
+  /** Copies this order's existing permanent link — and only that link. */
+  const copyShareLink = useCallback(
+    async (order: MyOrder) => {
+      const url = shareUrlOf(order)
+      if (!url) return
+      try {
+        await navigator.clipboard.writeText(url)
+        markCopied(order.orderId)
+      } catch {
+        // Clipboard access denied (insecure context / older browser): the same
+        // execCommand fallback OrderSuccessModal uses after checkout.
+        const textArea = document.createElement('textarea')
+        textArea.value = url
+        textArea.style.position = 'fixed'
+        textArea.style.opacity = '0'
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        textArea.remove()
+        markCopied(order.orderId)
+      }
+    },
+    [markCopied],
+  )
+
+  /** Native device share sheet, where the browser offers one. */
+  const shareNatively = useCallback(async (order: MyOrder) => {
+    const url = shareUrlOf(order)
+    if (!url) return
+    const meta = themeRegistry[order.templateId]?.metadata
+    try {
+      await navigator.share({
+        title: meta?.name ?? 'A Cupi surprise',
+        text: meta?.tagline ?? 'I made something special just for you.',
+        url,
+      })
+    } catch {
+      // Dismissing the share sheet is not an error; the Share Link button
+      // remains available and always copies.
+    }
+  }, [])
 
   return (
     <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#FEFAF4] bg-gradient-to-b from-[#FDF3EC] via-[#FEF9F4] to-[#FBE9EC]">
@@ -223,14 +306,48 @@ export function Store({ onExit, onOpenCart }: StoreProps) {
                       </p>
                     )}
                   </div>
-                  <div className="shrink-0">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
                     {order.status === 'PAID' && order.sharePath ? (
-                      <a
-                        href={order.sharePath}
-                        className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-5 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-[1.03] active:scale-95"
-                      >
-                        Open your surprise
-                      </a>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void copyShareLink(order)}
+                          aria-live="polite"
+                          className={`flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold transition-all duration-200 active:scale-95 ${
+                            copiedOrderId === order.orderId
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-rose-500 text-white hover:bg-rose-600'
+                          }`}
+                        >
+                          {copiedOrderId === order.orderId ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                          {copiedOrderId === order.orderId
+                            ? 'Link copied!'
+                            : 'Share Link'}
+                        </button>
+
+                        {canNativeShare && (
+                          <button
+                            type="button"
+                            onClick={() => void shareNatively(order)}
+                            aria-label={`Share ${meta?.name ?? 'this surprise'} with your device's share menu`}
+                            title="Share via device"
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-rose-200 bg-white text-stone-600 transition-all duration-200 hover:border-rose-300 hover:text-rose-600 active:scale-95"
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        <a
+                          href={order.sharePath}
+                          className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-5 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-[1.03] active:scale-95"
+                        >
+                          Open your surprise
+                        </a>
+                      </>
                     ) : (
                       <button
                         type="button"
