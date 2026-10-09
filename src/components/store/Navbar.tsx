@@ -1,4 +1,4 @@
-import { Heart, LogIn, LogOut, ShoppingBag, Sparkles } from 'lucide-react'
+import { ChevronRight, Heart, LogIn, LogOut, ShoppingBag, Sparkles, Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../lib/authContext.ts'
 import { useCartCount } from '../../lib/cart'
@@ -74,6 +74,14 @@ export function Navbar({ onLaunchDemo, onNavigate, onOpenCart }: NavbarProps) {
     await signOut()
   }
 
+  // The profile menu is the only navigation that survives on phones (the text
+  // nav above is desktop-only), so the customer's purchased templates live here.
+  const handleGoToStore = () => {
+    setMenuOpen(false)
+    if (onNavigate) onNavigate('/store')
+    else window.location.assign('/store')
+  }
+
   return (
     <header
       className={`fixed inset-x-0 top-0 z-40 bg-white/70 backdrop-blur-md transition-all duration-300 ${
@@ -122,7 +130,8 @@ export function Navbar({ onLaunchDemo, onNavigate, onOpenCart }: NavbarProps) {
                 onClick={() => setMenuOpen((open) => !open)}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
-                className="flex h-10 min-w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-pink-500 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-105 active:scale-95"
+                aria-label="Open account menu"
+                className="flex h-10 min-w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-pink-500 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 {customer.avatarUrl ? (
                   <img
@@ -138,13 +147,32 @@ export function Navbar({ onLaunchDemo, onNavigate, onOpenCart }: NavbarProps) {
               {menuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-rose-100 bg-white shadow-[0_18px_50px_rgba(30,15,20,0.18)]"
+                  className="fixed inset-x-3 top-[4.75rem] z-50 overflow-hidden rounded-2xl border border-rose-100 bg-white shadow-[0_18px_50px_rgba(30,15,20,0.18)] sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-64"
                 >
                   <div className="border-b border-rose-50 px-4 py-3">
                     <p className="truncate text-sm font-bold text-stone-900">{customer.name}</p>
                     <p className="truncate text-xs text-stone-500">{customer.email}</p>
                   </div>
                   <div className="p-1.5">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleGoToStore}
+                      className="group flex w-full items-center gap-3 rounded-xl bg-rose-50/70 px-3 py-2.5 text-left transition-colors hover:bg-rose-100 active:bg-rose-100"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-pink-500 text-white shadow-md shadow-rose-200">
+                        <Store className="h-4 w-4" strokeWidth={2.2} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-bold text-stone-900">Store</span>
+                        <span className="block text-[11px] font-medium text-stone-500">
+                          My purchased templates
+                        </span>
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-rose-300 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                  <div className="border-t border-rose-50 p-1.5">
                     <button
                       type="button"
                       role="menuitem"
@@ -186,10 +214,11 @@ export function Navbar({ onLaunchDemo, onNavigate, onOpenCart }: NavbarProps) {
           <button
             type="button"
             onClick={onLaunchDemo}
-            className="flex min-h-12 items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-5 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-[1.04] active:scale-95"
+            className="flex min-h-12 items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-4 text-sm font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-[1.04] active:scale-95 sm:px-5"
           >
             <Sparkles className="h-4 w-4" />
-            <span className="hidden sm:inline">Try </span>Birthday Demo
+            <span className="hidden sm:inline">Try Birthday Demo</span>
+            <span className="sm:hidden">Demo</span>
           </button>
         </div>
       </div>
