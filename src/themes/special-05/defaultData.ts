@@ -1,11 +1,19 @@
 import type { ExperienceConfig } from '../../types/experience'
 
+/**
+ * Default content for Special #05 — the premium "Birthday Theatre" experience.
+ *
+ * Every customization field key is preserved (teaser*, suspense*, countdown*,
+ * reveal*, letter*, wishPrompt, final*, photos, memoryDate, memoryTag) so the
+ * customizer and share-link hydration keep working unchanged. Only the copy and
+ * branding were re-tuned for the hand-crafted theatre theme.
+ */
 export const defaultStarryNightConfig: ExperienceConfig = {
   recipient: {
-    name: 'Luna',
+    name: 'Someone Special',
   },
   sender: {
-    name: 'Orion',
+    name: 'Someone Who Loves You',
   },
   audio: {
     enabled: true,
@@ -14,30 +22,32 @@ export const defaultStarryNightConfig: ExperienceConfig = {
     candleBlowPitch: 180,
   },
   content: {
-    teaserHeading: 'under the stars',
+    teaserHeading: 'preparing something personal',
     teaserSubtext:
-      'Tonight the sky wrote your name in constellations. Tap the stars to reveal the message written just for you.',
-    suspenseHeading: '',
-    suspenseSubtext: '',
-    countdownTagline: '',
-    revealHeading: 'look up',
-    revealSubtext: 'the universe has something to say',
-    letterIntro: 'Written in the stars',
+      'Someone has created something beautiful especially for you.',
+    suspenseHeading: 'The stage is waiting for you',
+    suspenseSubtext: 'Tap each little light and watch the theatre wake up.',
+    countdownTagline: 'Happy Birthday',
+    revealHeading: 'Look what floated in for you',
+    revealSubtext: 'A few of these balloons are hiding a secret.',
+    letterIntro: 'A note tucked inside the programme',
     letterLines: [
-      'Every star in the sky seems to whisper your name tonight.',
-      'In this vast universe, finding you was my greatest discovery.',
-      'You are my moon, my sun, and every star in between.',
+      'Every year with you feels like a celebration worth dressing up for.',
+      'You turn ordinary days into a stage lit just for the two of us.',
+      'So tonight the whole theatre is yours. Curtain up — because of you.',
     ],
-    letterSignoff: 'Forever yours,',
-    wishPrompt: 'make a wish upon a star',
-    finalMessage: 'You are my universe',
-    finalCelebration: 'written in the stars forever',
+    letterSignoff: 'With all my love,',
+    wishPrompt: 'Press and hold to make your wish',
+    finalMessage: 'You are the whole show',
+    finalCelebration: 'Happy Birthday — here is to your encore',
     photos: [],
+    memoryDate: '',
+    memoryTag: '',
   },
   branding: {
-    accentColor: '#6366f1',
-    accentSecondary: '#a855f7',
-    emojiPrimary: '✨',
-    themeLabel: 'Special · Starry Night',
+    accentColor: '#c2688c',
+    accentSecondary: '#d8b26a',
+    emojiPrimary: '🎀',
+    themeLabel: 'Special · Birthday Theatre',
   },
 }
