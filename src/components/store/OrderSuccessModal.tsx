@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
-import { Check, Copy, ExternalLink, MessageCircle, PartyPopper, X } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, MessageCircle, PartyPopper, X } from 'lucide-react'
+import QRCode from 'qrcode'
 import { useCallback, useEffect, useState } from 'react'
 import { fireGrandBurst, fireHeartRain } from '../../utils/confetti'
 
@@ -19,12 +20,37 @@ export function OrderSuccessModal({
   }/x/${experienceId}`
 
   const [copied, setCopied] = useState(false)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [qrLoading, setQrLoading] = useState(true)
 
   useEffect(() => {
     fireGrandBurst()
     const timer = setTimeout(() => fireHeartRain(), 600)
     return () => clearTimeout(timer)
   }, [])
+
+  useEffect(() => {
+    const generateQR = async () => {
+      setQrLoading(true)
+      try {
+        const qrDataUrl = await QRCode.toDataURL(absoluteUrl, {
+          width: 256,
+          margin: 2,
+          color: {
+            dark: '#1e1b4b',
+            light: '#ffffff',
+          },
+        })
+        setQrCodeUrl(qrDataUrl)
+      } catch (error) {
+        console.error('Failed to generate QR code:', error)
+      } finally {
+        setQrLoading(false)
+      }
+    }
+
+    generateQR()
+  }, [absoluteUrl])
 
   const copyLink = useCallback(async () => {
     try {
@@ -50,6 +76,17 @@ export function OrderSuccessModal({
     )
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank', 'noopener')
   }, [absoluteUrl])
+
+  const downloadQRCode = useCallback(() => {
+    if (!qrCodeUrl) return
+
+    const link = document.createElement('a')
+    link.href = qrCodeUrl
+    link.download = `cupi-surprise-${experienceId}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }, [qrCodeUrl, experienceId])
 
   return (
     <motion.div
@@ -130,6 +167,43 @@ export function OrderSuccessModal({
           </div>
           <p className="mt-2 text-left text-[11px] text-stone-400">
             Copy this link into any chat, bio, or card — forever.
+          </p>
+        </div>
+
+        {/* QR Code */}
+        <div className="mt-4 rounded-2xl border border-rose-100 bg-white p-4">
+          <p className="text-left text-[11px] font-bold tracking-[0.16em] text-rose-500 uppercase">
+            Scan to open
+          </p>
+          <div className="mt-3 flex items-center justify-center">
+            {qrLoading ? (
+              <div className="flex h-48 w-48 items-center justify-center rounded-xl bg-stone-50">
+                <div className="text-sm text-stone-400">Generating QR...</div>
+              </div>
+            ) : qrCodeUrl ? (
+              <div className="relative">
+                <img
+                  src={qrCodeUrl}
+                  alt="QR Code for shareable link"
+                  className="h-48 w-48 rounded-xl border border-stone-200"
+                />
+                <button
+                  type="button"
+                  onClick={downloadQRCode}
+                  className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-105 active:scale-95"
+                >
+                  <Download className="h-3 w-3" />
+                  Download QR
+                </button>
+              </div>
+            ) : (
+              <div className="flex h-48 w-48 items-center justify-center rounded-xl bg-stone-50">
+                <div className="text-sm text-stone-400">QR unavailable</div>
+              </div>
+            )}
+          </div>
+          <p className="mt-6 text-center text-[11px] text-stone-400">
+            Scan this code on any phone to open your surprise.
           </p>
         </div>
 

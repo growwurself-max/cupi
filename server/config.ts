@@ -33,6 +33,7 @@ export const ALLOWED_TEMPLATES = [
   'special-02',
   'special-03',
   'special-04',
+  'special-05',
   'parent-01',
   'parent-02',
 ]
@@ -62,6 +63,7 @@ export const PHOTO_LIMITS: Record<string, number> = {
   'special-02': 3,
   'special-03': 3,
   'special-04': 0,
+  'special-05': 0,
   'parent-01': 6,
   'parent-02': 6,
 }

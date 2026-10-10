@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Heart, Home, RefreshCw, ShoppingCart } from 'lucide-react'
+import QRCode from 'qrcode'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { OrderSuccessModal } from '../components/store/OrderSuccessModal'
 import { checkoutFirstInCart, useCartItems } from '../lib/cart'
@@ -10,6 +11,79 @@ const POLL_DELAY_MS = 3000
 
 interface PaymentResultProps {
   onExit: () => void
+}
+
+function PaymentResultQRCode({ shareUrl }: { shareUrl: string }) {
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [qrLoading, setQrLoading] = useState(true)
+
+  useEffect(() => {
+    const generateQR = async () => {
+      setQrLoading(true)
+      try {
+        const qrDataUrl = await QRCode.toDataURL(shareUrl, {
+          width: 200,
+          margin: 2,
+          color: {
+            dark: '#1e1b4b',
+            light: '#ffffff',
+          },
+        })
+        setQrCodeUrl(qrDataUrl)
+      } catch (error) {
+        console.error('Failed to generate QR code:', error)
+      } finally {
+        setQrLoading(false)
+      }
+    }
+
+    generateQR()
+  }, [shareUrl])
+
+  const downloadQRCode = () => {
+    if (!qrCodeUrl) return
+
+    const link = document.createElement('a')
+    link.href = qrCodeUrl
+    link.download = 'cupi-surprise-qr.png'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-rose-100 bg-white p-4">
+      <div className="flex items-center justify-center">
+        {qrLoading ? (
+          <div className="flex h-40 w-40 items-center justify-center rounded-xl bg-stone-50">
+            <div className="text-sm text-stone-400">Generating QR...</div>
+          </div>
+        ) : qrCodeUrl ? (
+          <div className="relative">
+            <img
+              src={qrCodeUrl}
+              alt="QR Code for shareable link"
+              className="h-40 w-40 rounded-xl border border-stone-200"
+            />
+            <button
+              type="button"
+              onClick={downloadQRCode}
+              className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-rose-200 transition-all duration-200 hover:scale-105 active:scale-95"
+            >
+              Download
+            </button>
+          </div>
+        ) : (
+          <div className="flex h-40 w-40 items-center justify-center rounded-xl bg-stone-50">
+            <div className="text-sm text-stone-400">QR unavailable</div>
+          </div>
+        )}
+      </div>
+      <p className="mt-5 text-center text-[11px] text-stone-400">
+        Scan to open your surprise
+      </p>
+    </div>
+  )
 }
 
 type PaymentState =
@@ -127,6 +201,7 @@ export function PaymentResult({ onExit }: PaymentResultProps) {
 
   if (state.phase === 'success') {
     const remaining = cartItems.length
+    const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}${state.sharePath}`
     return (
       <>
         <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-[#FFFDFB] bg-gradient-to-b from-[#FFF7F3] via-[#FEFCFB] to-[#FBEDF0] px-5">
@@ -141,6 +216,7 @@ export function PaymentResult({ onExit }: PaymentResultProps) {
             <h1 className="font-display text-2xl font-bold text-stone-900">
               Payment Verified
             </h1>
+            <PaymentResultQRCode shareUrl={shareUrl} />
             <button
               type="button"
               onClick={() => openSharePath(state.sharePath)}

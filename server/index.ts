@@ -83,7 +83,7 @@ const app = express()
  * Resolves the default checkout amount in rupees (INR) for an experience template.
  * Convention: `-03` tiers cost ₹147, `-04` cost ₹207, `-02` tiers cost ₹27,
  * and `-01` tiers cost ₹87. Special templates carry their own pricing:
- * special-01 ₹27, special-02 ₹147, special-03 ₹207, special-04 ₹6.
+ * special-01 ₹27, special-02 ₹147, special-03 ₹207, special-04 ₹6, special-05 ₹147.
  *
  * IMPORTANT: the trailing `return 87.0` is a catch-all for every remaining
  * `-01` id, so any new template MUST get its own branch above it or it will
@@ -97,6 +97,7 @@ function getDefaultPriceInRupees(templateId: string): number {
   if (templateId === 'birthday-03') return 147.0
   if (templateId === 'special-03') return 207.0
   if (templateId === 'special-02') return 147.0
+  if (templateId === 'special-05') return 147.0
   if (templateId === 'special-04') return 6.0
   if (templateId === 'special-01') return 27.0
   // Parents Birthday templates
