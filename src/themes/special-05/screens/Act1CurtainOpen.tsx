@@ -19,6 +19,8 @@ export function Act1CurtainOpen({ config, reduce }: Act1CurtainOpenProps) {
 
   return (
     <StageScene
+      motionPreset="circle-reveal"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, clipPath: 'circle(0% at 50% 50%)' }}
       animate={reduce ? { opacity: 1 } : { opacity: 1, clipPath: 'circle(75% at 50% 50%)' }}
       exit={{ opacity: 0 }}
@@ -39,10 +41,26 @@ export function Act1CurtainOpen({ config, reduce }: Act1CurtainOpenProps) {
         initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: reduce ? 0 : 0.5, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="font-script mt-2 text-5xl leading-[1.05] sm:text-7xl"
+        className="font-script mt-2 max-w-full break-words px-2 text-[clamp(2.5rem,12vw,4.5rem)] leading-[1.05] sm:text-7xl"
         style={{ color: PALETTE.berry }}
       >
-        {name}
+        <span className="relative inline-block">
+          {name}
+          <motion.span
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              color: 'transparent',
+              backgroundImage: `linear-gradient(100deg, transparent 12%, ${PALETTE.goldLight} 48%, transparent 84%)`,
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+            }}
+            animate={reduce ? undefined : { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)', 'inset(0 0 0 100%)'] }}
+            transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 2.2, ease: 'easeInOut', delay: 1 }}
+          >
+            {name}
+          </motion.span>
+        </span>
       </motion.h1>
 
       <motion.p

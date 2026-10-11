@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, SceneTitle, StageScene } from '../components/Stage'
-import { Balloon, Heart } from '../components/Decor'
+import { Balloon, Heart, Sparkle } from '../components/Decor'
 
 interface Act2BalloonsProps {
   config: ExperienceConfig
@@ -48,6 +48,8 @@ export function Act2Balloons({ config, reduce, onPop, onContinue }: Act2Balloons
 
   return (
     <StageScene
+      motionPreset="zoom-through"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.12 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.94 }}
@@ -76,14 +78,14 @@ export function Act2Balloons({ config, reduce, onPop, onContinue }: Act2Balloons
                   animate={
                     reduce
                       ? { opacity: 1, y: 0 }
-                      : { opacity: 1, y: [0, -10, 0], rotate: [-3, 3, -3] }
+                      : { opacity: 1, x: [0, b.id % 2 ? 11 : -9, 3, 0], y: [0, -13, -4, 0], rotate: [-3, 3, -1, -3] }
                   }
                   exit={{ opacity: 0, scale: 1.5 }}
                   transition={
                     reduce
                       ? { duration: 0.3 }
                       : {
-                          opacity: { duration: 0.4 },
+                          opacity: { duration: 0.4, delay: b.id * 0.08 },
                           y: { duration: 4 + b.id * 0.4, repeat: Infinity, ease: 'easeInOut' },
                           rotate: { duration: 5 + b.id * 0.3, repeat: Infinity, ease: 'easeInOut' },
                         }
@@ -102,6 +104,22 @@ export function Act2Balloons({ config, reduce, onPop, onContinue }: Act2Balloons
                   className="pointer-events-none flex flex-col items-center"
                 >
                   <Heart size={22} color={PALETTE.roseDeep} />
+                  {[0, 1, 2, 3].map((spark) => (
+                    <motion.span
+                      key={spark}
+                      className="pointer-events-none absolute"
+                      initial={{ opacity: 0.9, x: 0, y: 0, scale: 0.4 }}
+                      animate={{
+                        opacity: 0,
+                        x: (spark - 1.5) * 19,
+                        y: -18 - (spark % 2) * 15,
+                        scale: 1,
+                      }}
+                      transition={{ duration: 0.55, ease: 'easeOut' }}
+                    >
+                      <Sparkle size={9} />
+                    </motion.span>
+                  ))}
                   {b.secret && (
                     <span
                       className="mt-1 w-28 text-center text-[11px] font-semibold leading-tight"

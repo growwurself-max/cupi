@@ -19,6 +19,8 @@ export function Act7Letter({ config, reduce, onContinue }: Act7LetterProps) {
 
   return (
     <StageScene
+      motionPreset="page-fold"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}

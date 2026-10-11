@@ -41,6 +41,15 @@ export function CurtainStage({
       aria-hidden={!interactive}
       className={`fixed inset-0 z-40 overflow-hidden ${interactive ? '' : 'pointer-events-none'}`}
     >
+      <motion.div
+        aria-hidden
+        className="absolute left-1/2 top-0 h-full w-[34vw] -translate-x-1/2"
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(255,244,220,0.86), rgba(255,222,184,0.3) 42%, transparent 76%)',
+        }}
+        animate={{ opacity: open ? 0.9 : 0, scale: open ? 1.15 : 0.65 }}
+        transition={{ duration: reduce ? 0 : 1.1, delay: open && !reduce ? 0.42 : 0, ease: 'easeOut' }}
+      />
       <CurtainPanel side="left" open={open} reduce={reduce} />
       <CurtainPanel side="right" open={open} reduce={reduce} />
 
@@ -58,11 +67,16 @@ export function CurtainStage({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="pointer-events-auto absolute bottom-[7vh] left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-3 rounded-full px-6 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#c2688c]"
+          className="pointer-events-auto absolute left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-3 rounded-full px-6 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#c2688c]"
+          style={{ bottom: 'calc(7dvh + env(safe-area-inset-bottom))' }}
           aria-label="Open the curtains"
         >
           <span className="relative flex h-14 w-14 items-center justify-center">
-            <span className="absolute inset-0 animate-ping rounded-full bg-white/60 [animation-duration:2.4s]" />
+            <motion.span
+              className="absolute inset-0 rounded-full bg-white/60"
+              animate={reduce ? undefined : { opacity: [0.5, 0, 0.5], scale: [0.85, 1.35, 0.85] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            />
             <span
               className="relative flex h-14 w-14 items-center justify-center rounded-full"
               style={{ background: GOLD_TRIM, boxShadow: '0 10px 26px -8px rgba(120,60,80,0.55)' }}
@@ -107,8 +121,21 @@ function CurtainPanel({ side, open, reduce }: CurtainPanelProps) {
         willChange: 'transform',
       }}
       initial={false}
-      animate={open ? { x: isLeft ? '-15%' : '14%', scaleX: 0.52 } : { x: 0, scaleX: 1 }}
-      transition={{ duration: reduce ? 0.3 : 1.5, ease: [0.22, 1, 0.36, 1] }}
+      animate={
+        open
+          ? {
+              x: isLeft ? ['0%', '1.5%', '-17%', '-15%'] : ['0%', '-1.5%', '16%', '14%'],
+              scaleX: [1, 1.025, 0.5, 0.52],
+            }
+          : { x: 0, scaleX: 1 }
+      }
+      transition={
+        reduce
+          ? { duration: 0 }
+          : open
+            ? { duration: 1.65, times: [0, 0.12, 0.82, 1], ease: [0.35, 0, 0.2, 1] }
+            : { duration: 0.62, ease: [0.55, 0, 0.7, 0.2] }
+      }
     >
       <motion.div
         className="absolute inset-0"
@@ -118,9 +145,10 @@ function CurtainPanel({ side, open, reduce }: CurtainPanelProps) {
             : {
                 skewX: isLeft ? [0, 0.6, 0] : [0, -0.6, 0],
                 rotate: isLeft ? [0, 0.25, 0] : [0, -0.25, 0],
+                scaleX: [1, 0.992, 1],
               }
         }
-        transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
         style={{ transformOrigin: isLeft ? 'right center' : 'left center' }}
       >
         <div className="absolute inset-0" style={{ background: isLeft ? LEFT_SATIN : RIGHT_SATIN }} />
@@ -173,7 +201,15 @@ function TieBack({ side, open, reduce }: { side: 'left' | 'right'; open: boolean
         />
         <div className="absolute left-1/2 top-6 h-5 w-px -translate-x-1/2" style={{ background: PALETTE.goldDeep }} />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
-          <svg width="30" height="34" viewBox="0 0 30 34" aria-hidden>
+          <motion.svg
+            width="30"
+            height="34"
+            viewBox="0 0 30 34"
+            aria-hidden
+            animate={reduce || !open ? undefined : { rotate: [-3, 4, -2, 0] }}
+            transition={{ duration: 1.6, ease: 'easeOut', delay: 0.5 }}
+            style={{ transformOrigin: 'top center' }}
+          >
             <path d="M15 0 L15 6" stroke={PALETTE.goldDeep} strokeWidth="1.4" />
             <ellipse cx="15" cy="9" rx="5" ry="4" fill={PALETTE.gold} />
             {Array.from({ length: 5 }).map((_, i) => (
@@ -186,7 +222,7 @@ function TieBack({ side, open, reduce }: { side: 'left' | 'right'; open: boolean
                 fill="none"
               />
             ))}
-          </svg>
+          </motion.svg>
         </div>
       </div>
     </motion.div>

@@ -97,6 +97,8 @@ export function Act6Scratch({ config, reduce, onScratch, onContinue }: Act6Scrat
 
   return (
     <StageScene
+      motionPreset="wipe"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.06 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 1.06 }}

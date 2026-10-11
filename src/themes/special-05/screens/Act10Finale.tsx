@@ -34,6 +34,8 @@ export function Act10Finale({ config, reduce, onCelebrate, onReplay, onExit }: A
 
   return (
     <StageScene
+      motionPreset="spiral"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.08 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
@@ -48,7 +50,7 @@ export function Act10Finale({ config, reduce, onCelebrate, onReplay, onExit }: A
               className="absolute top-[-40px]"
               style={{ left: `${p.left}%` }}
               initial={{ opacity: 0, y: -30 }}
-              animate={{ y: ['0vh', '108vh'], rotate: [0, 180], opacity: [0, 0.9, 0] }}
+              animate={{ x: [0, i % 2 ? 22 : -18, 8, 0], y: ['0vh', '28vh', '72vh', '108vh'], rotate: [0, 110, 245, 360], opacity: [0, 0.9, 0.7, 0] }}
               transition={{ duration: 8 + (i % 3) * 1.6, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
             >
               {i % 2 === 0 ? (

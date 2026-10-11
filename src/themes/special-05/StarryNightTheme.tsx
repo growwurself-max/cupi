@@ -8,6 +8,7 @@ import { ThemeToolbar } from '../shared/ThemeToolbar'
 import { defaultStarryNightConfig } from './defaultData'
 import { CloudLayer } from './components/CloudLayer'
 import { CurtainStage } from './components/CurtainStage'
+import { SparkleTrail } from './components/SparkleTrail'
 import { Act1CurtainOpen } from './screens/Act1CurtainOpen'
 import { Act2Balloons } from './screens/Act2Balloons'
 import { Act3Lights } from './screens/Act3Lights'
@@ -44,6 +45,7 @@ export function StarryNightTheme({
   const [pageHidden, setPageHidden] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const advanceTimer = useRef<number | null>(null)
+  const curtainAutoTimer = useRef<number | null>(null)
   const startedRef = useRef(false)
   const prefersReducedMotion = useReducedMotion()
   const reduce = !!prefersReducedMotion
@@ -73,7 +75,19 @@ export function StarryNightTheme({
     }
   }, [])
 
-  const goNext = useCallback(() => setStep((prev) => Math.min(prev + 1, TOTAL_STEPS)), [])
+  const goNext = useCallback(() => {
+    const target = Math.min(step + 1, TOTAL_STEPS)
+    clearAdvance()
+    if (!reduce && [4, 7, TOTAL_STEPS].includes(target)) {
+      setCurtainsOpen(false)
+      advanceTimer.current = window.setTimeout(() => {
+        advanceTimer.current = null
+        setStep(target)
+      }, 650)
+      return
+    }
+    setStep(target)
+  }, [clearAdvance, reduce, step])
   const goBack = useCallback(() => setStep((prev) => Math.max(prev - 1, 1)), [])
   const jumpToStep = useCallback((target: number) => {
     clearAdvance()
@@ -94,11 +108,10 @@ export function StarryNightTheme({
   }, [clearAdvance, onExit, sound])
 
   const handleOpenCurtains = useCallback(() => {
-    if (curtainsOpen) return
+    if (curtainsOpen || reduce) return
     setCurtainsOpen(true)
     playIfOn(sound.playRevealChime)
-    const delay = reduce ? 400 : 1500
-    advanceTimer.current = window.setTimeout(() => goNext(), delay)
+    advanceTimer.current = window.setTimeout(() => goNext(), 1500)
   }, [curtainsOpen, goNext, playIfOn, reduce, sound.playRevealChime])
 
   // Curtain choreography: closed on scene 1, open on scenes 2–9, and a
@@ -110,12 +123,34 @@ export function StarryNightTheme({
       return
     }
     if (step === TOTAL_STEPS) {
+      if (reduce) {
+        setCurtainsOpen(true)
+        return
+      }
       setCurtainsOpen(false)
       const t = window.setTimeout(() => setCurtainsOpen(true), reduce ? 250 : 750)
       return () => window.clearTimeout(t)
     }
     setCurtainsOpen(true)
   }, [step, reduce, clearAdvance])
+
+  useEffect(() => {
+    if (step !== 1) return
+    if (reduce) {
+      setCurtainsOpen(true)
+      advanceTimer.current = window.setTimeout(() => goNext(), 5000)
+      return () => clearAdvance()
+    }
+    if (!curtainsOpen) {
+      curtainAutoTimer.current = window.setTimeout(() => handleOpenCurtains(), 4200)
+    }
+    return () => {
+      if (curtainAutoTimer.current !== null) {
+        window.clearTimeout(curtainAutoTimer.current)
+        curtainAutoTimer.current = null
+      }
+    }
+  }, [clearAdvance, curtainsOpen, goNext, handleOpenCurtains, reduce, step])
 
   // Keep the very first render silent: sound is off until the guest unmutes.
   useEffect(() => {
@@ -195,12 +230,13 @@ export function StarryNightTheme({
       <CurtainStage
         open={curtainsOpen}
         reduce={reduce}
-        interactive={step === 1}
+        interactive={step === 1 && !reduce}
         onOpen={handleOpenCurtains}
       />
+      <SparkleTrail reduce={reduce || pageHidden} />
 
       <AnimatePresence mode="wait">
-        {step === 1 && (
+        {step === 1 && curtainsOpen && (
           <Act1CurtainOpen key="scene-1" config={resolvedConfig} reduce={reduce} />
         )}
 

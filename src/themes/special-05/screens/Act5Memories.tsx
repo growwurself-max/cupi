@@ -46,6 +46,8 @@ export function Act5Memories({ config, reduce, onContinue }: Act5MemoriesProps) 
 
   return (
     <StageScene
+      motionPreset="push-left"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 1.04 }}

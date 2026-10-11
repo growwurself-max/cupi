@@ -59,6 +59,8 @@ export function Act8Wish({ config, reduce, onBlow, onContinue }: Act8WishProps) 
 
   return (
     <StageScene
+      motionPreset="split"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 1.04 }}
@@ -79,6 +81,7 @@ export function Act8Wish({ config, reduce, onBlow, onContinue }: Act8WishProps) 
           type="button"
           onPointerDown={startHold}
           onPointerUp={releaseHold}
+          onPointerCancel={releaseHold}
           onPointerLeave={releaseHold}
           className="relative mt-6 flex h-16 w-16 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#c2688c]"
           aria-label="Press and hold to blow out the candles"

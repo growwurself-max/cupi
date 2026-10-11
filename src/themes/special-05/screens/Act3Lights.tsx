@@ -39,6 +39,8 @@ export function Act3Lights({ config, reduce, onLight, onContinue }: Act3LightsPr
 
   return (
     <StageScene
+      motionPreset="float-up"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
@@ -63,6 +65,9 @@ export function Act3Lights({ config, reduce, onLight, onContinue }: Act3LightsPr
               <motion.button
                 type="button"
                 onClick={() => toggle(lamp.id)}
+                initial={reduce ? { opacity: 1 } : { opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: reduce ? 0 : lamp.id * 0.1, ease: 'easeOut' }}
                 aria-label={isLit ? 'This lantern is glowing' : 'Light this lantern'}
                 aria-pressed={isLit}
                 className="relative -mt-1 flex h-12 w-12 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#c2688c]"

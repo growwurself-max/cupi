@@ -14,6 +14,8 @@ interface Act4BuntingProps {
 export function Act4Bunting({ config, reduce, onCheer, onContinue }: Act4BuntingProps) {
   return (
     <StageScene
+      motionPreset="unfold"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, rotateX: 10, y: 30 }}
       animate={{ opacity: 1, rotateX: 0, y: 0 }}
       exit={{ opacity: 0, rotateX: -8, y: -24 }}

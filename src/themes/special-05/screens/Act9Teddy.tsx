@@ -1,5 +1,5 @@
 import { motion, useAnimationControls } from 'framer-motion'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, SceneTitle, StageScene } from '../components/Stage'
@@ -24,6 +24,15 @@ export function Act9Teddy({ config, reduce, onPush, onContinue }: Act9TeddyProps
   const [pushed, setPushed] = useState(0)
   const [floaters, setFloaters] = useState<Floater[]>([])
   const seqRef = useRef(0)
+  const floaterTimers = useRef(new Set<number>())
+
+  useEffect(
+    () => () => {
+      floaterTimers.current.forEach((timer) => window.clearTimeout(timer))
+      floaterTimers.current.clear()
+    },
+    [],
+  )
 
   const pushBear = (side: 'left' | 'right') => {
     onPush()
@@ -40,13 +49,17 @@ export function Act9Teddy({ config, reduce, onPush, onContinue }: Act9TeddyProps
     const id = seqRef.current
     const left = (side === 'left' ? 24 : 66) + ((pushed % 3) - 1) * 4
     setFloaters((prev) => [...prev.slice(-6), { id, left, size: 14 + (pushed % 3) * 4 }])
-    window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setFloaters((prev) => prev.filter((f) => f.id !== id))
+      floaterTimers.current.delete(timer)
     }, 1700)
+    floaterTimers.current.add(timer)
   }
 
   return (
     <StageScene
+      motionPreset="flip"
+      reduceMotion={reduce}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 26 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -22 }}
@@ -81,7 +94,7 @@ export function Act9Teddy({ config, reduce, onPush, onContinue }: Act9TeddyProps
             className="pointer-events-none absolute bottom-10"
             style={{ left: `${f.left}%` }}
             initial={{ opacity: 0, y: 0, scale: 0.7 }}
-            animate={{ opacity: [0, 1, 1, 0], y: -96 }}
+            animate={{ opacity: [0, 1, 1, 0], x: [0, 11, -5, 0], y: [0, -34, -72, -96] }}
             transition={{ duration: 1.6, ease: 'easeOut' }}
           >
             <Heart size={f.size} color={PALETTE.roseDeep} />
