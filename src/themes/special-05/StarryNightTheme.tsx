@@ -42,6 +42,7 @@ export function StarryNightTheme({
 }: StarryNightThemeProps) {
   const [step, setStep] = useState(1)
   const [curtainsOpen, setCurtainsOpen] = useState(false)
+  const [introRevealed, setIntroRevealed] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [pageHidden, setPageHidden] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -93,6 +94,7 @@ export function StarryNightTheme({
     setStep(target)
   }, [clearAdvance, reduce, step])
   const handleCurtainComplete = useCallback((open: boolean) => {
+    if (open && step === 1) setIntroRevealed(true)
     if (!open && pendingStepRef.current !== null) {
       const nextStep = pendingStepRef.current
       pendingStepRef.current = null
@@ -104,17 +106,14 @@ export function StarryNightTheme({
       transitionLockRef.current = false
       setIsTransitioning(false)
     }
-    if (open && step === 1 && !reduce) {
-      clearAdvance()
-      advanceTimer.current = window.setTimeout(() => requestStep(2), 2200)
-    }
-  }, [clearAdvance, reduce, requestStep, step])
+  }, [step])
 
   const replay = useCallback(() => {
     clearAdvance()
     transitionLockRef.current = false
     setIsTransitioning(false)
     pendingStepRef.current = null
+    setIntroRevealed(false)
     setCurtainsOpen(false)
     sound.resume()
     setStep(1)
@@ -133,12 +132,12 @@ export function StarryNightTheme({
   }, [curtainsOpen, playIfOn, sound.playRevealChime])
 
   const goNext = useCallback(() => {
-    if (step === 1 && !curtainsOpen) {
-      handleOpenCurtains()
+    if (step === 1 && !introRevealed) {
+      if (!curtainsOpen) handleOpenCurtains()
       return
     }
     requestStep(step + 1)
-  }, [curtainsOpen, handleOpenCurtains, requestStep, step])
+  }, [curtainsOpen, handleOpenCurtains, introRevealed, requestStep, step])
   const goBack = useCallback(() => requestStep(step - 1), [requestStep, step])
   const jumpToStep = useCallback((target: number) => requestStep(target), [requestStep])
 
@@ -296,7 +295,7 @@ export function StarryNightTheme({
       <SparkleTrail reduce={reduce || pageHidden} />
 
       <AnimatePresence mode="sync">
-        {step === 1 && (
+        {step === 1 && (introRevealed || reduce) && (
           <Act1CurtainOpen key="scene-1" config={resolvedConfig} reduce={reduce} />
         )}
 
