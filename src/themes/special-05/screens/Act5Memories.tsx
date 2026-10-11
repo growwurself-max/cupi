@@ -1,9 +1,10 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, LazyMotion, m as motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import type { ExperienceConfig, PhotoItem } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, SceneTitle, StageScene } from '../components/Stage'
 import { Heart, Sparkle } from '../components/Decor'
+import { AnimatedText } from '../components/AnimatedText'
 
 interface Act5MemoriesProps {
   config: ExperienceConfig
@@ -18,6 +19,8 @@ interface Slide {
   rotate: number
   art: number
 }
+
+const loadDragFeatures = () => import('framer-motion').then((module) => module.domMax)
 
 export function Act5Memories({ config, reduce, onContinue }: Act5MemoriesProps) {
   const slides = useMemo<Slide[]>(() => {
@@ -54,7 +57,7 @@ export function Act5Memories({ config, reduce, onContinue }: Act5MemoriesProps) 
       transition={{ duration: reduce ? 0.35 : 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
       <Eyebrow>the picture wall</Eyebrow>
-      <SceneTitle className="mt-4">Little moments, kept safe</SceneTitle>
+      <SceneTitle className="mt-4" effect="wave" reduce={reduce}>Little moments, kept safe</SceneTitle>
 
       <div className="relative mt-8 flex h-[52vh] max-h-[400px] min-h-[320px] w-full max-w-sm items-center justify-center">
         {/* behind cards for depth */}
@@ -77,10 +80,11 @@ export function Act5Memories({ config, reduce, onContinue }: Act5MemoriesProps) 
           )
         })}
 
-        <AnimatePresence mode="popLayout">
-          {slides.map((slide, i) => {
-            if (i !== index) return null
-            return (
+        <LazyMotion features={loadDragFeatures}>
+          <AnimatePresence mode="popLayout">
+            {slides.map((slide, i) => {
+              if (i !== index) return null
+              return (
               <motion.div
                 key={i}
                 drag={reduce ? false : 'x'}
@@ -107,25 +111,28 @@ export function Act5Memories({ config, reduce, onContinue }: Act5MemoriesProps) 
                   )}
                 </div>
                 <p className="font-script absolute bottom-3 left-0 right-0 text-center text-xl" style={{ color: PALETTE.berry }}>
-                  {slide.caption || 'a favourite memory'}
+                  <AnimatedText text={slide.caption || 'a favourite memory'} effect="shimmer" reduce={reduce} highlightText={config.recipient.name} />
                 </p>
               </motion.div>
-            )
-          })}
-        </AnimatePresence>
+              )
+            })}
+          </AnimatePresence>
+        </LazyMotion>
       </div>
 
       <div className="mt-8 flex items-center gap-4">
-        <button
+        <motion.button
           type="button"
           onClick={() => go(-1)}
           disabled={index === 0}
           aria-label="Previous memory"
           className="flex h-11 w-11 items-center justify-center rounded-full border bg-white/70 disabled:opacity-40"
+          whileTap={{ scale: 0.88 }}
+          whileHover={{ scale: 1.06 }}
           style={{ borderColor: 'rgba(194,104,140,0.35)' }}
         >
           <Arrow dir="left" />
-        </button>
+        </motion.button>
 
         <div className="flex items-center gap-1.5" aria-hidden>
           {slides.map((_, i) => (
@@ -140,16 +147,18 @@ export function Act5Memories({ config, reduce, onContinue }: Act5MemoriesProps) 
           ))}
         </div>
 
-        <button
+        <motion.button
           type="button"
           onClick={() => go(1)}
           disabled={index === total - 1}
           aria-label="Next memory"
           className="flex h-11 w-11 items-center justify-center rounded-full border bg-white/70 disabled:opacity-40"
+          whileTap={{ scale: 0.88 }}
+          whileHover={{ scale: 1.06 }}
           style={{ borderColor: 'rgba(194,104,140,0.35)' }}
         >
           <Arrow dir="right" />
-        </button>
+        </motion.button>
       </div>
 
       <div className="mt-7">

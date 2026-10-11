@@ -1,9 +1,10 @@
-import { motion, useAnimationControls } from 'framer-motion'
+import { m as motion, useAnimationControls } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, SceneTitle, StageScene } from '../components/Stage'
 import { Heart, TeddyOnSwing } from '../components/Decor'
+import { AnimatedText } from '../components/AnimatedText'
 
 interface Act9TeddyProps {
   config: ExperienceConfig
@@ -66,9 +67,14 @@ export function Act9Teddy({ config, reduce, onPush, onContinue }: Act9TeddyProps
       transition={{ duration: reduce ? 0.35 : 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
       <Eyebrow>the teddy bears&apos; turn</Eyebrow>
-      <SceneTitle className="mt-4">Push the bears, make them swing</SceneTitle>
+      <SceneTitle className="mt-4" effect="flip" reduce={reduce}>Push the bears, make them swing</SceneTitle>
       <p className="mt-3 max-w-md text-sm text-[#8c4360] sm:text-base">
-        Give the swings a gentle nudge for {config.recipient.name || 'you'}.
+        <AnimatedText
+          text={`Give the swings a gentle nudge for ${config.recipient.name || 'you'}.`}
+          effect="blur"
+          reduce={reduce}
+          highlightText={config.recipient.name}
+        />
       </p>
 
       <div className="relative mt-8 flex h-[42vh] max-h-[340px] min-h-[260px] w-full max-w-md items-start justify-center gap-6">
@@ -77,14 +83,15 @@ export function Act9Teddy({ config, reduce, onPush, onContinue }: Act9TeddyProps
 
         {(['left', 'right'] as const).map((side) => (
           <motion.div key={side} className="flex-1" animate={side === 'left' ? leftCtl : rightCtl} style={{ transformOrigin: 'top center' }}>
-            <button
+            <motion.button
               type="button"
               onClick={() => pushBear(side)}
               aria-label={`Push the ${side} teddy bear on the swing`}
               className="w-full cursor-pointer rounded-b-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#c2688c]"
+              whileTap={{ scale: 0.96 }}
             >
               <TeddyOnSwing variant={side === 'left' ? 'a' : 'b'} size={150} className="mx-auto" />
-            </button>
+            </motion.button>
           </motion.div>
         ))}
 

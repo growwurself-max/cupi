@@ -1,8 +1,9 @@
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, StageScene } from '../components/Stage'
 import { Bunting } from '../components/Bunting'
+import { AnimatedText } from '../components/AnimatedText'
 
 interface Act4BuntingProps {
   config: ExperienceConfig
@@ -43,7 +44,7 @@ export function Act4Bunting({ config, reduce, onCheer, onContinue }: Act4Bunting
         >
           <span className="h-px w-10" style={{ background: PALETTE.gold }} />
           <span className="font-display text-lg font-semibold" style={{ color: PALETTE.berrySoft }}>
-            {config.content.memoryDate}
+            <AnimatedText text={config.content.memoryDate} effect="flip" reduce={reduce} highlightText={config.recipient.name} />
           </span>
           <span className="h-px w-10" style={{ background: PALETTE.gold }} />
         </motion.div>

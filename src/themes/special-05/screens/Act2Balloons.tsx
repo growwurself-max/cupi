@@ -1,9 +1,10 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m as motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, SceneTitle, StageScene } from '../components/Stage'
 import { Balloon, Heart, Sparkle } from '../components/Decor'
+import { AnimatedText } from '../components/AnimatedText'
 
 interface Act2BalloonsProps {
   config: ExperienceConfig
@@ -56,8 +57,10 @@ export function Act2Balloons({ config, reduce, onPop, onContinue }: Act2Balloons
       transition={{ duration: reduce ? 0.35 : 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
       <Eyebrow>a little surprise</Eyebrow>
-      <SceneTitle className="mt-4">{config.content.revealHeading}</SceneTitle>
-      <p className="mt-3 max-w-md text-sm text-[#8c4360] sm:text-base">{config.content.revealSubtext}</p>
+      <SceneTitle className="mt-4" effect="blur" reduce={reduce} highlightText={config.recipient.name}>{config.content.revealHeading}</SceneTitle>
+      <p className="mt-3 max-w-md text-sm text-[#8c4360] sm:text-base">
+        <AnimatedText text={config.content.revealSubtext} effect="blur" reduce={reduce} highlightText={config.recipient.name} />
+      </p>
 
       {/* balloon field */}
       <div className="relative mt-4 h-[46vh] max-h-[360px] min-h-[280px] w-full max-w-lg">

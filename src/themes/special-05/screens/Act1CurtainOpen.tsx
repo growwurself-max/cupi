@@ -1,8 +1,9 @@
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, StageScene } from '../components/Stage'
 import { Sparkle } from '../components/Decor'
+import { AnimatedText, RecipientName } from '../components/AnimatedText'
 
 interface Act1CurtainOpenProps {
   config: ExperienceConfig
@@ -34,7 +35,7 @@ export function Act1CurtainOpen({ config, reduce }: Act1CurtainOpenProps) {
         transition={{ delay: reduce ? 0 : 0.35, duration: 0.7 }}
         className="mt-7 text-sm uppercase tracking-[0.4em] text-[#b98a9f]"
       >
-        Welcome
+        <AnimatedText text="Welcome" effect="masked" reduce={reduce} />
       </motion.p>
 
       <motion.h1
@@ -44,23 +45,7 @@ export function Act1CurtainOpen({ config, reduce }: Act1CurtainOpenProps) {
         className="font-script mt-2 max-w-full break-words px-2 text-[clamp(2.5rem,12vw,4.5rem)] leading-[1.05] sm:text-7xl"
         style={{ color: PALETTE.berry }}
       >
-        <span className="relative inline-block">
-          {name}
-          <motion.span
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              color: 'transparent',
-              backgroundImage: `linear-gradient(100deg, transparent 12%, ${PALETTE.goldLight} 48%, transparent 84%)`,
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-            }}
-            animate={reduce ? undefined : { clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)', 'inset(0 0 0 100%)'] }}
-            transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 2.2, ease: 'easeInOut', delay: 1 }}
-          >
-            {name}
-          </motion.span>
-        </span>
+        <RecipientName text={name} reduce={reduce} />
       </motion.h1>
 
       <motion.p
@@ -69,7 +54,7 @@ export function Act1CurtainOpen({ config, reduce }: Act1CurtainOpenProps) {
         transition={{ delay: reduce ? 0 : 0.8, duration: 0.7 }}
         className="mt-6 max-w-md text-base leading-relaxed text-[#8c4360] sm:text-lg"
       >
-        {config.content.teaserSubtext}
+        <AnimatedText text={config.content.teaserSubtext} effect="blur" reduce={reduce} highlightText={name} />
       </motion.p>
 
       <div className="mt-8 flex items-center gap-3" aria-hidden>

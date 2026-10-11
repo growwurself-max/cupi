@@ -1,6 +1,7 @@
-import { motion, type HTMLMotionProps } from 'framer-motion'
+import { m as motion, type HTMLMotionProps } from 'framer-motion'
 import type { ReactNode } from 'react'
 import { GOLD_TRIM, PALETTE } from '../palette'
+import { AnimatedText, type TextEffect } from './AnimatedText'
 
 export type SceneMotionPreset =
   | 'circle-reveal'
@@ -140,13 +141,29 @@ export function Eyebrow({ children }: { children: ReactNode }) {
   )
 }
 
-export function SceneTitle({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function SceneTitle({
+  children,
+  className = '',
+  reduce = false,
+  effect = 'masked',
+  highlightText,
+}: {
+  children: ReactNode
+  className?: string
+  reduce?: boolean
+  effect?: TextEffect
+  highlightText?: string
+}) {
   return (
     <h2
       className={`font-display text-3xl font-bold leading-tight sm:text-5xl ${className}`}
       style={{ color: PALETTE.berry }}
     >
-      {children}
+      {typeof children === 'string' ? (
+        <AnimatedText text={children} effect={effect} reduce={reduce} highlightText={highlightText} />
+      ) : (
+        children
+      )}
     </h2>
   )
 }

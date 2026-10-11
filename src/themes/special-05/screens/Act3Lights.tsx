@@ -1,8 +1,9 @@
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import { useMemo, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, SceneTitle, StageScene } from '../components/Stage'
+import { AnimatedText } from '../components/AnimatedText'
 
 interface Act3LightsProps {
   config: ExperienceConfig
@@ -47,8 +48,10 @@ export function Act3Lights({ config, reduce, onLight, onContinue }: Act3LightsPr
       transition={{ duration: reduce ? 0.35 : 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
       <Eyebrow>the stage wakes up</Eyebrow>
-      <SceneTitle className="mt-4">{config.content.suspenseHeading}</SceneTitle>
-      <p className="mt-3 max-w-md text-sm text-[#8c4360] sm:text-base">{config.content.suspenseSubtext}</p>
+      <SceneTitle className="mt-4" effect="spring" reduce={reduce} highlightText={config.recipient.name}>{config.content.suspenseHeading}</SceneTitle>
+      <p className="mt-3 max-w-md text-sm text-[#8c4360] sm:text-base">
+        <AnimatedText text={config.content.suspenseSubtext} effect="spring" reduce={reduce} highlightText={config.recipient.name} />
+      </p>
 
       <div className="relative mt-6 h-[42vh] max-h-[340px] min-h-[260px] w-full max-w-xl">
         {/* the wire */}

@@ -1,9 +1,10 @@
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, StageScene } from '../components/Stage'
 import { Sparkle } from '../components/Decor'
+import { AnimatedText, RecipientName } from '../components/AnimatedText'
 
 interface Act6ScratchProps {
   config: ExperienceConfig
@@ -119,9 +120,9 @@ export function Act6Scratch({ config, reduce, onScratch, onContinue }: Act6Scrat
             <Sparkle size={34} color={PALETTE.gold} />
           </motion.span>
           <p className="font-display text-2xl font-bold leading-snug" style={{ color: PALETTE.berry }}>
-            {config.content.letterIntro}
+            <AnimatedText text={config.content.letterIntro} effect="scale" reduce={reduce} highlightText={config.recipient.name} />
           </p>
-          <p className="text-sm text-[#8c4360]">For {config.recipient.name || 'you'}</p>
+          <p className="text-sm text-[#8c4360]">For <RecipientName text={config.recipient.name || 'you'} reduce={reduce} /></p>
         </div>
 
         {/* scratch-off cover */}

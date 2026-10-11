@@ -1,4 +1,4 @@
-import { motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'framer-motion'
+import { m as motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'framer-motion'
 import { useEffect } from 'react'
 import { PALETTE } from '../palette'
 
@@ -22,13 +22,13 @@ interface CloudSpec {
 }
 
 const CLOUDS: CloudSpec[] = [
-  { id: 'far-a', top: '12%', start: '-24%', width: 160, opacity: 0.25, duration: 94, travel: '145vw', delay: -21, bob: 8, breath: 0.025, depth: 0.25, tint: '#FFFFFF' },
-  { id: 'far-b', top: '29%', start: '118%', width: 176, opacity: 0.28, duration: 108, travel: '-148vw', delay: -57, bob: 7, breath: 0.035, depth: 0.3, tint: '#FDF1F6' },
-  { id: 'mid-a', top: '7%', start: '13%', width: 250, opacity: 0.57, duration: 79, travel: '130vw', delay: -38, bob: 11, breath: 0.045, depth: 0.58, tint: '#FFFFFF' },
-  { id: 'mid-b', top: '45%', start: '104%', width: 238, opacity: 0.46, duration: 88, travel: '-136vw', delay: -12, bob: 12, breath: 0.05, depth: 0.7, tint: '#F7DFEA' },
-  { id: 'mid-c', top: '73%', start: '-17%', width: 222, opacity: 0.38, duration: 91, travel: '139vw', delay: -64, bob: 9, breath: 0.04, depth: 0.78, tint: '#F5D8E6' },
-  { id: 'near-a', top: '24%', start: '114%', width: 332, opacity: 0.36, duration: 68, travel: '-145vw', delay: -29, bob: 15, breath: 0.06, depth: 1, tint: '#F5D8E6' },
-  { id: 'near-b', top: '61%', start: '-27%', width: 370, opacity: 0.32, duration: 73, travel: '150vw', delay: -49, bob: 13, breath: 0.055, depth: 1.1, tint: '#F1CCDD' },
+  { id: 'far-a', top: '12%', start: '-150vw', width: 160, opacity: 0.25, duration: 94, travel: '300vw', delay: -21, bob: 8, breath: 0.025, depth: 0.25, tint: '#FFFFFF' },
+  { id: 'far-b', top: '29%', start: '150vw', width: 176, opacity: 0.28, duration: 108, travel: '-300vw', delay: -57, bob: 7, breath: 0.035, depth: 0.3, tint: '#FDF1F6' },
+  { id: 'mid-a', top: '7%', start: '-150vw', width: 250, opacity: 0.57, duration: 79, travel: '300vw', delay: -38, bob: 11, breath: 0.045, depth: 0.58, tint: '#FFFFFF' },
+  { id: 'mid-b', top: '45%', start: '150vw', width: 238, opacity: 0.46, duration: 88, travel: '-300vw', delay: -12, bob: 12, breath: 0.05, depth: 0.7, tint: '#F7DFEA' },
+  { id: 'mid-c', top: '73%', start: '-150vw', width: 222, opacity: 0.38, duration: 91, travel: '300vw', delay: -64, bob: 9, breath: 0.04, depth: 0.78, tint: '#F5D8E6' },
+  { id: 'near-a', top: '24%', start: '150vw', width: 332, opacity: 0.36, duration: 68, travel: '-300vw', delay: -29, bob: 15, breath: 0.06, depth: 1, tint: '#F5D8E6' },
+  { id: 'near-b', top: '61%', start: '-150vw', width: 370, opacity: 0.32, duration: 73, travel: '300vw', delay: -49, bob: 13, breath: 0.055, depth: 1.1, tint: '#F1CCDD' },
 ]
 
 const SPARKLES = [

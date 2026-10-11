@@ -1,4 +1,4 @@
-import { AnimatePresence, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m as motion, useReducedMotion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSoundEffects } from '../../hooks/useSoundEffects'
 import { resolveConfigPlaceholders } from '../../utils/placeholders'
@@ -42,10 +42,14 @@ export function StarryNightTheme({
 }: StarryNightThemeProps) {
   const [step, setStep] = useState(1)
   const [curtainsOpen, setCurtainsOpen] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   const [pageHidden, setPageHidden] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const advanceTimer = useRef<number | null>(null)
   const curtainAutoTimer = useRef<number | null>(null)
+  const pendingStepRef = useRef<number | null>(null)
+  const transitionLockRef = useRef(false)
+  const swipeStart = useRef<{ x: number; time: number } | null>(null)
   const startedRef = useRef(false)
   const prefersReducedMotion = useReducedMotion()
   const reduce = !!prefersReducedMotion
@@ -75,27 +79,42 @@ export function StarryNightTheme({
     }
   }, [])
 
-  const goNext = useCallback(() => {
-    const target = Math.min(step + 1, TOTAL_STEPS)
+  const requestStep = useCallback((requestedStep: number) => {
+    const target = Math.max(1, Math.min(requestedStep, TOTAL_STEPS))
     clearAdvance()
+    if (target === step || transitionLockRef.current) return
     if (!reduce && [4, 7, TOTAL_STEPS].includes(target)) {
+      transitionLockRef.current = true
+      setIsTransitioning(true)
+      pendingStepRef.current = target
       setCurtainsOpen(false)
-      advanceTimer.current = window.setTimeout(() => {
-        advanceTimer.current = null
-        setStep(target)
-      }, 650)
       return
     }
     setStep(target)
   }, [clearAdvance, reduce, step])
-  const goBack = useCallback(() => setStep((prev) => Math.max(prev - 1, 1)), [])
-  const jumpToStep = useCallback((target: number) => {
-    clearAdvance()
-    setStep(Math.max(1, Math.min(target, TOTAL_STEPS)))
-  }, [clearAdvance])
+  const handleCurtainComplete = useCallback((open: boolean) => {
+    if (!open && pendingStepRef.current !== null) {
+      const nextStep = pendingStepRef.current
+      pendingStepRef.current = null
+      setStep(nextStep)
+      setCurtainsOpen(true)
+      return
+    }
+    if (open && transitionLockRef.current) {
+      transitionLockRef.current = false
+      setIsTransitioning(false)
+    }
+    if (open && step === 1 && !reduce) {
+      clearAdvance()
+      advanceTimer.current = window.setTimeout(() => requestStep(2), 2200)
+    }
+  }, [clearAdvance, reduce, requestStep, step])
 
   const replay = useCallback(() => {
     clearAdvance()
+    transitionLockRef.current = false
+    setIsTransitioning(false)
+    pendingStepRef.current = null
     setCurtainsOpen(false)
     sound.resume()
     setStep(1)
@@ -108,39 +127,23 @@ export function StarryNightTheme({
   }, [clearAdvance, onExit, sound])
 
   const handleOpenCurtains = useCallback(() => {
-    if (curtainsOpen || reduce) return
+    if (curtainsOpen) return
     setCurtainsOpen(true)
     playIfOn(sound.playRevealChime)
-    advanceTimer.current = window.setTimeout(() => goNext(), 1500)
-  }, [curtainsOpen, goNext, playIfOn, reduce, sound.playRevealChime])
+  }, [curtainsOpen, playIfOn, sound.playRevealChime])
 
-  // Curtain choreography: closed on scene 1, open on scenes 2–9, and a
-  // close-then-open curtain call that frames the finale.
-  useEffect(() => {
-    clearAdvance()
-    if (step === 1) {
-      setCurtainsOpen(false)
+  const goNext = useCallback(() => {
+    if (step === 1 && !curtainsOpen) {
+      handleOpenCurtains()
       return
     }
-    if (step === TOTAL_STEPS) {
-      if (reduce) {
-        setCurtainsOpen(true)
-        return
-      }
-      setCurtainsOpen(false)
-      const t = window.setTimeout(() => setCurtainsOpen(true), reduce ? 250 : 750)
-      return () => window.clearTimeout(t)
-    }
-    setCurtainsOpen(true)
-  }, [step, reduce, clearAdvance])
+    requestStep(step + 1)
+  }, [curtainsOpen, handleOpenCurtains, requestStep, step])
+  const goBack = useCallback(() => requestStep(step - 1), [requestStep, step])
+  const jumpToStep = useCallback((target: number) => requestStep(target), [requestStep])
 
   useEffect(() => {
-    if (step !== 1) return
-    if (reduce) {
-      setCurtainsOpen(true)
-      advanceTimer.current = window.setTimeout(() => goNext(), 5000)
-      return () => clearAdvance()
-    }
+    if (step !== 1 || reduce) return
     if (!curtainsOpen) {
       curtainAutoTimer.current = window.setTimeout(() => handleOpenCurtains(), 4200)
     }
@@ -150,7 +153,7 @@ export function StarryNightTheme({
         curtainAutoTimer.current = null
       }
     }
-  }, [clearAdvance, curtainsOpen, goNext, handleOpenCurtains, reduce, step])
+  }, [curtainsOpen, handleOpenCurtains, reduce, step])
 
   // Keep the very first render silent: sound is off until the guest unmutes.
   useEffect(() => {
@@ -174,25 +177,46 @@ export function StarryNightTheme({
 
   useEffect(() => () => clearAdvance(), [clearAdvance])
 
+  const sceneTransitionSound = useCallback(() => {
+    playIfOn(sound.playRevealChime)
+  }, [playIfOn, sound.playRevealChime])
+
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext()
-      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goBack()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') goNext()
+      else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') goBack()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [goNext, goBack])
 
-  const sceneTransitionSound = useCallback(() => {
-    playIfOn(sound.playRevealChime)
-  }, [playIfOn, sound.playRevealChime])
-
   return (
-    <div
-      ref={scrollRef}
-      className="relative isolate h-dvh overflow-x-hidden overflow-y-auto"
-      style={{ background: '#fbe6ee', color: '#6E2440' }}
-    >
+    <MotionConfig reducedMotion="user">
+      <LazyMotion features={domAnimation}>
+        <div
+          ref={scrollRef}
+          className="relative isolate h-dvh overflow-x-hidden overflow-y-auto"
+          style={{ background: '#fbe6ee', color: '#6E2440' }}
+          onPointerDown={(event) => {
+            if (event.pointerType !== 'touch') return
+            if (event.target instanceof Element && event.target.closest('button, canvas, a, [role="button"]')) return
+            swipeStart.current = { x: event.clientX, time: event.timeStamp }
+          }}
+          onPointerUp={(event) => {
+            const start = swipeStart.current
+            swipeStart.current = null
+            if (!start) return
+            const delta = event.clientX - start.x
+            const elapsed = Math.max(1, event.timeStamp - start.time)
+            if (Math.abs(delta) > 76 || (Math.abs(delta) > 34 && Math.abs(delta / elapsed) > 0.55)) {
+              if (delta < 0) goNext()
+              else goBack()
+            }
+          }}
+          onPointerCancel={() => {
+            swipeStart.current = null
+          }}
+        >
       {/* Warm stage wash */}
       <div
         aria-hidden
@@ -227,16 +251,52 @@ export function StarryNightTheme({
         onJumpToStep={isDemoPreview ? jumpToStep : undefined}
       />
 
+      <div
+        className="fixed left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/70 bg-white/75 px-3 py-2 shadow-lg backdrop-blur-md"
+        style={{ bottom: 'calc(0.8rem + env(safe-area-inset-bottom))' }}
+        aria-label="Slide navigation"
+      >
+        <motion.button
+          type="button"
+          onClick={goBack}
+          disabled={step === 1 || isTransitioning}
+          aria-label="Previous slide"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white/80 text-lg text-[#6E2440] transition-transform hover:scale-105 active:scale-95 disabled:opacity-40"
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.06 }}
+        >
+          ‹
+        </motion.button>
+        <div className="flex min-w-[4.5rem] flex-col items-center gap-1" role="status" aria-label={`Slide ${step} of ${TOTAL_STEPS}`}>
+          <span className="text-[10px] font-semibold tracking-[0.16em] text-[#8c4360]">{step} / {TOTAL_STEPS}</span>
+          <span className="h-1 w-14 overflow-hidden rounded-full bg-rose-100">
+            <span className="block h-full rounded-full bg-[#c2688c] transition-[width] duration-500" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
+          </span>
+        </div>
+        <motion.button
+          type="button"
+          onClick={goNext}
+          disabled={step === TOTAL_STEPS || isTransitioning}
+          aria-label="Next slide"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white/80 text-lg text-[#6E2440] transition-transform hover:scale-105 active:scale-95 disabled:opacity-40"
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.06 }}
+        >
+          ›
+        </motion.button>
+      </div>
+
       <CurtainStage
-        open={curtainsOpen}
+        open={curtainsOpen || reduce}
         reduce={reduce}
         interactive={step === 1 && !reduce}
         onOpen={handleOpenCurtains}
+        onTransitionComplete={handleCurtainComplete}
       />
       <SparkleTrail reduce={reduce || pageHidden} />
 
-      <AnimatePresence mode="wait">
-        {step === 1 && curtainsOpen && (
+      <AnimatePresence mode="sync">
+        {step === 1 && (
           <Act1CurtainOpen key="scene-1" config={resolvedConfig} reduce={reduce} />
         )}
 
@@ -272,7 +332,7 @@ export function StarryNightTheme({
             config={resolvedConfig}
             reduce={reduce}
             onCheer={() => {
-              if (!pageHidden) fireContinuousSparkle(1000)
+              if (!pageHidden && !reduce) fireContinuousSparkle(1000)
               playIfOn(sound.playBurstShimmer)
             }}
             onContinue={() => {
@@ -361,6 +421,8 @@ export function StarryNightTheme({
           />
         )}
       </AnimatePresence>
-    </div>
+        </div>
+      </LazyMotion>
+    </MotionConfig>
   )
 }

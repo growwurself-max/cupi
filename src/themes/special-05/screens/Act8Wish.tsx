@@ -1,8 +1,9 @@
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, PrimaryButton, StageScene } from '../components/Stage'
+import { AnimatedText } from '../components/AnimatedText'
 
 interface Act8WishProps {
   config: ExperienceConfig
@@ -73,17 +74,19 @@ export function Act8Wish({ config, reduce, onBlow, onContinue }: Act8WishProps) 
       </div>
 
       <p className="mt-8 max-w-sm font-display text-lg font-semibold" style={{ color: PALETTE.berry }}>
-        {config.content.wishPrompt}
+        <AnimatedText text={config.content.wishPrompt} effect="shimmer" reduce={reduce} highlightText={config.recipient.name} />
       </p>
 
       {!blown && !reduce && (
-        <button
+        <motion.button
           type="button"
           onPointerDown={startHold}
           onPointerUp={releaseHold}
           onPointerCancel={releaseHold}
           onPointerLeave={releaseHold}
           className="relative mt-6 flex h-16 w-16 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#c2688c]"
+          whileTap={{ scale: 0.9, rotate: -4 }}
+          whileHover={{ scale: 1.05 }}
           aria-label="Press and hold to blow out the candles"
         >
           <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90">
@@ -103,7 +106,7 @@ export function Act8Wish({ config, reduce, onBlow, onContinue }: Act8WishProps) 
           <span className="text-2xl" aria-hidden>
             🌬️
           </span>
-        </button>
+        </motion.button>
       )}
 
       {!blown && !reduce && (

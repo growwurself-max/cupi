@@ -116,6 +116,50 @@ body {
   color: #881337;
 }
 
+.special-name {
+  text-shadow: 0 0 14px rgba(240, 217, 166, 0.32);
+  animation: special-name-glow 3.8s ease-in-out infinite;
+}
+
+.special-text-shimmer {
+  color: transparent;
+  background-image: linear-gradient(105deg, #6e2440 0%, #8c4360 24%, #d8b26a 48%, #8c4360 72%, #6e2440 100%);
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: special-text-shimmer 4.8s ease-in-out infinite;
+}
+
+@keyframes special-name-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 8px rgba(240, 217, 166, 0.18);
+  }
+  50% {
+    text-shadow: 0 0 17px rgba(240, 217, 166, 0.48);
+  }
+}
+
+@keyframes special-text-shimmer {
+  0%,
+  100% {
+    background-position: 100% center;
+  }
+  50% {
+    background-position: 0 center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .special-text-shimmer {
+    animation: none;
+    background-position: 50% center;
+  }
+  .special-name {
+    animation: none;
+  }
+}
+
 button {
   cursor: pointer;
   font-family: inherit;

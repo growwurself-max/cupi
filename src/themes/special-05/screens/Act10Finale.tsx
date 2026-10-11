@@ -1,9 +1,10 @@
-import { motion } from 'framer-motion'
+import { m as motion } from 'framer-motion'
 import { useEffect, useRef } from 'react'
 import type { ExperienceConfig } from '../../../types/experience'
 import { PALETTE } from '../palette'
 import { Eyebrow, GhostButton, PrimaryButton, StageScene } from '../components/Stage'
 import { Heart, Sparkle, TeddyOnSwing } from '../components/Decor'
+import { AnimatedText, RecipientName } from '../components/AnimatedText'
 
 interface Act10FinaleProps {
   config: ExperienceConfig
@@ -69,11 +70,11 @@ export function Act10Finale({ config, reduce, onCelebrate, onReplay, onExit }: A
         className="font-script mt-5 text-5xl leading-[1.05] sm:text-7xl"
         style={{ color: PALETTE.berry }}
       >
-        {config.content.finalMessage}
+        <AnimatedText text={config.content.finalMessage} effect="wave" reduce={reduce} highlightText={config.recipient.name} />
       </h1>
 
       <p className="mt-5 max-w-md font-display text-lg sm:text-xl" style={{ color: PALETTE.roseDeep }}>
-        {config.content.finalCelebration}
+        <AnimatedText text={config.content.finalCelebration} effect="shimmer" reduce={reduce} highlightText={config.recipient.name} />
       </p>
 
       <div className="mt-8 flex items-end justify-center gap-2">
@@ -82,7 +83,7 @@ export function Act10Finale({ config, reduce, onCelebrate, onReplay, onExit }: A
       </div>
 
       <p className="mt-8 text-sm font-semibold" style={{ color: PALETTE.berrySoft }}>
-        — {config.sender.name}
+        — <RecipientName text={config.sender.name} reduce={reduce} />
       </p>
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
